@@ -25,8 +25,7 @@ function Simulator() {
         message: `Invertir $${amount} al ${apy}% APY por ${duration} días generaría $${returnForPeriod.toFixed(2)} USD.`
       });
     } else {
-      // Simulación de préstamo: cálculo de LTV simulado
-      const collateralValue = 3000; // 1 ETH = $3000 simulado
+      const collateralValue = 3000;
       const ltv = (amount / collateralValue) * 100;
       const monthlyPayment = (amount * (apy / 100) / 12).toFixed(2);
       
@@ -35,54 +34,63 @@ function Simulator() {
         ltv: ltv.toFixed(1),
         monthlyPayment: monthlyPayment,
         risk: ltv > 80 ? 'Alto' : ltv > 60 ? 'Moderado' : 'Bajo',
-        message: `Solicitar $${amount} con 1 ETH de colateral ($${collateralValue}) da un LTV de ${ltv.toFixed(1)}% (${ltv > 80 ? '⚠️ Riesgo de liquidación' : '✅ Aceptable'}).`
+        message: `Solicitar $${amount} con 1 ETH de colateral ($${collateralValue}) da un LTV de ${ltv.toFixed(1)}%`
       });
     }
   };
 
   return (
     <div>
-      <h1>🔄 Simulador DeFi</h1>
-      <p style={{ marginBottom: '20px', color: '#94a3b8' }}>
-        Simula escenarios de inversión o préstamo sin riesgo
-      </p>
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '4px', color: '#111827' }}>Simulador DeFi</h1>
+        <p style={{ color: '#6b7280', fontSize: '14px' }}>Simula escenarios de inversión o préstamo sin riesgo</p>
+      </div>
 
       <div className="grid-2">
-        <div className="card">
-          <h3>⚙️ Configurar Escenario</h3>
+        <div style={{ background: '#ffffff', borderRadius: '16px', padding: '28px', border: '1px solid #e4e7eb' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '24px', color: '#111827' }}>Configurar Escenario</h3>
           
-          <div style={{ marginBottom: '20px', marginTop: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '8px' }}>Tipo de simulación</label>
-            <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', marginBottom: '10px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Tipo de simulación</label>
+            <div style={{ display: 'flex', gap: '12px' }}>
               <button 
                 type="button"
                 onClick={() => setScenario({...scenario, type: 'lend'})}
-                style={{ background: scenario.type === 'lend' ? '#10b981' : '#334155' }}
+                style={{ 
+                  flex: 1,
+                  background: scenario.type === 'lend' ? '#059669' : '#ffffff',
+                  border: scenario.type === 'lend' ? 'none' : '1px solid #e4e7eb',
+                  color: scenario.type === 'lend' ? 'white' : '#374151'
+                }}
               >
-                📈 Prestar (Lend)
+                Prestar (Lend)
               </button>
               <button 
                 type="button"
                 onClick={() => setScenario({...scenario, type: 'borrow'})}
-                style={{ background: scenario.type === 'borrow' ? '#f59e0b' : '#334155' }}
+                style={{ 
+                  flex: 1,
+                  background: scenario.type === 'borrow' ? '#d97706' : '#ffffff',
+                  border: scenario.type === 'borrow' ? 'none' : '1px solid #e4e7eb',
+                  color: scenario.type === 'borrow' ? 'white' : '#374151'
+                }}
               >
-                📉 Pedir (Borrow)
+                Pedir (Borrow)
               </button>
             </div>
           </div>
 
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '8px' }}>Monto (USD)</label>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Monto (USD)</label>
             <input
               type="number"
               value={scenario.amount}
               onChange={(e) => setScenario({...scenario, amount: e.target.value})}
-              style={{ width: '100%' }}
             />
           </div>
 
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '8px' }}>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
               {scenario.type === 'lend' ? 'Tasa (APY %)' : 'Tasa de interés %'}
             </label>
             <input
@@ -90,69 +98,76 @@ function Simulator() {
               step="0.5"
               value={scenario.apy}
               onChange={(e) => setScenario({...scenario, apy: e.target.value})}
-              style={{ width: '100%' }}
             />
           </div>
 
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', marginBottom: '8px' }}>Plazo (días)</label>
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Plazo (días)</label>
             <input
               type="number"
               value={scenario.duration}
               onChange={(e) => setScenario({...scenario, duration: e.target.value})}
-              style={{ width: '100%' }}
             />
           </div>
 
-          {scenario.type === 'borrow' && (
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px' }}>Colateral</label>
-              <select
-                value={scenario.collateral}
-                onChange={(e) => setScenario({...scenario, collateral: e.target.value})}
-                style={{ width: '100%' }}
-              >
-                <option value="ETH">Ethereum (ETH) - $3,000 USD</option>
-                <option value="BTC">Bitcoin (BTC) - $30,000 USD</option>
-                <option value="USDC">USDC - $1 USD</option>
-              </select>
-            </div>
-          )}
-
-          <button onClick={runSimulation} style={{ width: '100%', marginTop: '10px' }}>
+          <button onClick={runSimulation} style={{ width: '100%' }}>
             Simular Escenario
           </button>
         </div>
 
-        <div className="card">
-          <h3>📊 Resultado de la Simulación</h3>
-          {result && (
-            <div style={{ marginTop: '20px' }}>
-              <p style={{ fontSize: '16px', lineHeight: '1.6' }}>{result.message}</p>
+        <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '28px', border: '1px solid #e4e7eb' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px', color: '#111827' }}>Resultado de la Simulación</h3>
+          {result ? (
+            <div>
+              <p style={{ fontSize: '14px', color: '#374151', marginBottom: '20px', lineHeight: '1.5' }}>{result.message}</p>
               
               {result.type === 'lend' && (
-                <div style={{ marginTop: '20px', padding: '15px', background: '#10b98120', borderRadius: '8px' }}>
-                  <p><strong>💰 Ganancia:</strong> ${result.gain} USD</p>
-                  <p><strong>💵 Total al final:</strong> ${result.total} USD</p>
+                <div style={{ 
+                  padding: '20px', 
+                  background: '#ecfdf5', 
+                  borderRadius: '12px',
+                  border: '1px solid #a7f3d0'
+                }}>
+                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Ganancia estimada</p>
+                  <h2 style={{ fontSize: '30px', fontWeight: '600', color: '#059669', marginBottom: '4px' }}>+${result.gain} USD</h2>
+                  <p style={{ fontSize: '13px', color: '#6b7280' }}>Total al final: ${result.total} USD</p>
                 </div>
               )}
               
               {result.type === 'borrow' && (
-                <div style={{ marginTop: '20px', padding: '15px', background: result.risk === 'Alto' ? '#ef444420' : '#10b98120', borderRadius: '8px' }}>
-                  <p><strong>📊 LTV (Loan-to-Value):</strong> {result.ltv}%</p>
-                  <p><strong>⚠️ Nivel de Riesgo:</strong> {result.risk}</p>
-                  <p><strong>💰 Pago mensual estimado:</strong> ${result.monthlyPayment} USD</p>
-                  {result.risk === 'Alto' && (
-                    <p style={{ color: '#ef4444', marginTop: '10px' }}>
-                      ⚠️ Alerta: LTV alto. Si el colateral baja de precio, podrías ser liquidado.
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #e4e7eb' }}>
+                    <span style={{ fontSize: '13px', color: '#6b7280' }}>LTV (Loan-to-Value)</span>
+                    <strong style={{ fontSize: '18px', color: '#1e40af' }}>{result.ltv}%</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid #e4e7eb' }}>
+                    <span style={{ fontSize: '13px', color: '#6b7280' }}>Pago mensual estimado</span>
+                    <strong style={{ color: '#111827' }}>${result.monthlyPayment} USD</strong>
+                  </div>
+                  <div style={{ 
+                    padding: '14px', 
+                    background: result.risk === 'Alto' ? '#fef2f2' : result.risk === 'Moderado' ? '#fffbeb' : '#ecfdf5',
+                    borderRadius: '10px',
+                    border: `1px solid ${result.risk === 'Alto' ? '#fecaca' : result.risk === 'Moderado' ? '#fed7aa' : '#a7f3d0'}`
+                  }}>
+                    <p style={{ 
+                      fontSize: '13px', 
+                      color: result.risk === 'Alto' ? '#dc2626' : result.risk === 'Moderado' ? '#d97706' : '#059669',
+                      fontWeight: '500'
+                    }}>
+                      ⚠️ Nivel de Riesgo: {result.risk}
                     </p>
-                  )}
+                    {result.risk === 'Alto' && (
+                      <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '8px' }}>
+                        Si el colateral baja de precio, podrías ser liquidado.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-          )}
-          {!result && (
-            <p style={{ marginTop: '20px', color: '#94a3b8' }}>
+          ) : (
+            <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '20px' }}>
               Configura un escenario y haz clic en "Simular Escenario" para ver los resultados.
             </p>
           )}

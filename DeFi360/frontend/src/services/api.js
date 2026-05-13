@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// Configuración base de la API (cuando tengas backend)
 const API_BASE_URL = 'http://localhost:3000/api';
 
 const api = axios.create({
@@ -10,7 +9,7 @@ const api = axios.create({
   },
 });
 
-// Interceptor para agregar token de autenticación
+// Interceptor para agregar token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
@@ -19,121 +18,94 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Servicios de autenticación (simulados por ahora)
+// ============ AUTH SERVICES ============
 export const authService = {
-  // Simular conexión de wallet
   connectWallet: async (walletAddress) => {
-    // Simulación - reemplazar con llamada real al backend después
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          user: {
-            id: 1,
-            walletAddress: walletAddress,
-            balance: 5000,
-          },
-          token: 'mock-jwt-token',
-        });
-      }, 500);
-    });
+    const response = await api.post('/auth/connect-wallet', { walletAddress });
+    if (response.data.token) {
+      localStorage.setItem('authToken', response.data.token);
+      localStorage.setItem('userData', JSON.stringify(response.data.user));
+    }
+    return response.data;
   },
   
-  disconnect: () => {
+  getProfile: async () => {
+    const response = await api.get('/auth/profile');
+    return response.data;
+  },
+  
+  logout: () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
   },
+  
+  getCurrentUser: () => {
+    const userData = localStorage.getItem('userData');
+    return userData ? JSON.parse(userData) : null;
+  }
 };
 
-// Servicios de Marketplace
+// ============ MARKETPLACE SERVICES ============
 export const marketplaceService = {
   getOffers: async (filters = {}) => {
-    // Simulación - conectar con backend después
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          data: [
-            { id: 1, type: 'lend', amount: 5000, apy: 5.2, duration: 30 },
-            { id: 2, type: 'borrow', amount: 2000, apy: 4.8, duration: 60 },
-          ],
-        });
-      }, 300);
-    });
+    const params = new URLSearchParams(filters).toString();
+    const response = await api.get(`/marketplace/offers${params ? `?${params}` : ''}`);
+    return response.data;
   },
   
-  createLendOffer: async (offerData) => {
-    // Simulación
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true, message: 'Oferta creada exitosamente' });
-      }, 500);
-    });
+  createOffer: async (offerData) => {
+    const response = await api.post('/marketplace/offers', offerData);
+    return response.data;
   },
   
-  createBorrowRequest: async (requestData) => {
-    // Simulación
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true, message: 'Solicitud enviada' });
-      }, 500);
-    });
-  },
+  cancelOffer: async (offerId) => {
+    const response = await api.delete(`/marketplace/offers/${offerId}`);
+    return response.data;
+  }
 };
 
-// Servicios de Préstamos
+// ============ LOAN SERVICES ============
 export const loanService = {
-  calculateLTV: (loanAmount, collateralAmount, collateralPrice = 3000) => {
-    const collateralValue = collateralAmount * collateralPrice;
-    return (loanAmount / collateralValue) * 100;
+  calculateLTV: async (data) => {
+    const response = await api.post('/loans/calculate-ltv', data);
+    return response.data;
   },
   
-  getActiveLoans: async () => {
-    // Simulación
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          data: [
-            { id: 1, amount: 1000, ltv: 65, status: 'active' },
-            { id: 2, amount: 500, ltv: 45, status: 'active' },
-          ],
-        });
-      }, 300);
-    });
+  requestLoan: async (data) => {
+    const response = await api.post('/loans/request', data);
+    return response.data;
   },
+  
+  getUserLoans: async () => {
+    const response = await api.get('/loans/my-loans');
+    return response.data;
+  },
+  
+  matchLoan: async (offerId) => {
+    const response = await api.post(`/loans/match/${offerId}`);
+    return response.data;
+  }
 };
 
-// Servicios de Soporte
+// ============ SUPPORT SERVICES ============
 export const supportService = {
-  createTicket: async (ticketData) => {
-    // Simulación
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          ticketNumber: 'TKT-' + Math.floor(Math.random() * 10000),
-        });
-      }, 500);
-    });
+  createTicket: async (data) => {
+    const response = await api.post('/support/tickets', data);
+    return response.data;
   },
-};
-
-// Servicios Educativos
-export const educationService = {
-  getGlossary: () => {
-    return {
-      terms: [
-        { term: 'DeFi', definition: 'Finanzas Descentralizadas' },
-        { term: 'LTV', definition: 'Loan-to-Value, ratio préstamo/colateral' },
-        { term: 'APY', definition: 'Rendimiento porcentual anual' },
-        { term: 'Liquidación', definition: 'Venta forzada de colateral' },
-      ],
-    };
+  
+  getUserTickets: async () => {
+    const response = await api.get('/support/tickets');
+    return response.data;
   },
+  
+  getTicketById: async (id) => {
+    const response = await api.get(`/support/tickets/${id}`);
+    return response.data;
+  }
 };
 
 export default api;

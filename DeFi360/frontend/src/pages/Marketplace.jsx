@@ -15,45 +15,95 @@ function Marketplace() {
 
   return (
     <div>
-      <h1>Marketplace P2P</h1>
-      <p style={{ marginBottom: '20px', color: '#94a3b8' }}>
-        Encuentra oportunidades de inversión o solicita préstamos
-      </p>
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '4px', color: '#111827' }}>Marketplace P2P</h1>
+        <p style={{ color: '#6b7280', fontSize: '14px' }}>Encuentra oportunidades de inversión o solicita préstamos</p>
+      </div>
 
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
-        <button onClick={() => setFilter('all')} style={{ background: filter === 'all' ? '#3b82f6' : '#334155' }}>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '28px', flexWrap: 'wrap' }}>
+        <button 
+          onClick={() => setFilter('all')} 
+          style={{ 
+            background: filter === 'all' ? '#1e40af' : '#ffffff',
+            color: filter === 'all' ? 'white' : '#374151',
+            border: filter === 'all' ? 'none' : '1px solid #e4e7eb',
+            padding: '8px 20px',
+            borderRadius: '20px',
+            fontSize: '13px'
+          }}
+        >
           Todos
         </button>
-        <button onClick={() => setFilter('lend')} style={{ background: filter === 'lend' ? '#10b981' : '#334155' }}>
-          📈 Prestar (Lend)
+        <button 
+          onClick={() => setFilter('lend')} 
+          style={{ 
+            background: filter === 'lend' ? '#059669' : '#ffffff',
+            color: filter === 'lend' ? 'white' : '#374151',
+            border: filter === 'lend' ? 'none' : '1px solid #e4e7eb',
+            padding: '8px 20px',
+            borderRadius: '20px',
+            fontSize: '13px'
+          }}
+        >
+          Prestar (Lend)
         </button>
-        <button onClick={() => setFilter('borrow')} style={{ background: filter === 'borrow' ? '#f59e0b' : '#334155' }}>
-          📉 Pedir (Borrow)
+        <button 
+          onClick={() => setFilter('borrow')} 
+          style={{ 
+            background: filter === 'borrow' ? '#d97706' : '#ffffff',
+            color: filter === 'borrow' ? 'white' : '#374151',
+            border: filter === 'borrow' ? 'none' : '1px solid #e4e7eb',
+            padding: '8px 20px',
+            borderRadius: '20px',
+            fontSize: '13px'
+          }}
+        >
+          Pedir (Borrow)
         </button>
       </div>
 
       <div className="grid-2">
         {filteredOffers.map(offer => (
-          <div key={offer.id} className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3>{offer.type === 'lend' ? '📈 Oferta de Préstamo' : '📉 Solicitud de Préstamo'}</h3>
-              <span style={{ 
-                background: offer.type === 'lend' ? '#10b981' : '#f59e0b',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                fontSize: '12px'
-              }}>
+          <div key={offer.id} style={{ 
+            background: '#ffffff', 
+            borderRadius: '16px', 
+            padding: '24px', 
+            border: '1px solid #e4e7eb',
+            transition: 'all 0.2s ease'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#111827' }}>
+                {offer.type === 'lend' ? '📈 Oferta de Préstamo' : '📉 Solicitud de Préstamo'}
+              </h3>
+              <span className={`badge ${offer.type === 'lend' ? 'badge-success' : 'badge-warning'}`}>
                 {offer.type === 'lend' ? 'Lend' : 'Borrow'}
               </span>
             </div>
-            <p style={{ margin: '15px 0' }}>Usuario: {offer.user}</p>
-            <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#3b82f6' }}>${offer.amount.toLocaleString()} USD</p>
-            <div style={{ marginTop: '15px' }}>
-              <p>📊 APY: {offer.apy}%</p>
-              <p>⏱️ Plazo: {offer.duration} días</p>
-              <p>🔒 Colateral: {offer.collateral}</p>
+            
+            <p style={{ marginBottom: '12px', fontSize: '13px', color: '#6b7280' }}>
+              Usuario: <strong style={{ color: '#111827' }}>{offer.user}</strong>
+            </p>
+            
+            <h2 style={{ fontSize: '26px', fontWeight: '600', color: '#1e40af', marginBottom: '16px' }}>
+              ${offer.amount.toLocaleString()} USD
+            </h2>
+            
+            <div style={{ marginBottom: '20px', paddingTop: '12px', borderTop: '1px solid #f0f2f5' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>APY</span>
+                <strong style={{ color: '#059669' }}>{offer.apy}%</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>Plazo</span>
+                <strong style={{ color: '#111827' }}>{offer.duration} días</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>Colateral</span>
+                <strong style={{ color: '#111827' }}>{offer.collateral}</strong>
+              </div>
             </div>
-            <button style={{ marginTop: '15px', width: '100%' }}>
+            
+            <button style={{ width: '100%' }}>
               {offer.type === 'lend' ? 'Invertir' : 'Solicitar Préstamo'}
             </button>
           </div>

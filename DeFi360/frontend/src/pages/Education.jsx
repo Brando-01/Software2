@@ -38,76 +38,80 @@ function Education() {
 
   return (
     <div>
-      <h1>📚 Zona Educativa</h1>
-      <p style={{ marginBottom: '20px', color: '#94a3b8' }}>
-        Aprende sobre Finanzas Descentralizadas sin riesgo
-      </p>
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '4px', color: '#111827' }}>Zona Educativa</h1>
+        <p style={{ color: '#6b7280', fontSize: '14px' }}>Aprende sobre Finanzas Descentralizadas sin riesgo</p>
+      </div>
 
       <div className="grid-2">
-        <div className="card">
-          <h3>📖 Guías y Temas</h3>
-          <div style={{ marginTop: '20px' }}>
+        <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #e4e7eb' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px', color: '#111827' }}>Guías y Temas</h3>
+          <div>
             {topics.map(topic => (
               <div
                 key={topic.id}
                 onClick={() => setSelectedTopic(topic)}
                 style={{
-                  padding: '12px',
+                  padding: '14px 16px',
                   marginBottom: '10px',
-                  background: selectedTopic?.id === topic.id ? '#3b82f6' : '#1e293b',
-                  borderRadius: '8px',
+                  background: selectedTopic?.id === topic.id ? '#f0f2f5' : 'transparent',
+                  border: `1px solid ${selectedTopic?.id === topic.id ? '#e4e7eb' : '#f0f2f5'}`,
+                  borderRadius: '12px',
                   cursor: 'pointer',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.2s ease'
                 }}
               >
-                <h4>{topic.title}</h4>
-                <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '5px' }}>
-                  Nivel: {topic.level}
-                </p>
+                <h4 style={{ fontSize: '14px', fontWeight: '500', color: '#111827', marginBottom: '4px' }}>{topic.title}</h4>
+                <span className="badge badge-primary" style={{ fontSize: '11px' }}>{topic.level}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="card">
-          <h3>📄 Contenido Educativo</h3>
+        <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '24px', border: '1px solid #e4e7eb' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px', color: '#111827' }}>Contenido Educativo</h3>
           {selectedTopic ? (
-            <div style={{ marginTop: '20px' }}>
-              <h2 style={{ marginBottom: '15px', color: '#3b82f6' }}>{selectedTopic.title}</h2>
+            <div>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1e40af', marginBottom: '16px' }}>{selectedTopic.title}</h2>
               <div style={{ 
-                background: '#1e293b', 
+                background: '#ffffff', 
                 padding: '20px', 
-                borderRadius: '8px',
+                borderRadius: '12px',
+                border: '1px solid #e4e7eb',
+                marginBottom: '20px',
                 whiteSpace: 'pre-wrap'
               }}>
-                <p style={{ lineHeight: '1.6' }}>{selectedTopic.content}</p>
+                <p style={{ lineHeight: '1.6', color: '#374151' }}>{selectedTopic.content}</p>
               </div>
               <button 
                 onClick={() => setSelectedTopic(null)}
-                style={{ marginTop: '20px', background: '#334155' }}
+                style={{ background: '#6b7280' }}
               >
                 ← Volver a la lista
               </button>
             </div>
           ) : (
-            <p style={{ marginTop: '20px', color: '#94a3b8' }}>
+            <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '20px' }}>
               Selecciona un tema de la izquierda para comenzar a aprender.
             </p>
           )}
         </div>
       </div>
 
-      {/* Simulador rápido */}
-      <div className="card" style={{ marginTop: '20px' }}>
-        <h3>⚡ Simulador Rápido de LTV</h3>
-        <p style={{ marginBottom: '15px' }}>¿Quieres entender cómo funciona el LTV? Prueba este ejemplo:</p>
-        <div style={{ background: '#1e293b', padding: '15px', borderRadius: '8px' }}>
-          <p><strong>Ejemplo:</strong> Quieres pedir $5,000 USD con 2 ETH de colateral (1 ETH = $3,000 USD)</p>
-          <p style={{ marginTop: '10px' }}>
-            Valor del colateral: 2 × $3,000 = $6,000 USD<br/>
-            LTV = ($5,000 / $6,000) × 100 = <strong style={{ color: '#3b82f6' }}>83.33%</strong>
+      <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #e4e7eb', marginTop: '24px' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px', color: '#111827' }}>Simulador Rápido de LTV</h3>
+        <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>¿Quieres entender cómo funciona el LTV? Prueba este ejemplo:</p>
+        <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e4e7eb' }}>
+          <p style={{ fontSize: '13px', color: '#374151', marginBottom: '12px' }}>
+            <strong>Ejemplo:</strong> Quieres pedir $5,000 USD con 2 ETH de colateral (1 ETH = $3,000 USD)
           </p>
-          <p style={{ marginTop: '10px', color: '#ef4444' }}>
+          <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>
+            Valor del colateral: 2 × $3,000 = $6,000 USD
+          </p>
+          <p style={{ fontSize: '13px', color: '#6b7280' }}>
+            LTV = ($5,000 / $6,000) × 100 = <strong style={{ color: '#059669' }}>83.33%</strong>
+          </p>
+          <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #e4e7eb' }}>
             ⚠️ Este LTV es alto. Si ETH baja a $2,500, tu LTV subiría a 100% y podrías ser liquidado.
           </p>
         </div>

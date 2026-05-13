@@ -36,15 +36,15 @@ function WalletConnector() {
 
   if (walletAddress) {
     return (
-      <div style={{ background: '#1e293b', padding: '8px 15px', borderRadius: '8px', fontSize: '12px' }}>
+      <div style={{ background: '#eff6ff', padding: '8px 15px', borderRadius: '6px', fontSize: '12px', border: '1px solid #93c5fd', color: '#2563eb', fontWeight: '600' }}>
         <span>🔗 {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
-        <span style={{ marginLeft: '10px' }}>💰 ${balance} USD</span>
+        <span style={{ marginLeft: '10px', color: '#059669' }}>💰 ${balance} USD</span>
       </div>
     );
   }
 
   return (
-    <button onClick={connectWallet} style={{ background: '#10b981' }}>
+    <button onClick={connectWallet} style={{ background: '#2563eb' }}>
       🔌 Conectar Wallet
     </button>
   );

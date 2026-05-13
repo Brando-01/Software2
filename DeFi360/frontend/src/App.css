@@ -182,3 +182,48 @@
     border-right-color: var(--border);
   }
 }
+
+/* Grid layouts */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Enhanced text colors for headers */
+h1, h2, h3, h4, h5, h6 {
+  color: #1f2937;
+}
+
+h1 {
+  margin-bottom: 20px;
+}
+
+label {
+  color: #1f2937;
+}
+
+/* Links styling */
+a {
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  opacity: 0.8;
+}
+
+/* Text colors */
+p {
+  color: #4b5563;
+}
+
+strong {
+  color: #1f2937;
+}

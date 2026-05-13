@@ -10,24 +10,31 @@ function Borrow() {
   const [ltv, setLtv] = useState(null);
   const [risk, setRisk] = useState(null);
 
+  const collateralValues = { ETH: 3000, BTC: 30000, USDC: 1 };
+
   const calculateLTV = () => {
     const amount = parseFloat(formData.amount);
     const collateralAmount = parseFloat(formData.collateralAmount);
     
     if (amount && collateralAmount) {
-      // Simulación: 1 ETH = $3000 USD
-      const collateralValue = collateralAmount * 3000;
+      const collateralValue = collateralAmount * collateralValues[formData.collateral];
       const calculatedLTV = (amount / collateralValue) * 100;
       setLtv(calculatedLTV.toFixed(1));
       
       if (calculatedLTV > 80) {
-        setRisk('Alto Riesgo ⚠️');
+        setRisk('Alto Riesgo');
       } else if (calculatedLTV > 60) {
-        setRisk('Riesgo Moderado ⚡');
+        setRisk('Riesgo Moderado');
       } else {
-        setRisk('Bajo Riesgo ✅');
+        setRisk('Bajo Riesgo');
       }
     }
+  };
+
+  const getRiskColor = () => {
+    if (risk === 'Alto Riesgo') return '#dc2626';
+    if (risk === 'Riesgo Moderado') return '#f59e0b';
+    return '#10b981';
   };
 
   const handleSubmit = (e) => {
@@ -37,33 +44,31 @@ function Borrow() {
 
   return (
     <div>
-      <h1>Solicitar Préstamo (Borrow)</h1>
-      <p style={{ marginBottom: '20px', color: '#94a3b8' }}>
-        Ofrece colateral y obtén un préstamo en criptomonedas
-      </p>
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '4px', color: '#111827' }}>Solicitar Préstamo</h1>
+        <p style={{ color: '#6b7280', fontSize: '14px' }}>Ofrece colateral y obtén financiamiento en criptomonedas</p>
+      </div>
 
       <div className="grid-2">
-        <div className="card">
-          <h3>📝 Formulario de Solicitud</h3>
-          <form onSubmit={handleSubmit} style={{ marginTop: '20px' }}>
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px' }}>Monto a solicitar (USD)</label>
+        <div style={{ background: '#ffffff', borderRadius: '16px', padding: '28px', border: '1px solid #e4e7eb' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '24px', color: '#111827' }}>Formulario de Solicitud</h3>
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Monto a solicitar (USD)</label>
               <input
                 type="number"
                 value={formData.amount}
                 onChange={(e) => setFormData({...formData, amount: e.target.value})}
                 placeholder="Ej: 1000"
                 required
-                style={{ width: '100%' }}
               />
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px' }}>Tipo de Colateral</label>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Tipo de Colateral</label>
               <select
                 value={formData.collateral}
                 onChange={(e) => setFormData({...formData, collateral: e.target.value})}
-                style={{ width: '100%' }}
               >
                 <option value="ETH">Ethereum (ETH)</option>
                 <option value="BTC">Bitcoin (BTC)</option>
@@ -71,27 +76,26 @@ function Borrow() {
               </select>
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px' }}>Cantidad de Colateral</label>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Cantidad de Colateral</label>
               <input
                 type="number"
+                step="0.01"
                 value={formData.collateralAmount}
                 onChange={(e) => setFormData({...formData, collateralAmount: e.target.value})}
                 placeholder="Ej: 0.5"
                 required
-                style={{ width: '100%' }}
               />
-              <p style={{ fontSize: '12px', marginTop: '5px', color: '#94a3b8' }}>
-                1 {formData.collateral} ≈ $3,000 USD (simulado)
+              <p style={{ fontSize: '11px', marginTop: '6px', color: '#9ca3af' }}>
+                1 {formData.collateral} ≈ ${collateralValues[formData.collateral].toLocaleString()} USD
               </p>
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px' }}>Plazo (días)</label>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Plazo (días)</label>
               <select
                 value={formData.duration}
                 onChange={(e) => setFormData({...formData, duration: e.target.value})}
-                style={{ width: '100%' }}
               >
                 <option value={30}>30 días</option>
                 <option value={60}>60 días</option>
@@ -100,33 +104,50 @@ function Borrow() {
               </select>
             </div>
 
-            <button type="button" onClick={calculateLTV} style={{ marginRight: '10px' }}>
-              Calcular LTV
-            </button>
-            <button type="submit">Enviar Solicitud</button>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button type="button" onClick={calculateLTV} style={{ flex: 1, background: '#6b7280' }}>
+                Calcular LTV
+              </button>
+              <button type="submit" style={{ flex: 1 }}>Enviar Solicitud</button>
+            </div>
           </form>
         </div>
 
-        <div className="card">
-          <h3>📊 Análisis de Riesgo</h3>
-          {ltv && (
-            <div style={{ marginTop: '20px' }}>
-              <p><strong>Loan-to-Value (LTV):</strong></p>
-              <h2 style={{ fontSize: '36px', color: '#3b82f6' }}>{ltv}%</h2>
-              <p style={{ marginTop: '15px' }}>
-                <strong>Nivel de Riesgo:</strong> <span style={{ 
-                  color: risk?.includes('Bajo') ? '#10b981' : risk?.includes('Moderado') ? '#f59e0b' : '#ef4444'
-                }}>{risk}</span>
-              </p>
+        <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '28px', border: '1px solid #e4e7eb' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px', color: '#111827' }}>Análisis de Riesgo</h3>
+          {ltv ? (
+            <div>
+              <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Loan-to-Value (LTV)</p>
+              <h2 style={{ fontSize: '42px', fontWeight: '600', color: '#1e40af', marginBottom: '16px' }}>{ltv}%</h2>
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '6px' }}>Nivel de Riesgo</p>
+                <span style={{ 
+                  display: 'inline-block',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  background: risk === 'Alto Riesgo' ? '#fef2f2' : risk === 'Riesgo Moderado' ? '#fffbeb' : '#ecfdf5',
+                  color: getRiskColor()
+                }}>
+                  {risk}
+                </span>
+              </div>
               {parseFloat(ltv) > 80 && (
-                <p style={{ marginTop: '15px', padding: '10px', background: '#ef4444', borderRadius: '8px', color: 'white' }}>
-                  ⚠️ Alerta: LTV alto. Podrías ser liquidado si el colateral baja de precio.
-                </p>
+                <div style={{ 
+                  padding: '14px', 
+                  background: '#fef2f2', 
+                  borderRadius: '10px',
+                  border: '1px solid #fecaca'
+                }}>
+                  <p style={{ fontSize: '13px', color: '#dc2626', marginBottom: 0 }}>
+                    ⚠️ Alerta: LTV alto. Si el colateral baja de precio, podrías ser liquidado.
+                  </p>
+                </div>
               )}
             </div>
-          )}
-          {!ltv && (
-            <p style={{ marginTop: '20px', color: '#94a3b8' }}>
+          ) : (
+            <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '20px' }}>
               Completa el formulario y haz clic en "Calcular LTV" para ver el análisis de riesgo.
             </p>
           )}

@@ -34,44 +34,41 @@ function Lend() {
 
   return (
     <div>
-      <h1>Ofrecer Fondos (Lend)</h1>
-      <p style={{ marginBottom: '20px', color: '#94a3b8' }}>
-        Pon a trabajar tus criptomonedas y genera rendimientos
-      </p>
+      <div style={{ marginBottom: '28px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '4px', color: '#111827' }}>Ofrecer Fondos</h1>
+        <p style={{ color: '#6b7280', fontSize: '14px' }}>Pon a trabajar tus criptomonedas y genera rendimientos</p>
+      </div>
 
       <div className="grid-2">
-        <div className="card">
-          <h3>💰 Nueva Oferta de Préstamo</h3>
-          <form onSubmit={handleSubmit} style={{ marginTop: '20px' }}>
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px' }}>Monto a prestar (USD)</label>
+        <div style={{ background: '#ffffff', borderRadius: '16px', padding: '28px', border: '1px solid #e4e7eb' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '24px', color: '#111827' }}>Nueva Oferta de Préstamo</h3>
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Monto a prestar (USD)</label>
               <input
                 type="number"
                 value={formData.amount}
                 onChange={(e) => setFormData({...formData, amount: e.target.value})}
                 placeholder="Ej: 1000"
                 required
-                style={{ width: '100%' }}
               />
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px' }}>Tasa de Interés (APY %)</label>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Tasa de Interés (APY %)</label>
               <input
                 type="number"
                 step="0.1"
                 value={formData.apy}
                 onChange={(e) => setFormData({...formData, apy: e.target.value})}
-                style={{ width: '100%' }}
               />
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px' }}>Plazo (días)</label>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Plazo (días)</label>
               <select
                 value={formData.duration}
                 onChange={(e) => setFormData({...formData, duration: e.target.value})}
-                style={{ width: '100%' }}
               >
                 <option value={30}>30 días</option>
                 <option value={60}>60 días</option>
@@ -80,28 +77,46 @@ function Lend() {
               </select>
             </div>
 
-            <button type="button" onClick={calculateProjection} style={{ marginRight: '10px' }}>
-              Calcular Proyección
-            </button>
-            <button type="submit">Publicar Oferta</button>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button type="button" onClick={calculateProjection} style={{ flex: 1, background: '#6b7280' }}>
+                Calcular Proyección
+              </button>
+              <button type="submit" style={{ flex: 1 }}>Publicar Oferta</button>
+            </div>
           </form>
         </div>
 
-        <div className="card">
-          <h3>📈 Proyección de Rendimiento</h3>
-          {projectedReturn && (
-            <div style={{ marginTop: '20px' }}>
-              <p><strong>Inversión:</strong> ${projectedReturn.amount.toLocaleString()} USD</p>
-              <p><strong>APY:</strong> {projectedReturn.apy}%</p>
-              <p><strong>Plazo:</strong> {projectedReturn.duration} días</p>
-              <hr style={{ margin: '15px 0', borderColor: '#334155' }} />
-              <p><strong>Ganancia estimada:</strong></p>
-              <h2 style={{ fontSize: '28px', color: '#10b981' }}>+${projectedReturn.return} USD</h2>
-              <p><strong>Total a recibir:</strong> ${projectedReturn.total} USD</p>
+        <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '28px', border: '1px solid #e4e7eb' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px', color: '#111827' }}>Proyección de Rendimiento</h3>
+          {projectedReturn ? (
+            <div>
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '13px', color: '#6b7280' }}>Inversión:</span>
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>${projectedReturn.amount.toLocaleString()} USD</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '13px', color: '#6b7280' }}>APY:</span>
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>{projectedReturn.apy}%</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <span style={{ fontSize: '13px', color: '#6b7280' }}>Plazo:</span>
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>{projectedReturn.duration} días</span>
+                </div>
+              </div>
+              <div style={{ 
+                padding: '16px', 
+                background: '#ecfdf5', 
+                borderRadius: '12px',
+                border: '1px solid #a7f3d0'
+              }}>
+                <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Ganancia estimada</p>
+                <h2 style={{ fontSize: '28px', fontWeight: '600', color: '#059669', marginBottom: '4px' }}>+${projectedReturn.return} USD</h2>
+                <p style={{ fontSize: '13px', color: '#6b7280' }}>Total a recibir: ${projectedReturn.total} USD</p>
+              </div>
             </div>
-          )}
-          {!projectedReturn && (
-            <p style={{ marginTop: '20px', color: '#94a3b8' }}>
+          ) : (
+            <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '20px' }}>
               Completa el formulario y haz clic en "Calcular Proyección" para ver tu rendimiento.
             </p>
           )}
