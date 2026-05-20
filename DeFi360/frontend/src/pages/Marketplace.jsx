@@ -2,12 +2,20 @@ import { useState } from 'react';
 
 function Marketplace() {
   const [filter, setFilter] = useState('all');
-  const [offers] = useState([
-    { id: 1, type: 'lend', user: 'Inversor A', amount: 5000, apy: 5.2, duration: 30, collateral: 'ETH' },
-    { id: 2, type: 'borrow', user: 'Prestatario B', amount: 2000, apy: 4.8, duration: 60, collateral: 'USDC' },
-    { id: 3, type: 'lend', user: 'Inversor C', amount: 10000, apy: 6.0, duration: 90, collateral: 'BTC' },
-    { id: 4, type: 'borrow', user: 'Prestatario D', amount: 3500, apy: 5.5, duration: 45, collateral: 'ETH' },
-  ]);
+  const [offers] = useState([]);
+
+  useEffect(() => {
+    const loadOffer = async () => {
+      try {
+        const data = await offerService.getOffers();
+        setOffers(data);
+      } catch (error) {
+        console.error('error load offer', error);
+      }
+    };
+
+    loadOffers();
+  }, []);
 
   const filteredOffers = filter === 'all' 
     ? offers 
