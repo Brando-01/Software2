@@ -1,5 +1,5 @@
 const ILoanFactory = require('../interfaces/ILoanFactory');
-const { Loan } = require('../../models');
+const { Loan } = require('../models');
 
 class LoanFactory extends ILoanFactory {
     async createFromOffer(offer, lenderId, borrowerId) {

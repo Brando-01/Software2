@@ -1,11 +1,13 @@
 const { Offer, Wallet, User } = require('../models');
-const LoanFactory = require('./factories/LoanFactory');
-const LTVRiskStrategy = require('./strategies/LTVRiskStrategy');
-const CollateralService = require('./services/CollateralService');
+const LoanFactory = require('../factories/LoanFactory');
+const LTVRiskStrategy = require('../strategies/LTVRiskStrategy');
+const CollateralService = require('../services/CollateralService');
 
 const defaultLoanFactory = new LoanFactory();
 const defaultRiskStrategy = new LTVRiskStrategy();
 const defaultCollateralService = new CollateralService();
+const StandardPaymentProcessor = require('../services/StandardPaymentProcessor');
+
 
 const calculateLTV = (
   riskStrategy = defaultRiskStrategy,
@@ -153,10 +155,51 @@ const matchLoan = (
   }
 };
 
+const payLoan = async (req, res) => {
+  try {
+    const { Loan } = require('../models');
+    const StandardPaymentProcessor = require('../services/StandardPaymentProcessor');
+    const { amount } = req.body;
+    const loanId = parseInt(req.params.id);
+
+    const paymentProcessor = new StandardPaymentProcessor();
+
+    const loan = await Loan.findByPk(loanId);
+    if (!loan) {
+      return res.status(404).json({ message: 'Préstamo no encontrado' });
+    }
+
+    if (loan.borrowerId !== req.user.id) {
+      return res.status(403).json({ message: 'No autorizado para pagar este préstamo' });
+    }
+
+    const result = await paymentProcessor.processPayment({
+      loanId,
+      amount,
+      borrowerId: loan.borrowerId,
+      lenderId: loan.lenderId
+    });
+
+    res.json({
+      success: true,
+      message: result.loanStatus === 'paid'
+        ? '✅ Préstamo pagado completamente'
+        : `✅ Pago procesado. Saldo restante: ${result.newRemainingBalance}`,
+      ...result
+    });
+
+  } catch (error) {
+    console.error('Error en payLoan:', error.message);
+    res.status(400).json({ message: error.message || 'Error al procesar pago' });
+  }
+};
+   
+
 module.exports = {
   calculateLTV: calculateLTV(),
   requestLoan: requestLoan(),
   getUserLoans,
   matchLoan: matchLoan(),
-  _factories: { calculateLTV, requestLoan, matchLoan }
+  _factories: { calculateLTV, requestLoan, matchLoan },
+  payLoan  
 };
