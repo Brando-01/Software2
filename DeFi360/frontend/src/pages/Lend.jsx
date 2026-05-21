@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { marketplaceService } from '../services/api';
 
 function Lend() {
   const [formData, setFormData] = useState({
@@ -6,8 +7,9 @@ function Lend() {
     apy: 5.2,
     duration: 30
   });
-
   const [projectedReturn, setProjectedReturn] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
 
   const calculateProjection = () => {
     const amount = parseFloat(formData.amount);
@@ -27,9 +29,30 @@ function Lend() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert('✅ Oferta de préstamo publicada en el Marketplace');
+    setMessage(null);
+    setLoading(true);
+    
+    try {
+      const response = await marketplaceService.createOffer({
+        type: 'lend',
+        amount: parseFloat(formData.amount),
+        apy: parseFloat(formData.apy),
+        duration: parseInt(formData.duration),
+        collateralType: 'USDC',
+        collateralAmount: null
+      });
+      
+      setMessage({ type: 'success', text: '✅ Oferta de préstamo publicada en el Marketplace' });
+      setFormData({ amount: '', apy: 5.2, duration: 30 });
+      setProjectedReturn(null);
+    } catch (error) {
+      console.error('Error al crear oferta:', error);
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Error al crear oferta' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -38,6 +61,19 @@ function Lend() {
         <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '4px', color: '#111827' }}>Ofrecer Fondos</h1>
         <p style={{ color: '#6b7280', fontSize: '14px' }}>Pon a trabajar tus criptomonedas y genera rendimientos</p>
       </div>
+
+      {message && (
+        <div style={{ 
+          padding: '12px 16px', 
+          borderRadius: '8px', 
+          marginBottom: '20px',
+          background: message.type === 'success' ? '#ecfdf5' : '#fef2f2',
+          border: `1px solid ${message.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+          color: message.type === 'success' ? '#059669' : '#dc2626'
+        }}>
+          {message.text}
+        </div>
+      )}
 
       <div className="grid-2">
         <div style={{ background: '#ffffff', borderRadius: '16px', padding: '28px', border: '1px solid #e4e7eb' }}>
@@ -61,6 +97,7 @@ function Lend() {
                 step="0.1"
                 value={formData.apy}
                 onChange={(e) => setFormData({...formData, apy: e.target.value})}
+                required
               />
             </div>
 
@@ -81,7 +118,9 @@ function Lend() {
               <button type="button" onClick={calculateProjection} style={{ flex: 1, background: '#6b7280' }}>
                 Calcular Proyección
               </button>
-              <button type="submit" style={{ flex: 1 }}>Publicar Oferta</button>
+              <button type="submit" style={{ flex: 1 }} disabled={loading}>
+                {loading ? 'Publicando...' : 'Publicar Oferta'}
+              </button>
             </div>
           </form>
         </div>

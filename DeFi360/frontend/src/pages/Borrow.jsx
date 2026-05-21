@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { loanService } from '../services/api';
 
 function Borrow() {
   const [formData, setFormData] = useState({
@@ -9,37 +10,72 @@ function Borrow() {
   });
   const [ltv, setLtv] = useState(null);
   const [risk, setRisk] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
 
   const collateralValues = { ETH: 3000, BTC: 30000, USDC: 1 };
 
-  const calculateLTV = () => {
+  const calculateLTV = async () => {
     const amount = parseFloat(formData.amount);
     const collateralAmount = parseFloat(formData.collateralAmount);
     
     if (amount && collateralAmount) {
-      const collateralValue = collateralAmount * collateralValues[formData.collateral];
-      const calculatedLTV = (amount / collateralValue) * 100;
-      setLtv(calculatedLTV.toFixed(1));
-      
-      if (calculatedLTV > 80) {
-        setRisk('Alto Riesgo');
-      } else if (calculatedLTV > 60) {
-        setRisk('Riesgo Moderado');
-      } else {
-        setRisk('Bajo Riesgo');
+      try {
+        setLoading(true);
+        const result = await loanService.calculateLTV({
+          loanAmount: amount,
+          collateralAmount: collateralAmount,
+          collateralType: formData.collateral
+        });
+        
+        setLtv(result.ltv);
+        setRisk(result.riskLevel);
+      } catch (error) {
+        console.error('Error al calcular LTV:', error);
+        setMessage({ type: 'error', text: 'Error al calcular LTV' });
+      } finally {
+        setLoading(false);
       }
     }
   };
 
   const getRiskColor = () => {
-    if (risk === 'Alto Riesgo') return '#dc2626';
-    if (risk === 'Riesgo Moderado') return '#f59e0b';
+    if (risk === 'critical') return '#dc2626';
+    if (risk === 'high') return '#f59e0b';
+    if (risk === 'medium') return '#f97316';
     return '#10b981';
   };
 
-  const handleSubmit = (e) => {
+  const getRiskText = () => {
+    if (risk === 'critical') return 'Riesgo Crítico';
+    if (risk === 'high') return 'Alto Riesgo';
+    if (risk === 'medium') return 'Riesgo Moderado';
+    return 'Bajo Riesgo';
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert('✅ Solicitud de préstamo simulada enviada. Revisa el Marketplace para confirmación.');
+    setMessage(null);
+    setLoading(true);
+    
+    try {
+      const response = await loanService.requestLoan({
+        amount: parseFloat(formData.amount),
+        duration: parseInt(formData.duration),
+        collateralType: formData.collateral,
+        collateralAmount: parseFloat(formData.collateralAmount)
+      });
+      
+      setMessage({ type: 'success', text: response.message });
+      setFormData({ amount: '', collateral: 'ETH', collateralAmount: '', duration: 30 });
+      setLtv(null);
+      setRisk(null);
+    } catch (error) {
+      console.error('Error al solicitar préstamo:', error);
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Error al solicitar préstamo' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,6 +84,19 @@ function Borrow() {
         <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '4px', color: '#111827' }}>Solicitar Préstamo</h1>
         <p style={{ color: '#6b7280', fontSize: '14px' }}>Ofrece colateral y obtén financiamiento en criptomonedas</p>
       </div>
+
+      {message && (
+        <div style={{ 
+          padding: '12px 16px', 
+          borderRadius: '8px', 
+          marginBottom: '20px',
+          background: message.type === 'success' ? '#ecfdf5' : '#fef2f2',
+          border: `1px solid ${message.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+          color: message.type === 'success' ? '#059669' : '#dc2626'
+        }}>
+          {message.text}
+        </div>
+      )}
 
       <div className="grid-2">
         <div style={{ background: '#ffffff', borderRadius: '16px', padding: '28px', border: '1px solid #e4e7eb' }}>
@@ -105,10 +154,12 @@ function Borrow() {
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button type="button" onClick={calculateLTV} style={{ flex: 1, background: '#6b7280' }}>
-                Calcular LTV
+              <button type="button" onClick={calculateLTV} style={{ flex: 1, background: '#6b7280' }} disabled={loading}>
+                {loading ? 'Calculando...' : 'Calcular LTV'}
               </button>
-              <button type="submit" style={{ flex: 1 }}>Enviar Solicitud</button>
+              <button type="submit" style={{ flex: 1 }} disabled={loading}>
+                {loading ? 'Enviando...' : 'Enviar Solicitud'}
+              </button>
             </div>
           </form>
         </div>
@@ -127,13 +178,13 @@ function Borrow() {
                   borderRadius: '20px',
                   fontSize: '13px',
                   fontWeight: '500',
-                  background: risk === 'Alto Riesgo' ? '#fef2f2' : risk === 'Riesgo Moderado' ? '#fffbeb' : '#ecfdf5',
+                  background: risk === 'critical' || risk === 'high' ? '#fef2f2' : risk === 'medium' ? '#fffbeb' : '#ecfdf5',
                   color: getRiskColor()
                 }}>
-                  {risk}
+                  {getRiskText()}
                 </span>
               </div>
-              {parseFloat(ltv) > 80 && (
+              {(risk === 'critical' || parseFloat(ltv) > 80) && (
                 <div style={{ 
                   padding: '14px', 
                   background: '#fef2f2', 

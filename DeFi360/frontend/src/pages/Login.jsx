@@ -1,26 +1,35 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { authService } from '../services/api';
 
 function Login() {
   const navigate = useNavigate();
   const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     setIsConnecting(true);
-    setTimeout(() => {
-      const mockAddress = '0x' + Array.from({ length: 40 }, () => 
-        Math.floor(Math.random() * 16).toString(16)).join('');
-      const mockBalance = (Math.random() * 10000 + 1000).toFixed(2);
-      
-      localStorage.setItem('walletConnected', 'true');
-      localStorage.setItem('walletAddress', mockAddress);
-      localStorage.setItem('walletBalance', mockBalance);
-      
-      setIsConnecting(false);
-      navigate('/dashboard');
-    }, 1500);
-  };
-
+    setError('');
+    
+    try {
+    const mockAddress = '0x' + Array.from({ length: 40 }, () => 
+      Math.floor(Math.random() * 16).toString(16)).join('');
+    
+    const response = await authService.connectWallet(mockAddress);
+    
+    // ✅ Verificar que el token se guardó
+    const token = localStorage.getItem('authToken');
+    console.log('Token guardado:', token ? 'Sí' : 'No');
+    console.log('Token value:', token);
+    
+    navigate('/dashboard');
+  } catch (err) {
+    console.error('Error al conectar:', err);
+    setError(err.response?.data?.message || 'Error al conectar wallet. Intenta de nuevo.');
+  } finally {
+    setIsConnecting(false);
+  }
+};
   return (
     <div style={{
       display: 'flex',
@@ -45,6 +54,20 @@ function Login() {
             Plataforma de Préstamos y Depósitos en Cripto
           </p>
         </div>
+        
+        {error && (
+          <div style={{ 
+            background: '#fef2f2', 
+            color: '#dc2626', 
+            padding: '12px', 
+            borderRadius: '8px', 
+            marginBottom: '20px',
+            fontSize: '13px',
+            textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
         
         <button 
           onClick={handleConnect}
