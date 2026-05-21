@@ -1,13 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from "react";
+import { MarketplaceApiService } from "../services/MarketplaceApiService";
 
 function Marketplace() {
   const [filter, setFilter] = useState('all');
-  const [offers] = useState([
-    { id: 1, type: 'lend', user: 'Inversor A', amount: 5000, apy: 5.2, duration: 30, collateral: 'ETH' },
-    { id: 2, type: 'borrow', user: 'Prestatario B', amount: 2000, apy: 4.8, duration: 60, collateral: 'USDC' },
-    { id: 3, type: 'lend', user: 'Inversor C', amount: 10000, apy: 6.0, duration: 90, collateral: 'BTC' },
-    { id: 4, type: 'borrow', user: 'Prestatario D', amount: 3500, apy: 5.5, duration: 45, collateral: 'ETH' },
-  ]);
+  const [offers, setOffers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const marketplaceService = new MarketplaceApiService();
+
+  useEffect(() => {
+    const fetchOffers = async () => {
+      try {
+        setLoading(true);
+
+        const filters = filter !== "all" ? { type: filter } : {};
+        const data = await marketplaceService.getOffers(filters);
+
+        setOffers(data);
+      } catch (error) {
+        console.error("error A cargar oferas:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOffers();
+  }, [filter]);
 
   const filteredOffers = filter === 'all' 
     ? offers 
