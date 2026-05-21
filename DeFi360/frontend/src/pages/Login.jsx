@@ -11,13 +11,21 @@ function Login() {
     setIsConnecting(true);
     setError('');
     
+<<<<<<< HEAD
      try {
+=======
+    try {
+>>>>>>> feature/qa-report
     const mockAddress = '0x' + Array.from({ length: 40 }, () => 
       Math.floor(Math.random() * 16).toString(16)).join('');
     
     const response = await authService.connectWallet(mockAddress);
     
+<<<<<<< HEAD
     
+=======
+    // ✅ Verificar que el token se guardó
+>>>>>>> feature/qa-report
     const token = localStorage.getItem('authToken');
     console.log('Token guardado:', token ? 'Sí' : 'No');
     console.log('Token value:', token);
@@ -30,7 +38,10 @@ function Login() {
     setIsConnecting(false);
   }
 };
+<<<<<<< HEAD
 
+=======
+>>>>>>> feature/qa-report
   return (
     <div style={{
       display: 'flex',
