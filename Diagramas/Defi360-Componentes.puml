@@ -1,0 +1,183 @@
+@startuml
+' =====================================
+' CONFIGURACIÓN UML
+' =====================================
+
+skinparam componentStyle uml2
+skinparam linetype ortho
+skinparam shadowing false
+
+skinparam component {
+    BackgroundColor #F8FAFB
+    BorderColor #2C3E50
+    FontColor #1B2631
+}
+
+skinparam interface {
+    BackgroundColor #FFFFFF
+    BorderColor #2C3E50
+}
+
+skinparam database {
+    BackgroundColor #FFF8E7
+    BorderColor #B9770E
+}
+
+skinparam cloud {
+    BackgroundColor #EBF5FB
+    BorderColor #3498DB
+}
+
+skinparam node {
+    BackgroundColor #F4F6F7
+    BorderColor #5D6D7E
+}
+
+title DeFi360 — Diagrama de Componentes
+
+left to right direction
+
+' =====================================
+' ACTOR
+' =====================================
+
+actor Usuario
+
+' =====================================
+' FRONTEND
+' =====================================
+
+node "Cliente Web" {
+
+    component "Frontend Web" as Frontend <<React>>
+
+    interface "IAuthUI" as IAuthUI
+    interface "ILoanUI" as ILoanUI
+    interface "IWalletUI" as IWalletUI
+
+}
+
+' =====================================
+' BACKEND
+' =====================================
+
+node "Servidor Backend" {
+
+    package "Servicios Core" {
+
+        component "AuthController" as Auth <<service>>
+        component "LoanController" as Loan <<service>>
+        component "LTVService" as LTV <<calculation>>
+        component "RiskMonitor" as Risk <<monitor>>
+        component "NotificationService" as Notify <<service>>
+
+    }
+
+    package "Gestión Financiera" {
+
+        component "Gestión de Billetera" as WalletMng <<wallet>>
+        component "Marketplace DeFi" as Market <<marketplace>>
+        component "Motor de Emparejamiento" as Match <<matching>>
+
+    }
+
+    package "Zona Educativa" {
+
+        component "Simulador DeFi" as Simulator <<simulation>>
+        component "Contenido Educativo" as Edu <<education>>
+
+    }
+
+}
+
+' =====================================
+' BLOCKCHAIN
+' =====================================
+
+node "Blockchain Layer" {
+
+    component "Smart Contracts" as Smart 
+}
+
+' =====================================
+' EXTERNOS
+' =====================================
+
+cloud "OracleService" as Oracle <<external>>
+
+collections "MockWallet" as MockWallet <<wallet>>
+
+database "DeFi360DB" as DB <<PostgreSQL>>
+
+' =====================================
+' INTERFACES
+' =====================================
+
+interface "IAuthService" as IAuth
+interface "ILoanService" as ILoan
+interface "IWalletService" as IWallet
+
+' =====================================
+' RELACIONES USUARIO
+' =====================================
+
+Usuario --> Frontend
+
+' =====================================
+' FRONTEND -> INTERFACES
+' =====================================
+
+Frontend -- IAuthUI
+Frontend -- ILoanUI
+Frontend -- IWalletUI
+
+IAuthUI ..> Auth
+ILoanUI ..> Loan
+IWalletUI ..> WalletMng
+
+' =====================================
+' CONTROLADORES
+' =====================================
+
+Auth -- IAuth
+Loan -- ILoan
+WalletMng -- IWallet
+
+' =====================================
+' DEPENDENCIAS
+' =====================================
+
+Loan ..> LTV : calcularLTV()
+
+Loan ..> WalletMng : verificarColateral()
+
+Loan ..> Match : buscarOferta()
+
+Risk ..> Oracle : consultarPrecio()
+
+Risk ..> LTV : recalcular()
+
+Risk ..> Notify : generarAlerta()
+
+WalletMng ..> MockWallet : conectarWallet()
+
+WalletMng ..> Smart : bloquearColateral()
+
+Market ..> Match : emparejar()
+
+Simulator ..> Oracle : simularPrecios()
+
+' =====================================
+' BASE DE DATOS
+' =====================================
+
+Auth --> DB
+Loan --> DB
+WalletMng --> DB
+Risk --> DB
+Market --> DB
+Edu --> DB
+Simulator --> DB
+
+
+@enduml
