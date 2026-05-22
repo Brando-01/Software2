@@ -2,6 +2,7 @@ const { Offer, Wallet, User } = require('../models');
 const LoanFactory = require('../factories/LoanFactory');
 const LTVRiskStrategy = require('../strategies/LTVRiskStrategy');
 const CollateralService = require('../services/CollateralService');
+const LTVCalculatorService = require('../services/LTVCalculatorService');
 
 const defaultLoanFactory = new LoanFactory();
 const defaultRiskStrategy = new LTVRiskStrategy();
@@ -21,7 +22,7 @@ const calculateLTV = (
       collateralAmount
     );
 
-    const { ratio, riskLevel, isHealthy, message } = riskStrategy.evaluate(
+    const ltvResult = LTVCalculatorService.calculateLTV(
       parseFloat(loanAmount),
       collateralValue
     );
@@ -29,14 +30,14 @@ const calculateLTV = (
     res.json({
       loanAmount,
       collateralValue,
-      ltv: ratio,
-      riskLevel,
-      isHealthy,
-      message
+      ltv: ltvResult.ratio,
+      riskLevel: ltvResult.riskLevel,
+      isHealthy: ltvResult.isHealthy,
+      message: ltvResult.message
     });
   } catch (error) {
     console.error('[calculateLTV]', error.message);
-    res.status(500).json({ message: 'Error al calcular LTV' });
+    res.status(500).json({ message: 'Error al calcular LTV', detail: error.message });
   }
 };
 
