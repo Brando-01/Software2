@@ -47,3 +47,27 @@ function PaymentForm({ currDebt, colValue }) {
         });
         console.log("Pago realizado:", result);
     };
+
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <h2>Pagar Cuota</h2>
+
+            <input
+                type="number"
+                placeholder="Monto"
+                onChange={handleChange}
+            />
+
+            {error && <p style={{ color: "red" }}>{error}</p>}
+
+            {ltvPreview !== null && (
+                <p>LTV despues de pago: {ltvPreview.toFixed(2)}%</p>
+            )}
+
+            <button type="submit">Pagar</button>
+        </form>
+    );
+}
+
+export default PaymentForm;
