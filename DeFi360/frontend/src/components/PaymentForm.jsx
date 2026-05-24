@@ -30,4 +30,20 @@ function PaymentForm({ currDebt, colValue }) {
             setLtvPreview(null);
         }
     };
-}
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        const validationError = validate(amount);
+        if (validationError) {
+            setError(validationError);
+            return;
+        }
+
+        const result = await paymentProcessor.processPayment({
+            amount,
+            currDebt,
+            colValue,
+        });
+        console.log("Pago realizado:", result);
+    };
