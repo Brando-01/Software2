@@ -1,6 +1,5 @@
 const path = require('path');
 
-// Importamos el controlador
 const { _factories } = require(path.resolve(__dirname, '../controllers/loanController'));
 
 async function probarPagos() {
