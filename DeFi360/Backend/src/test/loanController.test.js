@@ -1,33 +1,14 @@
 const path = require('path');
-const { setMock, clearMock } = require('./testHelpers');
 
-function equal(actual, expected, message) {
-  if (actual !== expected) {
-    throw new Error(message || `Esperado ${expected} pero fue ${actual}`);
-  }
+function equal(a, b, msg) {
+  if (a !== b) throw new Error(msg || `${b} !== ${a}`);
 }
 
-function deepEqual(actual, expected, message) {
-  const actualJson = JSON.stringify(actual);
-  const expectedJson = JSON.stringify(expected);
-  if (actualJson !== expectedJson) {
-    throw new Error(message || `Esperado ${expectedJson} pero fue ${actualJson}`);
-  }
+function deepEqual(a, b, msg) {
+  const aJson = JSON.stringify(a);
+  const bJson = JSON.stringify(b);
+  if (aJson !== bJson) throw new Error(msg || `${bJson} !== ${aJson}`);
 }
-
-function throws(fn, expectedMessage) {
-  try {
-    fn();
-    throw new Error('Se esperaba que la función lanzara un error');
-  } catch (err) {
-    if (!err.message.includes(expectedMessage)) {
-      throw new Error(`Error esperado "${expectedMessage}", pero fue "${err.message}"`);
-    }
-  }
-}
-
-const modelsPath = path.resolve(__dirname, '../models');
-const controllerPath = path.resolve(__dirname, '../controllers/loanController');
 
 const mockModels = {
   Loan: {
@@ -40,9 +21,22 @@ const mockModels = {
   }
 };
 
-setMock(modelsPath, mockModels);
-const { _factories } = require(controllerPath);
-clearMock(modelsPath);
+// Mock require() para devolver nuestros modelos
+const Module = require('module');
+const originalRequire = Module.prototype.require;
+
+Module.prototype.require = function(id) {
+  const modelsPath = path.resolve(__dirname, '../models');
+  if (id === modelsPath) {
+    return mockModels;
+  }
+  return originalRequire.apply(this, arguments);
+};
+
+const { _factories } = require(path.resolve(__dirname, '../controllers/loanController'));
+
+// Restaurar require original
+Module.prototype.require = originalRequire;
 
 describe('loanController payLoan - Dependency Injection', () => {
   test('Debe usar el procesador inyectado y retornar respuesta exitosa', async () => {
