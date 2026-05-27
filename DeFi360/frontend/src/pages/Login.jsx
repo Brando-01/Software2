@@ -6,22 +6,20 @@ function Login() {
   const navigate = useNavigate();
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState('');
+  const [walletAddress, setWalletAddress] = useState('');
 
   const handleConnect = async () => {
-    setIsConnecting(true);
-    setError('');
-    
-    try {
-    const mockAddress = '0x' + Array.from({ length: 40 }, () => 
-      Math.floor(Math.random() * 16).toString(16)).join('');
-    
-    const response = await authService.connectWallet(mockAddress);
-    
-    // ✅ Verificar que el token se guardó
+  if (!walletAddress.trim()) {
+    setError('Ingresa una wallet address');
+    return;
+  }
+  setIsConnecting(true);
+  setError('');
+  
+  try {
+    const response = await authService.connectWallet(walletAddress.trim());
     const token = localStorage.getItem('authToken');
     console.log('Token guardado:', token ? 'Sí' : 'No');
-    console.log('Token value:', token);
-    
     navigate('/dashboard');
   } catch (err) {
     console.error('Error al conectar:', err);
@@ -69,7 +67,21 @@ function Login() {
             {error}
           </div>
         )}
-        
+        <input
+          type="text"
+          placeholder="Ingresa tu wallet address (0x...)"
+          value={walletAddress}
+          onChange={(e) => setWalletAddress(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '12px',
+            fontSize: '13px',
+            borderRadius: '10px',
+            border: '1px solid #e4e7eb',
+            marginBottom: '12px',
+            boxSizing: 'border-box'
+          }}
+        />
         <button 
           onClick={handleConnect}
           disabled={isConnecting}
