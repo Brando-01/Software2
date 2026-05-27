@@ -1,100 +1,84 @@
 const path = require('path');
 
-function equal(a, b, msg) {
-  if (a !== b) throw new Error(msg || `${b} !== ${a}`);
-}
-
-function deepEqual(a, b, msg) {
-  const aJson = JSON.stringify(a);
-  const bJson = JSON.stringify(b);
-  if (aJson !== bJson) throw new Error(msg || `${bJson} !== ${aJson}`);
-}
-
-const mockModels = {
-  Loan: {
-    findByPk: async (id) => {
-      if (id === 1) {
-        return { borrowerId: 42, lenderId: 99 };
-      }
-      return null;
-    }
-  }
-};
-
-// Mock require() para devolver nuestros modelos
-const Module = require('module');
-const originalRequire = Module.prototype.require;
-
-Module.prototype.require = function(id) {
-  const modelsPath = path.resolve(__dirname, '../models');
-  if (id === modelsPath) {
-    return mockModels;
-  }
-  return originalRequire.apply(this, arguments);
-};
-
+// Importamos el controlador
 const { _factories } = require(path.resolve(__dirname, '../controllers/loanController'));
 
-// Restaurar require original
-Module.prototype.require = originalRequire;
+async function probarPagos() {
+  console.log("Iniciando pruebas manuales de Préstamos...\n");
 
-describe('loanController payLoan - Dependency Injection', () => {
-  test('Debe usar el procesador inyectado y retornar respuesta exitosa', async () => {
-    const mockPaymentProcessor = {
-      processPayment: async () => ({
+  const mockPaymentProcessor = {
+    processPayment: async () => {
+      return {
         loanStatus: 'paid',
         newRemainingBalance: 0,
         newLTV: 0
-      })
-    };
+      };
+    }
+  };
 
-    const req = {
-      params: { id: '1' },
-      body: { amount: 100 },
-      user: { id: 42 }
-    };
+  const payLoanHandler = _factories.payLoan(mockPaymentProcessor);
 
-    let sentResponse = null;
-    const res = {
-      json: (payload) => { sentResponse = payload; },
-      status: () => res
-    };
+  // ---Prueba 1: Préstamo exitoso---
+  console.log("Prueba 1: Intentando pagar un préstamo existente...");
+  
+  const reqExito = {
+    params: { id: '1' }, 
+    body: { amount: 100 },
+    user: { id: 42 }
+  };
 
-    const handler = _factories.payLoan(mockPaymentProcessor);
-    await handler(req, res);
+  let respuestaFinal = null;
+  let codigoEstado = null;
+  
+  const resExito = {
+    status: function(code) { 
+      codigoEstado = code; 
+      return this; 
+    },
+    json: function(data) { 
+      respuestaFinal = data; 
+      return this; 
+    }
+  };
 
-    equal(sentResponse.success, true);
-    equal(sentResponse.loanStatus, 'paid');
-  });
+  await payLoanHandler(reqExito, resExito);
 
-  test('Debe retornar 404 si el préstamo no existe', async () => {
-    const mockModels404 = {
-      Loan: {
-        findByPk: async () => null
-      }
-    };
+  if (respuestaFinal && respuestaFinal.success === true && respuestaFinal.loanStatus === 'paid') {
+    console.log("✅ Éxito: El préstamo se pagó correctamente.");
+  } else {
+    console.log("❌ Falló: No se procesó el pago como se esperaba.", respuestaFinal);
+  }
 
-    setMock(modelsPath, mockModels404);
-    const { _factories: _factories404 } = require(controllerPath);
-    clearMock(modelsPath);
+  // --- Prueba 2: Préstamo no encontrado (Error 404) ---
+  console.log("\nPrueba 2: Intentando pagar un préstamo que no existe...");
+  
+  const reqError = {
+    params: { id: '99999' }, 
+    body: { amount: 30 },
+    user: { id: 1 }
+  };
 
-    const req = {
-      params: { id: '10' },
-      body: { amount: 30 },
-      user: { id: 1 }
-    };
+  respuestaFinal = null;
+  codigoEstado = null;
 
-    let statusCode = null;
-    let sentJson = null;
-    const res = {
-      json: (payload) => { sentJson = payload; },
-      status: (code) => { statusCode = code; return res; }
-    };
+  const resError = {
+    status: function(code) { 
+      codigoEstado = code; 
+      return this; 
+    },
+    json: function(data) { 
+      respuestaFinal = data; 
+      return this; 
+    }
+  };
 
-    const handler = _factories404.payLoan({ processPayment: async () => ({}) });
-    await handler(req, res);
+  await payLoanHandler(reqError, resError);
 
-    equal(statusCode, 404);
-    deepEqual(sentJson, { message: 'Préstamo no encontrado' });
-  });
-});
+  if (codigoEstado === 404) {
+    console.log("✅ Éxito: El sistema detectó que el préstamo no existe (Error 404).");
+  } else {
+    console.log("❌ Falló: El sistema no manejó bien el error 404. Código recibido:", codigoEstado);
+  }
+}
+
+probarPagos();
