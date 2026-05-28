@@ -39,7 +39,6 @@ describe('T-10: LTVCalculatorService (HU-04)', () => {
   });
 
   test('OCP - Verificar que los umbrales son configurables dinámicamente', () => {
-    // Creamos una estrategia con reglas totalmente diferentes
     const strictStrategy = new LTVRiskStrategy({
       medium: 10,
       high: 20,
