@@ -6,7 +6,7 @@ function equal(actual, expected, msg) {
   }
 }
 
-describe('T-10: LTVCalculatorService / LTVRiskStrategy (HU-04)', () => {
+describe('T-10: LTVCalculatorService (HU-04)', () => {
   
   const customThresholds = {
     medium: 49,   // Todo lo mayor a 49 es 'medium' (Normal)
