@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { MarketplaceApiService } from "../services/MarketplaceApiService";
 
-function Marketplace() {
+function Marketplace( { priceOracle }) {
   const [filter, setFilter] = useState('all');
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [prices, setPrices] = useState({});
 
   const marketplaceService = new MarketplaceApiService();
 
@@ -17,6 +18,7 @@ function Marketplace() {
         const data = await marketplaceService.getOffers(filters);
 
         setOffers(data);
+        await loadPrices(data);
       } catch (error) {
         console.error("error A cargar oferas:", error);
       } finally {
@@ -25,6 +27,18 @@ function Marketplace() {
     };
 
     fetchOffers();
+
+    const loadPrices = async (offersData) => {
+      const loadedPrices = {};
+      for (const offer of offersData){
+        const coll = offer.coll;
+        if (!loadedPrices[coll]){
+          loadedPrices[coll] =
+            await priceOracle.getAPrice(coll);
+        }
+      }
+      setPrices(loadedPrices);
+    };
   }, [filter]);
 
   const filteredOffers = filter === 'all' 
@@ -118,6 +132,10 @@ function Marketplace() {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '13px', color: '#6b7280' }}>Colateral</span>
                 <strong style={{ color: '#111827' }}>{offer.collateral}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>Precio Oracle</span>
+                <strong style={{ color: '#111827' }}>${prices[offer.coll] || 'Cargando'}</strong>
               </div>
             </div>
             
