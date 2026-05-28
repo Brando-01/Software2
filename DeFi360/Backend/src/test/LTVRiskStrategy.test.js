@@ -9,9 +9,9 @@ function equal(actual, expected, msg) {
 describe('T-10: LTVCalculatorService (HU-04)', () => {
   
   const customThresholds = {
-    medium: 49,   // Todo lo mayor a 49 es 'medium' (Normal)
-    high: 89,     // Todo lo mayor a 89 es 'high' (Alerta)
-    critical: 94  // Todo lo mayor a 94 es 'critical' (Liquidación)
+    medium: 49,   
+    high: 89,     
+    critical: 94  
   };
 
   const strategy = new LTVRiskStrategy(customThresholds);
