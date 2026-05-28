@@ -7,7 +7,6 @@ function ok(val, msg) {
   if (!val) throw new Error(msg || 'El valor no es verdadero o está indefinido');
 }
 
-// --- MOCKS---
 const mockUserStore = new Map();
 const mockWalletStore = new Map();
 let userId = 1;
