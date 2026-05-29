@@ -1,0 +1,87 @@
+@startuml HU-07_Gestion_Pago_Cuotas
+title HU-07 — Gestión y Pago de Cuotas\nDeFi360 · Sprint 1 · Release 01
+
+skinparam componentStyle rectangle
+skinparam backgroundColor #FAFAFA
+skinparam component {
+  BackgroundColor #EAF2FF
+  BorderColor #1F618D
+  FontSize 12
+}
+skinparam interface {
+  BackgroundColor #FDEBD0
+  BorderColor #E67E22
+}
+skinparam node {
+  BackgroundColor #F2F3F4
+  BorderColor #717D7E
+}
+skinparam database {
+  BackgroundColor #D5F5E3
+  BorderColor #1E8449
+}
+skinparam arrow {
+  Color #2C3E50
+  FontSize 10
+}
+
+' ─── FRONTEND ──────────────────────────────────────────────────
+node "Frontend (React)" {
+  [PaymentForm.jsx] as PayForm
+  [LTVIndicator.jsx] as LTVWidget
+  
+}
+
+' ─── CONTROLADOR ───────────────────────────────────────────────
+node "Backend — Controllers" {
+  [LoanController] as LoanCtrl
+  
+}
+
+' ─── INTERFAZ DIP ──────────────────────────────────────────────
+interface "IPaymentProcessor" as IPayProc
+
+
+' ─── IMPLEMENTACIÓN ────────────────────────────────────────────
+node "Backend — Services" {
+  [StandardPaymentProcessor] as StdPayProc
+  [LTVCalculatorService] as LTVSvc
+  
+}
+
+' ─── INFRAESTRUCTURA BD ────────────────────────────────────────
+node "Backend — Infrastructure" {
+  [DatabaseConnection\n«Singleton»] as DBConn
+}
+
+' ─── BASE DE DATOS ─────────────────────────────────────────────
+database "PostgreSQL" as PG {
+  [tabla: PRESTAMO\n+ índice compuesto:\n(id_usuario, estado,\nfecha_vencimiento)] as TblPrestamo
+  [tabla: CUOTA] as TblCuota
+  
+}
+
+' ─── PRUEBAS ───────────────────────────────────────────────────
+node "Tests (Jest / JUnit)" {
+  [PaymentProcessor.test] as PayTest
+  
+}
+
+' ─── RELACIONES ────────────────────────────────────────────────
+PayForm       --> LTVWidget         : actualiza LTV
+
+PayForm       --> LoanCtrl          : POST /loans/{id}/pagar
+
+LoanCtrl      ..> IPayProc          : «depends on»\n(constructor injection)
+StdPayProc    ..|> IPayProc         : «implements»
+
+StdPayProc    --> LTVSvc            : recalcula LTV tras pago
+StdPayProc    --> DBConn            : actualiza saldo y cuota
+
+DBConn        --> TblPrestamo       : UPDATE saldo_pendiente, ltv
+DBConn        --> TblCuota          : INSERT registro de pago
+
+PayTest       ..> IPayProc          : mock
+PayTest       --> LoanCtrl          : prueba unitaria / integración
+
+@enduml

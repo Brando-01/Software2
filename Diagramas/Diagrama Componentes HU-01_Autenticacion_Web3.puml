@@ -1,0 +1,87 @@
+@startuml HU-01_Autenticacion_Web3
+title HU-01 — Autenticación Web3\nDeFi360 · Sprint 1 · Release 01
+
+skinparam componentStyle rectangle
+skinparam backgroundColor #FAFAFA
+skinparam component {
+  BackgroundColor #E8F4FD
+  BorderColor #2980B9
+  FontColor #1A252F
+  FontSize 12
+}
+skinparam interface {
+  BackgroundColor #FDEBD0
+  BorderColor #E67E22
+}
+skinparam database {
+  BackgroundColor #D5F5E3
+  BorderColor #1E8449
+}
+skinparam node {
+  BackgroundColor #F2F3F4
+  BorderColor #717D7E
+}
+skinparam arrow {
+  Color #2C3E50
+  FontSize 10
+}
+
+' ─── CAPA: FRONTEND ────────────────────────────────────────────
+node "Frontend (React)" {
+  [LoginPage.jsx] as LoginPage
+  [WalletButton.jsx] as WalletBtn
+  
+}
+
+' ─── CAPA: CONTROLADOR ─────────────────────────────────────────
+node "Backend — Controllers" {
+  [AuthController] as AuthCtrl
+  
+}
+
+' ─── INTERFAZ (abstracción DIP) ────────────────────────────────
+interface "IWalletConnector" as IWallet
+
+
+' ─── IMPLEMENTACIONES ──────────────────────────────────────────
+node "Backend — Services / Adapters" {
+  [MockWalletConnectorImpl] as MockWallet
+  [MetaMaskConnectorImpl] as MetaMask
+  
+}
+
+' ─── SINGLETON DE BASE DE DATOS ────────────────────────────────
+node "Backend — Infrastructure" {
+  [DatabaseConnection\n«Singleton»] as DBConn
+  
+}
+
+database "PostgreSQL\n(DeFi360 DB)" as PG {
+  [tabla: USUARIO] as TblUsuario
+  [tabla: SESION] as TblSesion
+}
+
+' ─── PRUEBAS ───────────────────────────────────────────────────
+node "Tests (Jest / JUnit)" {
+  [AuthController.test] as AuthTest
+  
+}
+
+' ─── RELACIONES ────────────────────────────────────────────────
+LoginPage     --> WalletBtn         : usa
+WalletBtn     --> AuthCtrl          : POST /auth/connect
+
+AuthCtrl      ..> IWallet           : «depends on»\n(inyección constructor)
+MockWallet    ..|> IWallet          : «implements»
+MetaMask      ..|> IWallet          : «implements»
+
+AuthCtrl      --> DBConn            : usa instancia única
+DBConn        --> PG                : JDBC / pg-node
+
+DBConn        ..> TblUsuario        : INSERT / SELECT
+DBConn        ..> TblSesion         : INSERT / SELECT
+
+AuthTest      ..> IWallet           : mock
+AuthTest      --> AuthCtrl          : prueba unitaria
+
+@enduml
