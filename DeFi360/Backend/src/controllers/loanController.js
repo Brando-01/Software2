@@ -15,12 +15,21 @@ const calculateLTV = (riskStrategy = defaultRiskStrategy, collateralService = de
     const { loanAmount, collateralAmount, collateralType = 'ETH' } = req.body;
 
     const collateralValue = await collateralService.calculateValue(collateralType, collateralAmount);
-    const riskLevel = riskStrategy.evaluate(
-      { remainingBalance: loanAmount, collateralAmount, collateral: { amount: collateralAmount } },
-      parseFloat(collateralValue) / parseFloat(collateralAmount)
-    );
 
-    res.json({ loanAmount, collateralValue, ltv: ratio, riskLevel, isHealthy, message });
+    const loan = {
+      remainingBalance: loanAmount,
+      collateralAmount: parseFloat(collateralAmount),
+      collateral: { amount: parseFloat(collateralAmount) }
+    };
+    const unitPrice = parseFloat(collateralValue) / parseFloat(collateralAmount);
+    const riskLevel = riskStrategy.evaluate(loan, unitPrice);
+
+    res.json({
+      loanAmount,
+      collateralValue,
+      ltv: ((parseFloat(loanAmount) / parseFloat(collateralValue)) * 100).toFixed(2),
+      riskLevel
+    });
   } catch (error) {
     console.error('[calculateLTV]', error.message);
     res.status(500).json({ message: 'Error al calcular LTV' });
