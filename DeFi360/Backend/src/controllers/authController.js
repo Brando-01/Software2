@@ -1,5 +1,9 @@
 const jwt = require('jsonwebtoken');
 const { User, Wallet } = require('../models');
+const MockWalletConnectorImpl = require('../services/MockWalletConnectorImpl');
+
+// Instancia por defecto del conector de wallet
+const defaultWalletConnector = new MockWalletConnectorImpl();
 
 // Generar token JWT
 const generateToken = (id) => {
@@ -8,14 +12,26 @@ const generateToken = (id) => {
   });
 };
 
-// @desc    Conectar wallet (simular autenticación Web3)
-// @route   POST /api/auth/connect-wallet
-const connectWallet = async (req, res) => {
+/**
+ * Conectar wallet (autenticación Web3)
+ * SOLID: DIP - El controlador depende de la abstracción IWalletConnector
+ * no de la implementación concreta (MockWalletConnectorImpl)
+ * 
+ * @param {IWalletConnector} walletConnector - Abstracción inyectada (mock para tests, real para producción)
+ */
+const connectWallet = (walletConnector = defaultWalletConnector) => async (req, res) => {
   try {
     const { walletAddress } = req.body;
 
     if (!walletAddress) {
       return res.status(400).json({ message: 'Dirección de wallet requerida' });
+    }
+
+    // Usar la abstracción inyectada para validar la wallet
+    try {
+      await walletConnector.connect(walletAddress);
+    } catch (error) {
+      return res.status(400).json({ message: error.message });
     }
 
     let user = await User.findOne({ where: { walletAddress } });
@@ -88,4 +104,8 @@ const getProfile = async (req, res) => {
   }
 };
 
-module.exports = { connectWallet, getProfile };
+module.exports = { 
+  connectWallet: connectWallet(),
+  connectWalletFactory: connectWallet,
+  getProfile 
+};

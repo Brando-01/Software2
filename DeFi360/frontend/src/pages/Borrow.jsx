@@ -56,14 +56,48 @@ function Borrow() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage(null);
+    
+    const amount = parseFloat(formData.amount);
+    const collateralAmount = parseFloat(formData.collateralAmount);
+    
+    // Validar datos
+    if (!amount || amount <= 0) {
+      setMessage({ type: 'error', text: 'Ingresa un monto válido' });
+      return;
+    }
+    
+    if (!collateralAmount || collateralAmount <= 0) {
+      setMessage({ type: 'error', text: 'Ingresa una cantidad de colateral válida' });
+      return;
+    }
+    
+    // Validar que el colateral sea suficiente
+    const collateralPrices = { ETH: 3000, BTC: 60000, USDC: 1 };
+    const collateralValue = collateralAmount * collateralPrices[formData.collateral];
+    
+    if (collateralValue < amount) {
+      const requiredCollateral = (amount / collateralPrices[formData.collateral]).toFixed(4);
+      setMessage({ 
+        type: 'error', 
+        text: `Colateral insuficiente. Necesitas al menos ${requiredCollateral} ${formData.collateral} (actual: ${collateralAmount})`,
+        details: {
+          requestedAmount: amount,
+          collateralValue: collateralValue,
+          minRequired: amount,
+          ltv: ((amount / collateralValue) * 100).toFixed(2) + '%'
+        }
+      });
+      return;
+    }
+    
     setLoading(true);
     
     try {
       const response = await loanService.requestLoan({
-        amount: parseFloat(formData.amount),
+        amount: amount,
         duration: parseInt(formData.duration),
         collateralType: formData.collateral,
-        collateralAmount: parseFloat(formData.collateralAmount)
+        collateralAmount: collateralAmount
       });
       
       setMessage({ type: 'success', text: response.message });
@@ -72,7 +106,13 @@ function Borrow() {
       setRisk(null);
     } catch (error) {
       console.error('Error al solicitar préstamo:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error al solicitar préstamo' });
+      const errorMessage = error.response?.data?.message || 'Error al solicitar préstamo';
+      const details = error.response?.data?.details;
+      setMessage({ 
+        type: 'error', 
+        text: errorMessage,
+        details: details
+      });
     } finally {
       setLoading(false);
     }
@@ -94,7 +134,14 @@ function Borrow() {
           border: `1px solid ${message.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
           color: message.type === 'success' ? '#059669' : '#dc2626'
         }}>
-          {message.text}
+          <div>{message.text}</div>
+          {message.details && (
+            <div style={{ fontSize: '12px', marginTop: '8px', opacity: 0.8 }}>
+              {Object.entries(message.details).map(([key, value]) => (
+                <div key={key}>{key}: {typeof value === 'object' ? JSON.stringify(value) : value}</div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
