@@ -39,4 +39,16 @@ const protect = async (req, res, next) => {
   }
 };
 
+const adminOnly = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'No autorizado' });
+  }
+
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Acceso denegado: se requieren privilegios de administrador' });
+  }
+
+  next();
+};
+
 module.exports = { protect, adminOnly };

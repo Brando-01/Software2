@@ -180,42 +180,44 @@ const matchLoan = (loanFactory = defaultLoanFactory) => async (req, res) => {
   }
 };
 
-const payLoan = async (req, res) => {
-  try {
-    const { Loan } = require('../models');
-    const { amount } = req.body;
-    const loanId = parseInt(req.params.id);
+const payLoanFactory = (paymentProcessor = null) => {
+  return async (req, res) => {
+    try {
+      const { Loan } = require('../models');
+      const { amount } = req.body;
+      const loanId = parseInt(req.params.id);
 
-    const paymentProcessor = new StandardPaymentProcessor();
+      const processor = paymentProcessor || new StandardPaymentProcessor();
 
-    const loan = await Loan.findByPk(loanId);
-    if (!loan) {
-      return res.status(404).json({ message: 'Préstamo no encontrado' });
+      const loan = await Loan.findByPk(loanId);
+      if (!loan) {
+        return res.status(404).json({ message: 'Préstamo no encontrado' });
+      }
+
+      if (loan.borrowerId !== req.user.id) {
+        return res.status(403).json({ message: 'No autorizado para pagar este préstamo' });
+      }
+
+      const result = await processor.processPayment({
+        loanId,
+        amount,
+        borrowerId: loan.borrowerId,
+        lenderId: loan.lenderId
+      });
+
+      res.json({
+        success: true,
+        message: result.loanStatus === 'paid'
+          ? '✅ Préstamo pagado completamente'
+          : `✅ Pago procesado. Saldo restante: ${result.newRemainingBalance}`,
+        ...result
+      });
+
+    } catch (error) {
+      console.error('Error en payLoan:', error.message);
+      res.status(400).json({ message: error.message || 'Error al procesar pago' });
     }
-
-    if (loan.borrowerId !== req.user.id) {
-      return res.status(403).json({ message: 'No autorizado para pagar este préstamo' });
-    }
-
-    const result = await paymentProcessor.processPayment({
-      loanId,
-      amount,
-      borrowerId: loan.borrowerId,
-      lenderId: loan.lenderId
-    });
-
-    res.json({
-      success: true,
-      message: result.loanStatus === 'paid'
-        ? '✅ Préstamo pagado completamente'
-        : `✅ Pago procesado. Saldo restante: ${result.newRemainingBalance}`,
-      ...result
-    });
-
-  } catch (error) {
-    console.error('Error en payLoan:', error.message);
-    res.status(400).json({ message: error.message || 'Error al procesar pago' });
-  }
+  };
 };
 
 // ============ ✅ EXPORTS CORREGIDOS ============
@@ -224,5 +226,8 @@ module.exports = {
   requestLoan: requestLoan(),
   getUserLoans,
   matchLoan: matchLoan(),
-  payLoan
+  payLoan: payLoanFactory(),
+  _factories: {
+    payLoan: payLoanFactory
+  }
 };

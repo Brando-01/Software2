@@ -50,10 +50,23 @@ Module.prototype.require = function(id) {
   return originalRequire.apply(this, arguments);
 };
 
-const StandardPaymentProcessor = require(path.resolve(__dirname, '../services/StandardPaymentProcessor'));
+const servicePath = path.resolve(__dirname, '../services/StandardPaymentProcessor');
+// Forzar recarga para que el módulo se cargue con el mock de `models`
+try {
+  delete require.cache[require.resolve(servicePath)];
+} catch (e) {}
+const StandardPaymentProcessor = require(servicePath);
 
 // Restaurar require original
 Module.prototype.require = originalRequire;
+
+beforeEach(() => {
+  borrowerWallet.availableBalance = 150;
+  lenderWallet.availableBalance = 50;
+  lenderWallet.blockedBalance = 20;
+  loan.remainingBalance = 100;
+  loan.status = 'active';
+});
 
 describe('StandardPaymentProcessor', () => {
   test('recalcula LTV correctamente', () => {
@@ -64,12 +77,16 @@ describe('StandardPaymentProcessor', () => {
 
   test('procesa pago completo', async () => {
     const processor = new StandardPaymentProcessor();
+    console.log('DEBUG before processPayment loan.remainingBalance:', loan.remainingBalance);
     const result = await processor.processPayment({
       loanId: 1,
       amount: 100,
       borrowerId: 10,
       lenderId: 20
     });
+    // Debug: mostrar estados después del pago
+    console.log('DEBUG borrowerWallet:', borrowerWallet);
+    console.log('DEBUG lenderWallet:', lenderWallet);
 
     equal(borrowerWallet.availableBalance, 50);
     equal(lenderWallet.availableBalance, 150);
