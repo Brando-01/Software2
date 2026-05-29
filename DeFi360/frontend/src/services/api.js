@@ -9,41 +9,42 @@ const api = axios.create({
   },
 });
 
-// Interceptor para agregar token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    console.log('Interceptor - Token encontrado:', token ? 'Sí' : 'No');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log('Interceptor - Header Authorization agregado');
-    } else {
-      console.log('Interceptor - No hay token');
-    }
-    return config;
-  },
-  (error) => {
-    console.error('Interceptor error:', error);
-    return Promise.reject(error);
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
 // ============ AUTH SERVICES ============
+const persistSession = (data) => {
+  if (!data.token) return data;
+  localStorage.setItem('authToken', data.token);
+  localStorage.setItem('userData', JSON.stringify(data.user));
+  localStorage.setItem('walletConnected', 'true');
+  localStorage.setItem('walletAddress', data.user.walletAddress || '');
+  const balance = data.user.wallet?.availableBalance ?? data.user.wallet?.totalBalance ?? 0;
+  localStorage.setItem('walletBalance', balance.toString());
+  return data;
+};
+
 export const authService = {
   connectWallet: async (walletAddress) => {
-  const response = await api.post('/auth/connect-wallet', { walletAddress });
-  if (response.data.token) {
-    localStorage.setItem('authToken', response.data.token);
-    localStorage.setItem('userData', JSON.stringify(response.data.user));
-    localStorage.setItem('walletConnected', 'true');
-    localStorage.setItem('walletAddress', response.data.user.walletAddress);
-    // ✅ IMPORTANTE: El balance puede venir como string o número
-    const balance = response.data.user.wallet?.availableBalance || response.data.user.wallet?.totalBalance || 0;
-    localStorage.setItem('walletBalance', balance.toString());
-  }
-  return response.data;
-},
-  
+    const response = await api.post('/auth/connect-wallet', { walletAddress });
+    return persistSession(response.data);
+  },
+
+  register: async (credentials) => {
+    const response = await api.post('/auth/register', credentials);
+    return persistSession(response.data);
+  },
+
+  login: async (credentials) => {
+    const response = await api.post('/auth/login', credentials);
+    return persistSession(response.data);
+  },
+
   getProfile: async () => {
     const response = await api.get('/auth/profile');
     if (response.data.wallet) {

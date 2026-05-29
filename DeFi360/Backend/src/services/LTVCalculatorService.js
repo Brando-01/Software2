@@ -11,23 +11,22 @@ class LTVCalculatorService {
     }
 
     const ratio = (loanAmount / collateralValue) * 100;
-    let riskLevel = 'LOW';
+    let riskLevel = 'low';
     let isHealthy = true;
-    let message = 'LTV Saludable';
+    let message = 'LTV saludable';
 
     if (ratio >= 95) {
-      riskLevel = 'LIQUIDATION';
+      riskLevel = 'critical';
       isHealthy = false;
-      message = 'ALERTA: Riesgo inminente de liquidación';
+      message = 'ALERTA: riesgo inminente de liquidación';
     } else if (ratio >= 90) {
-      riskLevel = 'HIGH';
+      riskLevel = 'high';
       isHealthy = false;
       message = 'PRECAUCIÓN: LTV cerca del límite de liquidación';
     } else if (ratio >= 75) {
-      riskLevel = 'MEDIUM';
+      riskLevel = 'medium';
     }
 
-    // Retorna la estructura LTVResult esperada
     return {
       ratio: parseFloat(ratio.toFixed(2)),
       isHealthy,

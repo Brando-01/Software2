@@ -42,6 +42,26 @@ const Loan = sequelize.define('Loan', {
     type: DataTypes.DECIMAL(5, 2),
     allowNull: false
   },
+  rateType: {
+    type: DataTypes.ENUM('fixed', 'variable'),
+    defaultValue: 'fixed',
+    field: 'rate_type'
+  },
+  baseApy: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    field: 'base_apy'
+  },
+  rateAdjustmentPeriod: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'rate_adjustment_period'
+  },
+  nextRateAdjustmentDate: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'next_rate_adjustment_date'
+  },
   duration: {
     type: DataTypes.INTEGER,
     allowNull: false

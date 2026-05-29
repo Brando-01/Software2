@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
-const bcrypt = require('bcryptjs');
 
 const User = sequelize.define('User', {
   id: {
@@ -10,16 +9,22 @@ const User = sequelize.define('User', {
   },
   walletAddress: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
     unique: true,
     field: 'wallet_address'
   },
   email: {
     type: DataTypes.STRING,
     allowNull: true,
+    unique: true,
     validate: {
       isEmail: true
     }
+  },
+  passwordHash: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'password_hash'
   },
   name: {
     type: DataTypes.STRING,
@@ -44,8 +49,7 @@ const User = sequelize.define('User', {
   underscored: true
 });
 
-// Método para comparar wallet (simulación de autenticación)
-User.prototype.compareWallet = function(walletAddress) {
+User.prototype.compareWallet = function (walletAddress) {
   return this.walletAddress === walletAddress;
 };
 
