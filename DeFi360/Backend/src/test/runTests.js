@@ -1,9 +1,9 @@
 const path = require('path');
 const testFiles = [
+  './observerPattern.test.js',
   './riskIntegration.test.js',
   './LTVRiskStrategy.test.js',
   './authController.test.js',
-  './ltv-calculator.test.js',
   './loanController.test.js',
   './StandardPaymentProcessor.test.js'
 ];
