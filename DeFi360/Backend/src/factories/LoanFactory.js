@@ -1,3 +1,34 @@
+<<<<<<< HEAD
+const ILoanFactory = require('../interfaces/ILoanFactory');
+const { Loan } = require('../models');
+
+class LoanFactory extends ILoanFactory {
+    async createFromOffer(offer, lenderId, borrowerId) {
+        if (!offer || !lenderId || !borrowerId) {
+            throw new Error('offer, lenderId y borrowerId son obligatorios');
+        }
+
+        const endDate = new Date(
+            Date.now() + offer.duration * 24 * 60 * 60 * 1000
+        );
+
+        const ltv = offer.collateralAmount ? ((offer.amount / (offer.collateralAmount * 3000)) * 100).toFixed(2) : null;
+
+        const loan = await Loan.create({
+            lenderId,
+            borrowerId,
+            offerId: offer.id,
+            amount: offer.amount,
+            apy: offer.apy,
+            duration: offer.duration,
+            ltv,
+            remainingBalance: offer.amount,
+            status: 'active',
+            endDate
+        });
+
+        return loan;
+=======
 /**
  * LoanFactory: Factory orchestrator que selecciona el tipo correcto de factory
  * Implementa patrón Factory Method
@@ -73,9 +104,13 @@ class LoanFactory extends ILoanFactory {
      */
     getSupportedRateTypes() {
         return Object.keys(this.factories);
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
     }
 }
 
 module.exports = LoanFactory;
 
+<<<<<<< HEAD
+=======
 
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
