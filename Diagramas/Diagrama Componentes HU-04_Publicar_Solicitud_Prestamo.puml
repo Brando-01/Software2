@@ -1,0 +1,109 @@
+@startuml HU-04_Publicar_Solicitud_Prestamo
+title HU-04 — Publicar Solicitud de Préstamo\nDeFi360 · Sprint 1 · Release 01
+
+skinparam componentStyle rectangle
+skinparam backgroundColor #FAFAFA
+skinparam component {
+  BackgroundColor #F9EBEA
+  BorderColor #922B21
+  FontSize 12
+}
+skinparam interface {
+  BackgroundColor #FDEBD0
+  BorderColor #E67E22
+}
+skinparam node {
+  BackgroundColor #F2F3F4
+  BorderColor #717D7E
+}
+skinparam database {
+  BackgroundColor #D5F5E3
+  BorderColor #1E8449
+}
+skinparam arrow {
+  Color #2C3E50
+  FontSize 10
+}
+
+' ─── FRONTEND ──────────────────────────────────────────────────
+node "Frontend (React)" {
+  [LoanRequestForm.jsx] as LoanForm
+  
+}
+
+' ─── CONTROLADOR ───────────────────────────────────────────────
+node "Backend — Controllers" {
+  [LoanController] as LoanCtrl
+  
+}
+
+' ─── INTERFACES (DIP) ──────────────────────────────────────────
+interface "ILoanFactory" as ILoanFact
+interface "IColateralService" as IColat
+interface "ILTVCalculator" as ILTV
+
+
+
+
+' ─── IMPLEMENTACIONES FACTORY ──────────────────────────────────
+node "Backend — Factories" {
+  [FixedRateLoanFactory] as FixedFact
+  [VariableRateLoanFactory] as VarFact
+  
+}
+
+' ─── SERVICIO COLATERAL ────────────────────────────────────────
+node "Backend — Services" {
+  [ColateralLockService] as ColSvc
+  [LTVCalculatorService] as LTVSvc
+  
+}
+
+' ─── MODELO / ENTIDAD ──────────────────────────────────────────
+node "Backend — Domain Model" {
+  [Prestamo] as PrestamoModel
+  [LTVResult] as LTVRes
+  
+}
+
+' ─── INFRAESTRUCTURA ───────────────────────────────────────────
+node "Backend — Infrastructure" {
+  [WalletManager] as WalletMgr
+  [DatabaseConnection\n«Singleton»] as DBConn
+}
+
+' ─── BASE DE DATOS ─────────────────────────────────────────────
+database "PostgreSQL" as PG {
+  [tabla: PRESTAMO] as TblPrestamo
+  [tabla: COLATERAL] as TblColateral
+}
+
+' ─── PRUEBAS ───────────────────────────────────────────────────
+node "Tests (Jest / JUnit)" {
+  [LTVCalculatorService.test] as LTVTest
+  
+}
+
+' ─── RELACIONES ────────────────────────────────────────────────
+LoanForm      --> LoanCtrl          : POST /loans/solicitar
+
+LoanCtrl      ..> ILoanFact         : «depends on»
+LoanCtrl      ..> IColat            : «depends on»
+LoanCtrl      ..> ILTV              : «depends on»
+
+FixedFact     ..|> ILoanFact        : «implements»
+VarFact       ..|> ILoanFact        : «implements»
+ColSvc        ..|> IColat           : «implements»
+LTVSvc        ..|> ILTV             : «implements»
+
+ILoanFact     --> PrestamoModel     : crea
+ILTV          --> LTVRes            : retorna
+ColSvc        --> WalletMgr         : delega bloqueo físico
+LoanCtrl      --> DBConn            : guarda préstamo
+
+DBConn        --> TblPrestamo       : INSERT
+DBConn        --> TblColateral      : UPDATE (bloqueo)
+
+LTVTest       --> LTVSvc            : prueba unitaria
+
+@enduml
