@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
 import { marketplaceService, loanService } from '../services/api';
 
-function Marketplace() {
+function Marketplace( { priceOracle }) {
   const [filter, setFilter] = useState('all');
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [processingId, setProcessingId] = useState(null);
+  const [prices, setPrices] = useState({});
 
   const fetchOffers = async () => {
     try {
       setLoading(true);
       const filters = filter === 'all' ? {} : { type: filter };
       const data = await marketplaceService.getOffers(filters);
-      setOffers(data.offers || []);
+      const offersData = data.offers || [];
+      setOffers(offersData);
+      await loadPrices(offersData);
       setError(null);
     } catch (err) {
       console.error('Error al cargar ofertas:', err);
@@ -26,6 +29,25 @@ function Marketplace() {
   useEffect(() => {
     fetchOffers();
   }, [filter]);
+
+  const loadPrices = async (offersData) => {
+  try {
+    const loadedPrices = {};
+
+    for (const offer of offersData) {
+      if (offer.collateralType) {
+        loadedPrices[offer.collateralType] =
+          await priceOracle.getAssetPrice(
+            offer.collateralType
+          );
+      }
+    }
+
+    setPrices(loadedPrices);
+  } catch (err) {
+    console.error('Error cargando precios', err);
+  }
+};
 
   const handleMatchLoan = async (offerId) => {
     try {
@@ -160,10 +182,17 @@ function Marketplace() {
                   <strong style={{ color: '#111827' }}>{offer.duration} días</strong>
                 </div>
                 {offer.collateralType && (
+                  <>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '13px', color: '#6b7280' }}>Colateral</span>
                     <strong style={{ color: '#111827' }}>{offer.collateralAmount} {offer.collateralType}</strong>
                   </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '13px', color: '#6b7280' }}>Precio Oracle</span>
+                    <strong style={{ color: '#1e40af' }}>{prices[offer.collateralType] !== undefined 
+                    ? `$${prices[offer.collateralType]}`   : 'Cargando...'} </strong>
+                  </div>
+                  </>
                 )}
               </div>
               

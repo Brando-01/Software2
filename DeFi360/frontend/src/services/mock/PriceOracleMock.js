@@ -11,7 +11,7 @@ export class PriceOracleMock extends IPriceOracle {
         };
     }
 
-    async getAssetPrice(symbol){
+    async getAPrice(symbol){
         return this.mockPrices[symbol] || 0;
     }
 }

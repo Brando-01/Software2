@@ -26,7 +26,7 @@ function App() {
           } />
           <Route path="/marketplace" element={
             <PrivateRoute>
-              <Marketplace />
+              <Marketplace priceOracle={priceOracle}/>
             </PrivateRoute>
           } />
           <Route path="/borrow" element={
