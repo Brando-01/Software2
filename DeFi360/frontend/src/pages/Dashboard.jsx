@@ -21,7 +21,7 @@ function Dashboard() {
         const loans = await loanService.getUserLoans();
         
         setWalletData({
-          address: profile.user.walletAddress,
+          address: profile.user.walletAddress || profile.user.email || '',
           balance: profile.wallet.totalBalance,
           availableBalance: profile.wallet.availableBalance,
           blockedBalance: profile.wallet.blockedBalance,
@@ -79,7 +79,7 @@ function Dashboard() {
 </div>
           </div>
           <p style={{ fontSize: '12px', color: '#9ca3af', fontFamily: 'monospace', marginTop: '16px' }}>
-            {walletData.address.slice(0, 10)}...{walletData.address.slice(-8)}
+            {walletData.address ? `${walletData.address.slice(0, 10)}...${walletData.address.slice(-8)}` : 'Cuenta tradicional'}
           </p>
         </div>
 
