@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import WalletConnector from './WalletConnector';
+import { authService } from '../services/api';
 import './Navbar.css';
 
 function Navbar() {
@@ -9,9 +10,7 @@ function Navbar() {
   const isAuthenticated = localStorage.getItem('walletConnected') === 'true';
 
   const handleLogout = () => {
-    localStorage.removeItem('walletConnected');
-    localStorage.removeItem('walletAddress');
-    localStorage.removeItem('walletBalance');
+    authService.logout();
     navigate('/login');
   };
 
@@ -61,7 +60,7 @@ function Navbar() {
         <div className="navbar-right">
           <WalletConnector />
           {isAuthenticated && (
-            <button onClick={handleLogout} className="btn-logout">
+            <button onClick={handleLogout} className="btn-ghost">
               Cerrar Sesión
             </button>
           )}

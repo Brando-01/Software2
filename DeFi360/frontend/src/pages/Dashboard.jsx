@@ -1,174 +1,174 @@
 import { useState, useEffect } from 'react';
 import { authService, loanService } from '../services/api';
+import RiskBadge from '../components/RiskBadge';
+import { riskFromLtv } from '../utils/risk';
+
+const money = (v) => `$${parseFloat(v || 0).toFixed(2)}`;
 
 function Dashboard() {
-  const [walletData, setWalletData] = useState({
-    address: '',
-    balance: 0,
-    availableBalance: 0,
-    blockedBalance: 0,
-    totalEarned: 0,
-    loans: { asLender: [], asBorrower: [] }
-  });
+  const [wallet, setWallet] = useState(null);
+  const [address, setAddress] = useState('');
+  const [loans, setLoans] = useState({ asLender: [], asBorrower: [] });
   const [loading, setLoading] = useState(true);
+  const [payingId, setPayingId] = useState(null);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const profile = await authService.getProfile();
+      const userLoans = await loanService.getUserLoans();
+      setWallet(profile.wallet);
+      setAddress(profile.user.walletAddress || profile.user.email || '');
+      setLoans(userLoans);
+    } catch (error) {
+      console.error('Error al cargar dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        
-        const profile = await authService.getProfile();
-        const loans = await loanService.getUserLoans();
-        
-        setWalletData({
-          address: profile.user.walletAddress || profile.user.email || '',
-          balance: profile.wallet.totalBalance,
-          availableBalance: profile.wallet.availableBalance,
-          blockedBalance: profile.wallet.blockedBalance,
-          totalEarned: profile.wallet.totalEarned,
-          loans: loans
-        });
-      } catch (error) {
-        console.error('Error al cargar dashboard:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     loadData();
   }, []);
 
-  if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: '50px' }}>
-        <p>Cargando dashboard...</p>
-      </div>
-    );
-  }
+  const handlePay = async (loan) => {
+    const input = window.prompt(`Monto a pagar (saldo: ${money(loan.remainingBalance)})`, loan.remainingBalance);
+    if (input == null) return;
+
+    const amount = parseFloat(input);
+    if (!amount || amount <= 0) return;
+
+    try {
+      setPayingId(loan.id);
+      await loanService.payLoan(loan.id, amount);
+      await loadData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'No se pudo procesar el pago');
+    } finally {
+      setPayingId(null);
+    }
+  };
+
+  if (loading) return <div className="empty-state">Cargando dashboard…</div>;
+
+  const activeBorrowed = loans.asBorrower?.filter((l) => l.status === 'active').length || 0;
 
   return (
     <div>
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '4px', color: '#111827' }}>Dashboard</h1>
-        <p style={{ color: '#6b7280', fontSize: '14px' }}>Resumen de tu actividad financiera</p>
+      <div className="page-header">
+        <h1>Dashboard</h1>
+        <p>Resumen de tu actividad financiera en DeFi360</p>
       </div>
-      
+
       <div className="grid-2">
-        <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #e4e7eb' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <span style={{ fontSize: '24px' }}>💰</span>
+        <div className="glass">
+          <div className="flex-gap" style={{ alignItems: 'center', marginBottom: 14 }}>
+            <span style={{ fontSize: 26 }}>💰</span>
             <div>
-              <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '4px' }}>Balance Total</p>
-              <h2 style={{ fontSize: '28px', fontWeight: '600', color: '#1e40af' }}>
-  ${typeof walletData.balance === 'number' ? walletData.balance.toFixed(2) : parseFloat(walletData.balance || 0).toFixed(2)} USD
-</h2>
+              <p className="text-muted" style={{ fontSize: 13 }}>Balance total</p>
+              <div className="metric-value metric-accent">{money(wallet?.totalBalance)}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
+          <div className="flex-gap" style={{ gap: 28 }}>
             <div>
-  <p style={{ fontSize: '12px', color: '#6b7280' }}>Disponible</p>
-  <strong style={{ color: '#059669' }}>${typeof walletData.availableBalance === 'number' ? walletData.availableBalance.toFixed(2) : parseFloat(walletData.availableBalance || 0).toFixed(2)}</strong>
-</div>
-<div>
-  <p style={{ fontSize: '12px', color: '#6b7280' }}>Bloqueado</p>
-  <strong style={{ color: '#f59e0b' }}>${typeof walletData.blockedBalance === 'number' ? walletData.blockedBalance.toFixed(2) : parseFloat(walletData.blockedBalance || 0).toFixed(2)}</strong>
-</div>
-<div>
-  <p style={{ fontSize: '12px', color: '#6b7280' }}>Ganado</p>
-  <strong style={{ color: '#1e40af' }}>${typeof walletData.totalEarned === 'number' ? walletData.totalEarned.toFixed(2) : parseFloat(walletData.totalEarned || 0).toFixed(2)}</strong>
-</div>
+              <p className="text-dim" style={{ fontSize: 12 }}>Disponible</p>
+              <strong style={{ color: 'var(--risk-low)' }}>{money(wallet?.availableBalance)}</strong>
+            </div>
+            <div>
+              <p className="text-dim" style={{ fontSize: 12 }}>Bloqueado</p>
+              <strong style={{ color: 'var(--risk-medium)' }}>{money(wallet?.blockedBalance)}</strong>
+            </div>
+            <div>
+              <p className="text-dim" style={{ fontSize: 12 }}>Ganado</p>
+              <strong className="metric-accent">{money(wallet?.totalEarned)}</strong>
+            </div>
           </div>
-          <p style={{ fontSize: '12px', color: '#9ca3af', fontFamily: 'monospace', marginTop: '16px' }}>
-            {walletData.address ? `${walletData.address.slice(0, 10)}...${walletData.address.slice(-8)}` : 'Cuenta tradicional'}
+          <p className="mono mt-24">
+            {address ? (address.startsWith('0x') ? `${address.slice(0, 10)}…${address.slice(-8)}` : address) : 'Cuenta tradicional'}
           </p>
         </div>
 
-        <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #e4e7eb' }}>
-          <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '16px' }}>Resumen de Actividades</p>
-          <div style={{ display: 'flex', gap: '32px' }}>
+        <div className="glass">
+          <p className="text-muted" style={{ fontSize: 13, marginBottom: 16 }}>Resumen de actividades</p>
+          <div className="flex-gap" style={{ gap: 40 }}>
             <div>
-              <p style={{ color: '#9ca3af', fontSize: '12px', marginBottom: '6px' }}>Préstamos Aceptados</p>
-              <h3 style={{ fontSize: '22px', fontWeight: '600', color: '#059669' }}>
-                {walletData.loans.asLender?.length || 0}
-              </h3>
+              <p className="text-dim" style={{ fontSize: 12, marginBottom: 6 }}>Préstamos otorgados</p>
+              <div className="metric-value metric-success">{loans.asLender?.length || 0}</div>
             </div>
             <div>
-              <p style={{ color: '#9ca3af', fontSize: '12px', marginBottom: '6px' }}>Préstamos Activos</p>
-              <h3 style={{ fontSize: '22px', fontWeight: '600', color: '#1e40af' }}>
-                {walletData.loans.asBorrower?.filter(l => l.status === 'active').length || 0}
-              </h3>
+              <p className="text-dim" style={{ fontSize: 12, marginBottom: 6 }}>Préstamos activos</p>
+              <div className="metric-value metric-accent">{activeBorrowed}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #e4e7eb', marginTop: '24px' }}>
-        <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px', color: '#111827' }}>Préstamos como Prestamista</h3>
-        {walletData.loans.asLender?.length === 0 ? (
-          <p style={{ color: '#9ca3af', fontSize: '14px' }}>No tienes préstamos como prestamista.</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #e4e7eb' }}>
-                  <th style={{ textAlign: 'left', padding: '12px 8px 12px 0', color: '#6b7280', fontSize: '12px' }}>Monto</th>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', color: '#6b7280', fontSize: '12px' }}>APY</th>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', color: '#6b7280', fontSize: '12px' }}>Saldo Restante</th>
-                  <th style={{ textAlign: 'left', padding: '12px 0 12px 8px', color: '#6b7280', fontSize: '12px' }}>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {walletData.loans.asLender.map(loan => (
-                  <tr key={loan.id} style={{ borderBottom: '1px solid #f0f2f5' }}>
-                    <td style={{ padding: '12px 8px 12px 0', fontSize: '14px' }}>${parseFloat(loan.amount).toFixed(2)}</td>
-                    <td style={{ padding: '12px 8px', fontSize: '14px' }}>{loan.apy}%</td>
-                    <td style={{ padding: '12px 8px', fontSize: '14px' }}>${parseFloat(loan.remainingBalance).toFixed(2)}</td>
-                    <td style={{ padding: '12px 0 12px 8px' }}>
-                      <span className={`badge ${loan.status === 'active' ? 'badge-success' : 'badge-primary'}`}>
-                        {loan.status === 'active' ? 'Activo' : 'Pagado'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <h3 className="mt-24" style={{ marginBottom: 16 }}>Como prestamista</h3>
+      <LoanGrid loans={loans.asLender} emptyText="No tienes préstamos otorgados." />
 
-      <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #e4e7eb', marginTop: '24px' }}>
-        <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px', color: '#111827' }}>Mis Préstamos (Como Deudor)</h3>
-        {walletData.loans.asBorrower?.length === 0 ? (
-          <p style={{ color: '#9ca3af', fontSize: '14px' }}>No tienes préstamos activos como deudor.</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #e4e7eb' }}>
-                  <th style={{ textAlign: 'left', padding: '12px 8px 12px 0', color: '#6b7280', fontSize: '12px' }}>Monto</th>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', color: '#6b7280', fontSize: '12px' }}>APY</th>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', color: '#6b7280', fontSize: '12px' }}>Saldo Restante</th>
-                  <th style={{ textAlign: 'left', padding: '12px 0 12px 8px', color: '#6b7280', fontSize: '12px' }}>Estado</th>
-                 </tr>
-              </thead>
-              <tbody>
-                {walletData.loans.asBorrower.map(loan => (
-                  <tr key={loan.id} style={{ borderBottom: '1px solid #f0f2f5' }}>
-                    <td style={{ padding: '12px 8px 12px 0', fontSize: '14px' }}>${parseFloat(loan.amount).toFixed(2)}</td>
-                    <td style={{ padding: '12px 8px', fontSize: '14px' }}>{loan.apy}%</td>
-                    <td style={{ padding: '12px 8px', fontSize: '14px' }}>${parseFloat(loan.remainingBalance).toFixed(2)}</td>
-                    <td style={{ padding: '12px 0 12px 8px' }}>
-                      <span className={`badge ${loan.status === 'active' ? 'badge-warning' : 'badge-success'}`}>
-                        {loan.status === 'active' ? 'En curso' : 'Pagado'}
-                      </span>
-                    </td>
-                   </tr>
-                ))}
-              </tbody>
-            </table>
+      <h3 className="mt-24" style={{ marginBottom: 16 }}>Mis préstamos (como deudor)</h3>
+      <LoanGrid
+        loans={loans.asBorrower}
+        emptyText="No tienes préstamos activos como deudor."
+        onPay={handlePay}
+        payingId={payingId}
+      />
+    </div>
+  );
+}
+
+function LoanGrid({ loans, emptyText, onPay, payingId }) {
+  if (!loans || loans.length === 0) {
+    return <div className="glass-soft empty-state">{emptyText}</div>;
+  }
+
+  return (
+    <div className="grid-3">
+      {loans.map((loan) => {
+        const level = riskFromLtv(loan.ltv);
+        const paid = loan.status !== 'active';
+
+        return (
+          <div key={loan.id} className="glass glass-hover">
+            <div className="flex-between">
+              <span className="card-title">Préstamo #{loan.id}</span>
+              <span className={`badge ${paid ? 'risk-low' : 'badge-accent'}`}>
+                {paid ? 'Pagado' : 'Activo'}
+              </span>
+            </div>
+
+            <div className="card-amount">{money(loan.amount)}</div>
+
+            <div className="stat-row">
+              <span className="label">Tasa</span>
+              <span className="value">{loan.rateType === 'variable' ? 'Variable' : 'Fija'}</span>
+            </div>
+            <div className="stat-row">
+              <span className="label">APY{loan.baseApy ? ' (base)' : ''}</span>
+              <span className="value" style={{ color: 'var(--risk-low)' }}>{loan.baseApy || loan.apy}%</span>
+            </div>
+            <div className="stat-row">
+              <span className="label">Saldo pendiente</span>
+              <span className="value">{money(loan.remainingBalance)}</span>
+            </div>
+            {loan.ltv && (
+              <div className="stat-row">
+                <span className="label">LTV</span>
+                <RiskBadge level={level} showLtv={loan.ltv} />
+              </div>
+            )}
+
+            {onPay && !paid && (
+              <>
+                <div className="divider" />
+                <button className="btn-block" onClick={() => onPay(loan)} disabled={payingId === loan.id}>
+                  {payingId === loan.id ? 'Procesando…' : 'Pagar cuota'}
+                </button>
+              </>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })}
     </div>
   );
 }

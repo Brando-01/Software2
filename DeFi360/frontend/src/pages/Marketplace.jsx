@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react';
 import { marketplaceService, loanService } from '../services/api';
+import RiskBadge from '../components/RiskBadge';
+import { riskFromLtv } from '../utils/risk';
+
+const FILTERS = [
+  { key: 'all', label: 'Todos' },
+  { key: 'lend', label: 'Prestar (Lend)' },
+  { key: 'borrow', label: 'Pedir (Borrow)' }
+];
 
 function Marketplace() {
   const [filter, setFilter] = useState('all');
@@ -13,10 +21,9 @@ function Marketplace() {
     const userData = localStorage.getItem('userData');
     if (userData) {
       try {
-        const parsed = JSON.parse(userData);
-        setCurrentUserId(parsed?.id ?? null);
+        setCurrentUserId(JSON.parse(userData)?.id ?? null);
       } catch (err) {
-        console.warn('Marketplace: no se pudo parsear userData', err);
+        console.warn('Marketplace: userData inválido', err);
       }
     }
   }, []);
@@ -30,7 +37,7 @@ function Marketplace() {
       setError(null);
     } catch (err) {
       console.error('Error al cargar ofertas:', err);
-      setError('Error al cargar las ofertas');
+      setError('No se pudieron cargar las ofertas.');
     } finally {
       setLoading(false);
     }
@@ -39,170 +46,115 @@ function Marketplace() {
   useEffect(() => {
     fetchOffers();
   }, [filter]);
- 
+
   const handleMatchLoan = async (offerId) => {
     try {
       setProcessingId(offerId);
-      const result = await loanService.matchLoan(offerId);
-      alert('✅ Préstamo aceptado exitosamente');
-      fetchOffers();
+      await loanService.matchLoan(offerId);
+      await fetchOffers();
     } catch (err) {
-      console.error('Error al aceptar:', err);
       alert(err.response?.data?.message || 'Error al aceptar el préstamo');
     } finally {
       setProcessingId(null);
     }
   };
 
-  const getBadgeClass = (type) => {
-    return type === 'lend' ? 'badge-success' : 'badge-warning';
-  };
-
-  const getBadgeText = (type) => {
-    return type === 'lend' ? 'Lend' : 'Borrow';
-  };
-
-  if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: '50px' }}>
-        <p>Cargando ofertas...</p>
-      </div>
-    );
-  }
+  const isOwn = (offer) => offer.userId === currentUserId || offer.User?.id === currentUserId;
 
   return (
     <div>
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '4px', color: '#111827' }}>Marketplace P2P</h1>
-        <p style={{ color: '#6b7280', fontSize: '14px' }}>Encuentra oportunidades de inversión o solicita préstamos</p>
+      <div className="page-header">
+        <h1>Marketplace P2P</h1>
+        <p>Encuentra oportunidades de inversión o solicita financiamiento colateralizado</p>
       </div>
 
-      {error && (
-        <div style={{ 
-          background: '#fef2f2', 
-          color: '#dc2626', 
-          padding: '12px', 
-          borderRadius: '8px', 
-          marginBottom: '20px',
-          textAlign: 'center'
-        }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="alert alert-error">{error}</div>}
 
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '28px', flexWrap: 'wrap' }}>
-        <button 
-          onClick={() => setFilter('all')} 
-          style={{ 
-            background: filter === 'all' ? '#1e40af' : '#ffffff',
-            color: filter === 'all' ? 'white' : '#374151',
-            border: filter === 'all' ? 'none' : '1px solid #e4e7eb',
-            padding: '8px 20px',
-            borderRadius: '20px',
-            fontSize: '13px'
-          }}
-        >
-          Todos
-        </button>
-        <button 
-          onClick={() => setFilter('lend')} 
-          style={{ 
-            background: filter === 'lend' ? '#059669' : '#ffffff',
-            color: filter === 'lend' ? 'white' : '#374151',
-            border: filter === 'lend' ? 'none' : '1px solid #e4e7eb',
-            padding: '8px 20px',
-            borderRadius: '20px',
-            fontSize: '13px'
-          }}
-        >
-          Prestar (Lend)
-        </button>
-        <button 
-          onClick={() => setFilter('borrow')} 
-          style={{ 
-            background: filter === 'borrow' ? '#d97706' : '#ffffff',
-            color: filter === 'borrow' ? 'white' : '#374151',
-            border: filter === 'borrow' ? 'none' : '1px solid #e4e7eb',
-            padding: '8px 20px',
-            borderRadius: '20px',
-            fontSize: '13px'
-          }}
-        >
-          Pedir (Borrow)
-        </button>
+      <div className="flex-gap" style={{ marginBottom: 26, flexWrap: 'wrap' }}>
+        {FILTERS.map(({ key, label }) => (
+          <button
+            key={key}
+            className={filter === key ? '' : 'btn-ghost'}
+            onClick={() => setFilter(key)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {offers.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '50px', background: '#f8fafc', borderRadius: '16px' }}>
-          <p style={{ color: '#6b7280' }}>No hay ofertas disponibles en este momento.</p>
-        </div>
+      {loading ? (
+        <div className="empty-state">Cargando ofertas…</div>
+      ) : offers.length === 0 ? (
+        <div className="glass-soft empty-state">No hay ofertas disponibles en este momento.</div>
       ) : (
-        <div className="grid-2">
-          {offers.map(offer => (
-            <div key={offer.id} style={{ 
-              background: '#ffffff', 
-              borderRadius: '16px', 
-              padding: '24px', 
-              border: '1px solid #e4e7eb',
-              transition: 'all 0.2s ease'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#111827' }}>
-                  {offer.type === 'lend' ? '📈 Oferta de Préstamo' : '📉 Solicitud de Préstamo'}
-                </h3>
-                <span className={`badge ${getBadgeClass(offer.type)}`}>
-                  {getBadgeText(offer.type)}
-                </span>
-              </div>
-              
-              <p style={{ marginBottom: '12px', fontSize: '13px', color: '#6b7280' }}>
-                Usuario: <strong style={{ color: '#111827' }}>{offer.User?.walletAddress?.slice(0, 10) || 'Usuario'}...</strong>
-              </p>
-              
-              <h2 style={{ fontSize: '26px', fontWeight: '600', color: '#1e40af', marginBottom: '16px' }}>
-                ${parseFloat(offer.amount).toLocaleString()} USD
-              </h2>
-              
-              <div style={{ marginBottom: '20px', paddingTop: '12px', borderTop: '1px solid #f0f2f5' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '13px', color: '#6b7280' }}>APY</span>
-                  <strong style={{ color: '#059669' }}>{offer.apy}%</strong>
+        <div className="grid-3">
+          {offers.map((offer) => {
+            const level = riskFromLtv(offer.ltv);
+            const own = isOwn(offer);
+            const isLend = offer.type === 'lend';
+
+            return (
+              <div key={offer.id} className="glass glass-hover">
+                <div className="flex-between">
+                  <span className="card-title">
+                    {isLend ? '📈 Oferta de Préstamo' : '📉 Solicitud de Préstamo'}
+                  </span>
+                  <span className={`badge ${isLend ? 'risk-low' : 'badge-accent'}`}>
+                    {isLend ? 'Lend' : 'Borrow'}
+                  </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '13px', color: '#6b7280' }}>Plazo</span>
-                  <strong style={{ color: '#111827' }}>{offer.duration} días</strong>
+
+                <div className="card-amount">${parseFloat(offer.amount).toLocaleString()}</div>
+
+                <div className="stat-row">
+                  <span className="label">APY</span>
+                  <span className="value" style={{ color: 'var(--risk-low)' }}>{offer.apy}%</span>
                 </div>
-                {offer.collateralType && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '13px', color: '#6b7280' }}>Colateral</span>
-                    <strong style={{ color: '#111827' }}>{offer.collateralAmount} {offer.collateralType}</strong>
+                <div className="stat-row">
+                  <span className="label">Plazo</span>
+                  <span className="value">{offer.duration} días</span>
+                </div>
+                {offer.rateType && (
+                  <div className="stat-row">
+                    <span className="label">Tasa</span>
+                    <span className="value">{offer.rateType === 'variable' ? 'Variable' : 'Fija'}</span>
                   </div>
                 )}
+                {offer.collateralType && (
+                  <div className="stat-row">
+                    <span className="label">Colateral</span>
+                    <span className="value">{offer.collateralAmount} {offer.collateralType}</span>
+                  </div>
+                )}
+                {offer.ltv && (
+                  <div className="stat-row">
+                    <span className="label">LTV</span>
+                    <RiskBadge level={level} showLtv={offer.ltv} />
+                  </div>
+                )}
+
+                <div className="divider" />
+
+                <p className="mono" style={{ marginBottom: 14 }}>
+                  {offer.User?.walletAddress?.slice(0, 12) || 'Usuario'}…
+                </p>
+
+                <button
+                  className="btn-block"
+                  onClick={() => handleMatchLoan(offer.id)}
+                  disabled={processingId === offer.id || isLend || own}
+                >
+                  {processingId === offer.id
+                    ? 'Procesando…'
+                    : own
+                      ? 'Tu oferta'
+                      : isLend
+                        ? 'Invertir'
+                        : 'Aceptar Préstamo'}
+                </button>
               </div>
-              
-              <button 
-                onClick={() => handleMatchLoan(offer.id)}
-                disabled={
-                  processingId === offer.id ||
-                  offer.type === 'lend' ||
-                  offer.userId === currentUserId ||
-                  offer.User?.id === currentUserId
-                }
-                style={{ 
-                  width: '100%',
-                  background: offer.type === 'lend' || offer.userId === currentUserId || offer.User?.id === currentUserId ? '#6b7280' : '#2563eb'
-                }}
-              >
-                {processingId === offer.id 
-                  ? 'Procesando...' 
-                  : offer.userId === currentUserId || offer.User?.id === currentUserId 
-                    ? 'Tu oferta' 
-                    : offer.type === 'lend' 
-                      ? 'Invertir' 
-                      : 'Aceptar Préstamo'}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

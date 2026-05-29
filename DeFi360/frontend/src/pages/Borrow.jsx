@@ -1,118 +1,70 @@
 import { useState } from 'react';
 import { loanService } from '../services/api';
+import RiskBadge from '../components/RiskBadge';
+
+const COLLATERAL_PRICES = { ETH: 3000, BTC: 60000, USDC: 1 };
 
 function Borrow() {
-  const [formData, setFormData] = useState({
-    amount: '',
-    collateral: 'ETH',
-    collateralAmount: '',
-    duration: 30
-  });
-  const [ltv, setLtv] = useState(null);
-  const [risk, setRisk] = useState(null);
+  const [formData, setFormData] = useState({ amount: '', collateral: 'ETH', collateralAmount: '', duration: 30 });
+  const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const collateralValues = { ETH: 3000, BTC: 30000, USDC: 1 };
+  const update = (field) => (e) => setFormData({ ...formData, [field]: e.target.value });
 
   const calculateLTV = async () => {
     const amount = parseFloat(formData.amount);
     const collateralAmount = parseFloat(formData.collateralAmount);
-    
-    if (amount && collateralAmount) {
-      try {
-        setLoading(true);
-        const result = await loanService.calculateLTV({
-          loanAmount: amount,
-          collateralAmount: collateralAmount,
-          collateralType: formData.collateral
-        });
-        
-        setLtv(result.ltv);
-        setRisk(result.riskLevel);
-      } catch (error) {
-        console.error('Error al calcular LTV:', error);
-        setMessage({ type: 'error', text: 'Error al calcular LTV' });
-      } finally {
-        setLoading(false);
-      }
+    if (!amount || !collateralAmount) return;
+
+    try {
+      setLoading(true);
+      const result = await loanService.calculateLTV({
+        loanAmount: amount,
+        collateralAmount,
+        collateralType: formData.collateral
+      });
+      setAnalysis(result);
+    } catch (error) {
+      console.error('Error al calcular LTV:', error);
+      setMessage({ type: 'error', text: 'Error al calcular LTV' });
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const getRiskColor = () => {
-    if (risk === 'critical') return '#dc2626';
-    if (risk === 'high') return '#f59e0b';
-    if (risk === 'medium') return '#f97316';
-    return '#10b981';
-  };
-
-  const getRiskText = () => {
-    if (risk === 'critical') return 'Riesgo Crítico';
-    if (risk === 'high') return 'Alto Riesgo';
-    if (risk === 'medium') return 'Riesgo Moderado';
-    return 'Bajo Riesgo';
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage(null);
-    
+
     const amount = parseFloat(formData.amount);
     const collateralAmount = parseFloat(formData.collateralAmount);
-    
-    // Validar datos
-    if (!amount || amount <= 0) {
-      setMessage({ type: 'error', text: 'Ingresa un monto válido' });
-      return;
-    }
-    
-    if (!collateralAmount || collateralAmount <= 0) {
-      setMessage({ type: 'error', text: 'Ingresa una cantidad de colateral válida' });
-      return;
-    }
-    
-    // Validar que el colateral sea suficiente
-    const collateralPrices = { ETH: 3000, BTC: 60000, USDC: 1 };
-    const collateralValue = collateralAmount * collateralPrices[formData.collateral];
-    
+
+    if (!amount || amount <= 0) return setMessage({ type: 'error', text: 'Ingresa un monto válido' });
+    if (!collateralAmount || collateralAmount <= 0) return setMessage({ type: 'error', text: 'Ingresa una cantidad de colateral válida' });
+
+    const collateralValue = collateralAmount * COLLATERAL_PRICES[formData.collateral];
     if (collateralValue < amount) {
-      const requiredCollateral = (amount / collateralPrices[formData.collateral]).toFixed(4);
-      setMessage({ 
-        type: 'error', 
-        text: `Colateral insuficiente. Necesitas al menos ${requiredCollateral} ${formData.collateral} (actual: ${collateralAmount})`,
-        details: {
-          requestedAmount: amount,
-          collateralValue: collateralValue,
-          minRequired: amount,
-          ltv: ((amount / collateralValue) * 100).toFixed(2) + '%'
-        }
+      const required = (amount / COLLATERAL_PRICES[formData.collateral]).toFixed(4);
+      return setMessage({
+        type: 'error',
+        text: `Colateral insuficiente. Necesitas al menos ${required} ${formData.collateral}.`
       });
-      return;
     }
-    
-    setLoading(true);
-    
+
     try {
+      setLoading(true);
       const response = await loanService.requestLoan({
-        amount: amount,
-        duration: parseInt(formData.duration),
+        amount,
+        duration: parseInt(formData.duration, 10),
         collateralType: formData.collateral,
-        collateralAmount: collateralAmount
+        collateralAmount
       });
-      
       setMessage({ type: 'success', text: response.message });
       setFormData({ amount: '', collateral: 'ETH', collateralAmount: '', duration: 30 });
-      setLtv(null);
-      setRisk(null);
+      setAnalysis(null);
     } catch (error) {
-      console.error('Error al solicitar préstamo:', error);
-      const errorMessage = error.response?.data?.message || 'Error al solicitar préstamo';
-      const details = error.response?.data?.details;
-      setMessage({ 
-        type: 'error', 
-        text: errorMessage,
-        details: details
-      });
+      setMessage({ type: 'error', text: error.response?.data?.message || 'Error al solicitar préstamo' });
     } finally {
       setLoading(false);
     }
@@ -120,79 +72,42 @@ function Borrow() {
 
   return (
     <div>
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '4px', color: '#111827' }}>Solicitar Préstamo</h1>
-        <p style={{ color: '#6b7280', fontSize: '14px' }}>Ofrece colateral y obtén financiamiento en criptomonedas</p>
+      <div className="page-header">
+        <h1>Solicitar Préstamo</h1>
+        <p>Ofrece colateral y obtén financiamiento en criptomonedas</p>
       </div>
 
-      {message && (
-        <div style={{ 
-          padding: '12px 16px', 
-          borderRadius: '8px', 
-          marginBottom: '20px',
-          background: message.type === 'success' ? '#ecfdf5' : '#fef2f2',
-          border: `1px solid ${message.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
-          color: message.type === 'success' ? '#059669' : '#dc2626'
-        }}>
-          <div>{message.text}</div>
-          {message.details && (
-            <div style={{ fontSize: '12px', marginTop: '8px', opacity: 0.8 }}>
-              {Object.entries(message.details).map(([key, value]) => (
-                <div key={key}>{key}: {typeof value === 'object' ? JSON.stringify(value) : value}</div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {message && <div className={`alert alert-${message.type === 'success' ? 'success' : 'error'}`}>{message.text}</div>}
 
       <div className="grid-2">
-        <div style={{ background: '#ffffff', borderRadius: '16px', padding: '28px', border: '1px solid #e4e7eb' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '24px', color: '#111827' }}>Formulario de Solicitud</h3>
+        <div className="glass">
+          <h3 style={{ marginBottom: 22 }}>Formulario de solicitud</h3>
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Monto a solicitar (USD)</label>
-              <input
-                type="number"
-                value={formData.amount}
-                onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                placeholder="Ej: 1000"
-                required
-              />
+            <div className="field">
+              <label>Monto a solicitar (USD)</label>
+              <input type="number" value={formData.amount} onChange={update('amount')} placeholder="Ej: 1000" required />
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Tipo de Colateral</label>
-              <select
-                value={formData.collateral}
-                onChange={(e) => setFormData({...formData, collateral: e.target.value})}
-              >
+            <div className="field">
+              <label>Tipo de colateral</label>
+              <select value={formData.collateral} onChange={update('collateral')}>
                 <option value="ETH">Ethereum (ETH)</option>
                 <option value="BTC">Bitcoin (BTC)</option>
                 <option value="USDC">USD Coin (USDC)</option>
               </select>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Cantidad de Colateral</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.collateralAmount}
-                onChange={(e) => setFormData({...formData, collateralAmount: e.target.value})}
-                placeholder="Ej: 0.5"
-                required
-              />
-              <p style={{ fontSize: '11px', marginTop: '6px', color: '#9ca3af' }}>
-                1 {formData.collateral} ≈ ${collateralValues[formData.collateral].toLocaleString()} USD
+            <div className="field">
+              <label>Cantidad de colateral</label>
+              <input type="number" step="0.01" value={formData.collateralAmount} onChange={update('collateralAmount')} placeholder="Ej: 0.5" required />
+              <p className="text-dim" style={{ fontSize: 11, marginTop: 6 }}>
+                1 {formData.collateral} ≈ ${COLLATERAL_PRICES[formData.collateral].toLocaleString()} USD
               </p>
             </div>
 
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Plazo (días)</label>
-              <select
-                value={formData.duration}
-                onChange={(e) => setFormData({...formData, duration: e.target.value})}
-              >
+            <div className="field">
+              <label>Plazo (días)</label>
+              <select value={formData.duration} onChange={update('duration')}>
                 <option value={30}>30 días</option>
                 <option value={60}>60 días</option>
                 <option value={90}>90 días</option>
@@ -200,53 +115,38 @@ function Borrow() {
               </select>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button type="button" onClick={calculateLTV} style={{ flex: 1, background: '#6b7280' }} disabled={loading}>
-                {loading ? 'Calculando...' : 'Calcular LTV'}
+            <div className="actions">
+              <button type="button" className="btn-ghost" onClick={calculateLTV} disabled={loading}>
+                {loading ? 'Calculando…' : 'Calcular LTV'}
               </button>
-              <button type="submit" style={{ flex: 1 }} disabled={loading}>
-                {loading ? 'Enviando...' : 'Enviar Solicitud'}
+              <button type="submit" disabled={loading}>
+                {loading ? 'Enviando…' : 'Enviar solicitud'}
               </button>
             </div>
           </form>
         </div>
 
-        <div style={{ background: '#f8fafc', borderRadius: '16px', padding: '28px', border: '1px solid #e4e7eb' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '20px', color: '#111827' }}>Análisis de Riesgo</h3>
-          {ltv ? (
+        <div className="glass-soft">
+          <h3 style={{ marginBottom: 20 }}>Análisis de riesgo</h3>
+          {analysis ? (
             <div>
-              <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px' }}>Loan-to-Value (LTV)</p>
-              <h2 style={{ fontSize: '42px', fontWeight: '600', color: '#1e40af', marginBottom: '16px' }}>{ltv}%</h2>
-              <div style={{ marginBottom: '20px' }}>
-                <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '6px' }}>Nivel de Riesgo</p>
-                <span style={{ 
-                  display: 'inline-block',
-                  padding: '4px 12px',
-                  borderRadius: '20px',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  background: risk === 'critical' || risk === 'high' ? '#fef2f2' : risk === 'medium' ? '#fffbeb' : '#ecfdf5',
-                  color: getRiskColor()
-                }}>
-                  {getRiskText()}
-                </span>
+              <p className="text-muted" style={{ fontSize: 13, marginBottom: 6 }}>Loan-to-Value (LTV)</p>
+              <div className="metric-value metric-accent" style={{ fontSize: 44, marginBottom: 16 }}>{analysis.ltv}%</div>
+
+              <div className="flex-between" style={{ marginBottom: 18 }}>
+                <span className="text-muted" style={{ fontSize: 13 }}>Nivel de riesgo</span>
+                <RiskBadge level={analysis.riskLevel} />
               </div>
-              {(risk === 'critical' || parseFloat(ltv) > 80) && (
-                <div style={{ 
-                  padding: '14px', 
-                  background: '#fef2f2', 
-                  borderRadius: '10px',
-                  border: '1px solid #fecaca'
-                }}>
-                  <p style={{ fontSize: '13px', color: '#dc2626', marginBottom: 0 }}>
-                    ⚠️ Alerta: LTV alto. Si el colateral baja de precio, podrías ser liquidado.
-                  </p>
+
+              {!analysis.isHealthy && (
+                <div className="alert alert-error" style={{ marginBottom: 0 }}>
+                  ⚠️ {analysis.message}. Si el colateral baja de precio, podrías ser liquidado.
                 </div>
               )}
             </div>
           ) : (
-            <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '20px' }}>
-              Completa el formulario y haz clic en "Calcular LTV" para ver el análisis de riesgo.
+            <p className="text-dim" style={{ fontSize: 14 }}>
+              Completa el formulario y pulsa «Calcular LTV» para ver el análisis de riesgo.
             </p>
           )}
         </div>

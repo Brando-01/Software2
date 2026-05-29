@@ -11,8 +11,8 @@ function WalletConnector() {
       if (token) {
         try {
           const profile = await authService.getProfile();
-          setWalletAddress(profile.user.walletAddress);
-          setBalance(profile.wallet.availableBalance);
+          setWalletAddress(profile.user.walletAddress || profile.user.email);
+          setBalance(profile.wallet?.availableBalance);
         } catch (error) {
           console.error('Error al cargar perfil:', error);
         }
@@ -25,14 +25,14 @@ function WalletConnector() {
         }
       }
     };
-    
+
     loadProfile();
   }, []);
 
   const connectWallet = async () => {
-    const mockAddress = '0x' + Array.from({ length: 40 }, () => 
+    const mockAddress = '0x' + Array.from({ length: 40 }, () =>
       Math.floor(Math.random() * 16).toString(16)).join('');
-    
+
     try {
       const response = await authService.connectWallet(mockAddress);
       setWalletAddress(response.user.walletAddress);
@@ -50,43 +50,22 @@ function WalletConnector() {
     window.location.reload();
   };
 
-  if (walletAddress) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '10px',
-        background: '#eff6ff', 
-        padding: '8px 15px', 
-        borderRadius: '6px', 
-        fontSize: '12px', 
-        border: '1px solid #93c5fd'
-      }}>
-        <span style={{ color: '#2563eb', fontWeight: '600' }}>
-          🔗 {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
-        </span>
-        <span style={{ color: '#059669', fontWeight: '600' }}>
-          💰 ${parseFloat(balance).toFixed(2)} USD
-        </span>
-        <button 
-          onClick={disconnectWallet}
-          style={{ 
-            background: '#ef4444', 
-            padding: '4px 10px', 
-            fontSize: '11px',
-            marginLeft: '5px'
-          }}
-        >
-          Salir
-        </button>
-      </div>
-    );
+  if (!walletAddress) {
+    return <button onClick={connectWallet}>🔌 Conectar Wallet</button>;
   }
 
+  const shortAddress = walletAddress.startsWith('0x')
+    ? `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`
+    : walletAddress;
+
   return (
-    <button onClick={connectWallet} style={{ background: '#2563eb' }}>
-      🔌 Conectar Wallet
-    </button>
+    <div className="wallet-chip">
+      <span className="wallet-chip__addr">🔗 {shortAddress}</span>
+      {balance != null && (
+        <span className="wallet-chip__bal">${parseFloat(balance).toFixed(2)}</span>
+      )}
+      <button onClick={disconnectWallet} className="btn-ghost wallet-chip__exit">Salir</button>
+    </div>
   );
 }
 
