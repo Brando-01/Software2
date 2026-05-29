@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authService, loanService } from '../services/api';
-import PaymentForm from '../components/PaymentForm';
-import { PaymentMock } from '../services/mock/PaymentMock';
 
 function Dashboard() {
-  const paymentProcessor = new PaymentMock();
   const [walletData, setWalletData] = useState({
     address: '',
     balance: 0,
@@ -14,36 +11,6 @@ function Dashboard() {
     loans: { asLender: [], asBorrower: [] }
   });
   const [loading, setLoading] = useState(true);
-
-  const [payingLoanId, setPayingLoanId] = useState(null);
-const [payAmount, setPayAmount] = useState({});
-
-const handlePay = async (loanId) => {
-  const amount = payAmount[loanId];
-  if (!amount || parseFloat(amount) <= 0) {
-    alert('Ingresa un monto válido');
-    return;
-  }
-  try {
-    setPayingLoanId(loanId);
-    const result = await loanService.payLoan(loanId, parseFloat(amount));
-    alert(result.message);
-    // Recargar datos
-    const loans = await loanService.getUserLoans();
-    const profile = await authService.getProfile();
-    setWalletData(prev => ({
-      ...prev,
-      balance: profile.wallet.totalBalance,
-      availableBalance: profile.wallet.availableBalance,
-      loans
-    }));
-    setPayAmount(prev => ({ ...prev, [loanId]: '' }));
-  } catch (error) {
-    alert(error.response?.data?.message || 'Error al procesar pago');
-  } finally {
-    setPayingLoanId(null);
-  }
-};
 
   useEffect(() => {
     const loadData = async () => {
@@ -182,8 +149,6 @@ const handlePay = async (loanId) => {
                   <th style={{ textAlign: 'left', padding: '12px 8px', color: '#6b7280', fontSize: '12px' }}>APY</th>
                   <th style={{ textAlign: 'left', padding: '12px 8px', color: '#6b7280', fontSize: '12px' }}>Saldo Restante</th>
                   <th style={{ textAlign: 'left', padding: '12px 0 12px 8px', color: '#6b7280', fontSize: '12px' }}>Estado</th>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', color: '#6b7280', fontSize: '12px' }}>LTV</th>
-                  <th style={{ textAlign: 'left', padding: '12px 0 12px 8px', color: '#6b7280', fontSize: '12px' }}>Acción</th>
                  </tr>
               </thead>
               <tbody>
@@ -197,38 +162,6 @@ const handlePay = async (loanId) => {
                         {loan.status === 'active' ? 'En curso' : 'Pagado'}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 8px', fontSize: '14px' }}>{loan.ltv ? `${loan.ltv}%` : '-'}</td>
-                    <td style={{ padding: '12px 0 12px 8px' }}>
-                      {loan.status === 'active' && (
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <input
-                            type="number"
-                            placeholder="Monto"
-                            value={payAmount[loan.id] || ''}
-                            onChange={(e) => setPayAmount(prev => ({ ...prev, [loan.id]: e.target.value }))}
-                            style={{ width: '90px', padding: '4px 8px', fontSize: '12px', borderRadius: '6px', border: '1px solid #e4e7eb' }}
-                          />
-                          <button
-                            onClick={() => handlePay(loan.id)}
-                            disabled={payingLoanId === loan.id}
-                            style={{
-                              padding: '4px 12px',
-                              fontSize: '12px',
-                              background: payingLoanId === loan.id ? '#9ca3af' : '#1e40af',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '6px',
-                              cursor: payingLoanId === loan.id ? 'not-allowed' : 'pointer'
-                            }}
-                          >
-                            {payingLoanId === loan.id ? 'Pagando...' : 'Pagar'}
-                          </button>
-                        </div>
-                      )}
-                      {loan.status !== 'active' && (
-                        <span style={{ fontSize: '12px', color: '#9ca3af' }}>—</span>
-                      )}
-                    </td>
                    </tr>
                 ))}
               </tbody>
@@ -236,9 +169,6 @@ const handlePay = async (loanId) => {
           </div>
         )}
       </div>
-    <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #e4e7eb', marginTop: '24px'}}>
-    <PaymentForm currDebt={1500} colValue={3000} paymentProcessor={paymentProcessor}/>
-  </div>
     </div>
   );
 }

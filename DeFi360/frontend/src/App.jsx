@@ -10,10 +10,8 @@ import Simulator from './pages/Simulator';
 import Education from './pages/Education';
 import Support from './pages/Support';
 import PrivateRoute from './components/PrivateRoute';
-import { PriceOracleMock } from './services/mock/PriceOracleMock';
 
 function App() {
-  const priceOracle = new PriceOracleMock();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navbar />
@@ -28,7 +26,7 @@ function App() {
           } />
           <Route path="/marketplace" element={
             <PrivateRoute>
-              <Marketplace priceOracle={priceOracle}/>
+              <Marketplace />
             </PrivateRoute>
           } />
           <Route path="/borrow" element={

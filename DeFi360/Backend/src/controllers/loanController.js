@@ -43,6 +43,22 @@ const requestLoan = (collateralService = defaultCollateralService) => async (req
     const { amount, duration, collateralType = 'ETH', collateralAmount } = req.body;
     const userId = req.user.id;
 
+    // Validar datos requeridos
+    if (!amount || !duration) {
+      return res.status(400).json({
+        message: 'Faltan campos requeridos: amount y duration',
+        received: { amount, duration, collateralType, collateralAmount }
+      });
+    }
+
+    // Validar que collateralAmount sea un número
+    if (!collateralAmount || isNaN(parseFloat(collateralAmount))) {
+      return res.status(400).json({
+        message: 'collateralAmount debe ser un número válido',
+        received: { collateralAmount }
+      });
+    }
+
     const sufficient = await collateralService.isSufficient(
       amount,
       collateralType,
@@ -50,8 +66,15 @@ const requestLoan = (collateralService = defaultCollateralService) => async (req
     );
 
     if (!sufficient) {
+      const collateralValue = await collateralService.calculateValue(collateralType, collateralAmount);
       return res.status(400).json({
-        message: 'Colateral insuficiente para el monto solicitado'
+        message: 'Colateral insuficiente para el monto solicitado',
+        details: {
+          requestedAmount: amount,
+          collateralValue: collateralValue,
+          minRequired: amount,
+          ltv: ((amount / collateralValue) * 100).toFixed(2) + '%'
+        }
       });
     }
 
@@ -72,8 +95,8 @@ const requestLoan = (collateralService = defaultCollateralService) => async (req
       message: 'Solicitud de préstamo publicada en el Marketplace'
     });
   } catch (error) {
-    console.error('[requestLoan]', error.message);
-    res.status(500).json({ message: 'Error al solicitar préstamo' });
+    console.error('[requestLoan] Error:', error.message, error);
+    res.status(500).json({ message: 'Error al solicitar préstamo', error: error.message });
   }
 };
 
@@ -127,7 +150,10 @@ const matchLoan = (loanFactory = defaultLoanFactory) => async (req, res) => {
       return res.status(400).json({ message: 'Saldo insuficiente para prestar' });
     }
 
-    const loan = await loanFactory.createFromOffer(offer, req.user.id, offer.userId);
+    // Permitir especificar el tipo de tasa en el request body, por defecto 'fixed'
+    const { rateType = 'fixed' } = req.body;
+
+    const loan = await loanFactory.createFromOffer(offer, req.user.id, offer.userId, rateType);
 
     const borrowerWallet = await Wallet.findOne({ where: { userId: offer.userId } });
 
@@ -142,7 +168,12 @@ const matchLoan = (loanFactory = defaultLoanFactory) => async (req, res) => {
       offer.update({ status: 'matched', matchedWith: req.user.id })
     ]);
 
-    res.json({ success: true, loan });
+    res.json({ 
+      success: true, 
+      loan,
+      rateType: loan.rateType,
+      message: `Préstamo creado con tasa ${loan.rateType}`
+    });
   } catch (error) {
     console.error('[matchLoan]', error.message);
     res.status(500).json({ message: 'Error al procesar match' });

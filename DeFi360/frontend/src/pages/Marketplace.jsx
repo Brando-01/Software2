@@ -1,22 +1,32 @@
 import { useState, useEffect } from 'react';
 import { marketplaceService, loanService } from '../services/api';
 
-function Marketplace( { priceOracle }) {
+function Marketplace() {
   const [filter, setFilter] = useState('all');
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [processingId, setProcessingId] = useState(null);
-  const [prices, setPrices] = useState({});
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('userData');
+    if (userData) {
+      try {
+        const parsed = JSON.parse(userData);
+        setCurrentUserId(parsed?.id ?? null);
+      } catch (err) {
+        console.warn('Marketplace: no se pudo parsear userData', err);
+      }
+    }
+  }, []);
 
   const fetchOffers = async () => {
     try {
       setLoading(true);
       const filters = filter === 'all' ? {} : { type: filter };
       const data = await marketplaceService.getOffers(filters);
-      const offersData = data.offers || [];
-      setOffers(offersData);
-      await loadPrices(offersData);
+      setOffers(data.offers || []);
       setError(null);
     } catch (err) {
       console.error('Error al cargar ofertas:', err);
@@ -29,25 +39,6 @@ function Marketplace( { priceOracle }) {
   useEffect(() => {
     fetchOffers();
   }, [filter]);
-
-  const loadPrices = async (offersData) => {
-  try {
-    const loadedPrices = {};
-
-    for (const offer of offersData) {
-      if (offer.collateralType) {
-        loadedPrices[offer.collateralType] =
-          await priceOracle.getAssetPrice(
-            offer.collateralType
-          );
-      }
-    }
-
-    setPrices(loadedPrices);
-  } catch (err) {
-    console.error('Error cargando precios', err);
-  }
-};
 
   const handleMatchLoan = async (offerId) => {
     try {
@@ -182,33 +173,33 @@ function Marketplace( { priceOracle }) {
                   <strong style={{ color: '#111827' }}>{offer.duration} días</strong>
                 </div>
                 {offer.collateralType && (
-                  <>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '13px', color: '#6b7280' }}>Colateral</span>
                     <strong style={{ color: '#111827' }}>{offer.collateralAmount} {offer.collateralType}</strong>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '13px', color: '#6b7280' }}>Precio Oracle</span>
-                    <strong style={{ color: '#1e40af' }}>{prices[offer.collateralType] !== undefined 
-                    ? `$${prices[offer.collateralType]}`   : 'Cargando...'} </strong>
-                  </div>
-                  </>
                 )}
               </div>
               
               <button 
                 onClick={() => handleMatchLoan(offer.id)}
-                disabled={processingId === offer.id || offer.type === 'lend'}
+                disabled={
+                  processingId === offer.id ||
+                  offer.type === 'lend' ||
+                  offer.userId === currentUserId ||
+                  offer.User?.id === currentUserId
+                }
                 style={{ 
                   width: '100%',
-                  background: offer.type === 'lend' ? '#6b7280' : '#2563eb'
+                  background: offer.type === 'lend' || offer.userId === currentUserId || offer.User?.id === currentUserId ? '#6b7280' : '#2563eb'
                 }}
               >
                 {processingId === offer.id 
                   ? 'Procesando...' 
-                  : offer.type === 'lend' 
-                    ? 'Invertir' 
-                    : 'Aceptar Préstamo'}
+                  : offer.userId === currentUserId || offer.User?.id === currentUserId 
+                    ? 'Tu oferta' 
+                    : offer.type === 'lend' 
+                      ? 'Invertir' 
+                      : 'Aceptar Préstamo'}
               </button>
             </div>
           ))}

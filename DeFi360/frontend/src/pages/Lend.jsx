@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { marketplaceService } from '../services/api';
 
 function Lend() {
@@ -10,6 +10,13 @@ function Lend() {
   const [projectedReturn, setProjectedReturn] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  useEffect(() => {
+    // Obtener balance de localStorage
+    const balance = localStorage.getItem('walletBalance');
+    setWalletBalance(balance ? parseFloat(balance) : 0);
+  }, []);
 
   const calculateProjection = () => {
     const amount = parseFloat(formData.amount);
@@ -32,12 +39,35 @@ function Lend() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage(null);
+    
+    const amount = parseFloat(formData.amount);
+    
+    // Validar que el monto sea válido
+    if (!amount || amount <= 0) {
+      setMessage({ type: 'error', text: 'Ingresa un monto válido' });
+      return;
+    }
+    
+    // Validar que haya saldo suficiente
+    if (amount > walletBalance) {
+      setMessage({ 
+        type: 'error', 
+        text: `Saldo insuficiente. Tienes $${walletBalance.toFixed(2)} USD disponibles`,
+        details: {
+          requested: amount,
+          available: walletBalance,
+          deficit: (amount - walletBalance).toFixed(2)
+        }
+      });
+      return;
+    }
+    
     setLoading(true);
     
     try {
       const response = await marketplaceService.createOffer({
         type: 'lend',
-        amount: parseFloat(formData.amount),
+        amount: amount,
         apy: parseFloat(formData.apy),
         duration: parseInt(formData.duration),
         collateralType: 'USDC',
@@ -47,9 +77,20 @@ function Lend() {
       setMessage({ type: 'success', text: '✅ Oferta de préstamo publicada en el Marketplace' });
       setFormData({ amount: '', apy: 5.2, duration: 30 });
       setProjectedReturn(null);
+      
+      // Actualizar balance
+      const newBalance = walletBalance - amount;
+      setWalletBalance(newBalance);
+      localStorage.setItem('walletBalance', newBalance.toString());
     } catch (error) {
       console.error('Error al crear oferta:', error);
-      setMessage({ type: 'error', text: error.response?.data?.message || 'Error al crear oferta' });
+      const errorMessage = error.response?.data?.message || 'Error al crear oferta';
+      const details = error.response?.data?.details;
+      setMessage({ 
+        type: 'error', 
+        text: errorMessage,
+        details: details
+      });
     } finally {
       setLoading(false);
     }
@@ -71,13 +112,26 @@ function Lend() {
           border: `1px solid ${message.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
           color: message.type === 'success' ? '#059669' : '#dc2626'
         }}>
-          {message.text}
+          <div>{message.text}</div>
+          {message.details && (
+            <div style={{ fontSize: '12px', marginTop: '8px', opacity: 0.8 }}>
+              {Object.entries(message.details).map(([key, value]) => (
+                <div key={key}>{key}: {typeof value === 'object' ? JSON.stringify(value) : value}</div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       <div className="grid-2">
         <div style={{ background: '#ffffff', borderRadius: '16px', padding: '28px', border: '1px solid #e4e7eb' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '24px', color: '#111827' }}>Nueva Oferta de Préstamo</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#111827' }}>Nueva Oferta de Préstamo</h3>
+            <div style={{ background: '#ecfdf5', padding: '8px 12px', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
+              <div style={{ fontSize: '11px', color: '#059669' }}>Balance disponible</div>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#059669' }}>${walletBalance.toFixed(2)}</div>
+            </div>
+          </div>
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>Monto a prestar (USD)</label>

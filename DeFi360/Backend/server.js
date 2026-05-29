@@ -1,5 +1,3 @@
-require('dotenv').config();
-console.log(process.env.JWT_SECRET);
 const app = require('./src/app');
 const { sequelize, testConnection } = require('./src/config/database');
 const { User, Wallet, Offer, Loan, Ticket } = require('./src/models');
