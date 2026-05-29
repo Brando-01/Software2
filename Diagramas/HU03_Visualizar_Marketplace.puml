@@ -1,0 +1,79 @@
+@startuml HU03_Visualizar_Marketplace
+title HU-03 — Visualizar Marketplace\nRefactorización DIP + SRP + Adapter Oracle (Sprint 1 · DeFi360)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #2E75B6
+skinparam sequenceParticipantBackgroundColor #EBF3FB
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+
+actor       "Usuario"                  as User
+participant "MarketplaceComponent\n<<React>>" as UI
+participant "MarketplaceController"    as MC
+participant "OfertaQueryService"       as OQS
+participant "<<interface>>\nIPriceOracle"     as IPO
+participant "SimulatedOracleAdapter"   as SOA
+participant "OracleService\n(externo)" as OS
+
+autonumber
+
+note over MC, IPO
+  T-04: MarketplaceController depende de IPriceOracle (DIP + OCP).
+  T-05: OfertaQueryService centraliza la lógica de filtrado (SRP).
+  T-06: MarketplaceComponent recibe datos tipados via props, sin import directo de OracleService.
+end note
+
+User -> UI : Navega a /marketplace\n{ filtros: colateral, tasa, plazo }
+
+UI -> MC : GET /marketplace\n?colateral=ETH&tasaMax=5&plazo=30
+
+MC -> OQS : getOfertas(filtros)
+note right of MC
+  T-05: Lógica de filtrado
+  delegada a OfertaQueryService.
+  Controller solo orquesta.
+end note
+activate OQS
+
+OQS -> OQS : aplicarFiltros(colateral, tasaMax, plazo)
+OQS --> MC  : List<OfertaLending>
+
+MC -> IPO : getCurrentPrice(colateral)
+note right of MC
+  T-04: Constructor Injection:
+  MarketplaceController(IPriceOracle oracle)
+end note
+activate IPO
+
+IPO -> SOA : getCurrentPrice(colateral)
+activate SOA
+
+alt Ambiente de prueba / simulado
+    SOA --> IPO : PriceData { asset, price, timestamp }
+else Ambiente producción (futuro)
+    SOA -> OS   : fetchPrice(colateral)
+    OS  --> SOA : rawPrice
+    SOA --> IPO : PriceData normalizado
+end
+
+deactivate SOA
+IPO --> MC : PriceData
+deactivate IPO
+
+MC --> UI : MarketplaceDTO { ofertas, precio }
+note right of UI
+  T-06: Props tipadas (interface TypeScript).
+  Sin imports de OracleService en UI.
+end note
+
+UI --> User : Renderizado de ofertas\ncon precios actualizados
+
+deactivate OQS
+
+note over User, OS
+  OCP garantizado: cambiar Oracle real ↔ simulado
+  no requiere modificar MarketplaceController ni MarketplaceComponent.
+end note
+
+@enduml

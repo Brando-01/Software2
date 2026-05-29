@@ -2,11 +2,16 @@ const { Offer, Wallet, User } = require('../models');
 const LoanFactory = require('../factories/LoanFactory');
 const LTVRiskStrategy = require('../strategies/LTVRiskStrategy');
 const CollateralService = require('../services/CollateralService');
+<<<<<<< HEAD
 const LTVCalculatorService = require('../services/LTVCalculatorService');
+=======
+const StandardPaymentProcessor = require('../services/StandardPaymentProcessor');
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
 
 const defaultLoanFactory = new LoanFactory();
 const defaultRiskStrategy = new LTVRiskStrategy();
 const defaultCollateralService = new CollateralService();
+<<<<<<< HEAD
 const StandardPaymentProcessor = require('../services/StandardPaymentProcessor');
 
 
@@ -17,13 +22,25 @@ const calculateLTV = (
   try {
     const { loanAmount, collateralAmount, collateralType = 'ETH' } = req.body;
     const userId = req.user.id;
+=======
+
+// ============ FUNCIONES ============
+
+const calculateLTV = (riskStrategy = defaultRiskStrategy, collateralService = defaultCollateralService) => async (req, res) => {
+  try {
+    const { loanAmount, collateralAmount, collateralType = 'ETH' } = req.body;
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
 
     const collateralValue = await collateralService.calculateValue(
       collateralType,
       collateralAmount
     );
 
+<<<<<<< HEAD
     const ltvResult = LTVCalculatorService.calculateLTV(
+=======
+    const { ratio, riskLevel, isHealthy, message } = riskStrategy.evaluate(
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
       parseFloat(loanAmount),
       collateralValue
     );
@@ -31,6 +48,7 @@ const calculateLTV = (
     res.json({
       loanAmount,
       collateralValue,
+<<<<<<< HEAD
       ltv: ltvResult.ratio,
       riskLevel: ltvResult.riskLevel,
       isHealthy: ltvResult.isHealthy,
@@ -45,10 +63,25 @@ const calculateLTV = (
 const requestLoan = (
   collateralService = defaultCollateralService
 ) => async (req, res) => {
+=======
+      ltv: ratio,
+      riskLevel,
+      isHealthy,
+      message
+    });
+  } catch (error) {
+    console.error('[calculateLTV]', error.message);
+    res.status(500).json({ message: 'Error al calcular LTV' });
+  }
+};
+
+const requestLoan = (collateralService = defaultCollateralService) => async (req, res) => {
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
   try {
     const { amount, duration, collateralType = 'ETH', collateralAmount } = req.body;
     const userId = req.user.id;
 
+<<<<<<< HEAD
     const sufficient = await collateralService.isSufficient(
       amount,
       collateralType,
@@ -61,6 +94,43 @@ const requestLoan = (
       });
     }
 
+=======
+    // Validar datos requeridos
+    if (!amount || !duration) {
+      return res.status(400).json({
+        message: 'Faltan campos requeridos: amount y duration',
+        received: { amount, duration, collateralType, collateralAmount }
+      });
+    }
+
+    // Validar que collateralAmount sea un número
+    if (!collateralAmount || isNaN(parseFloat(collateralAmount))) {
+      return res.status(400).json({
+        message: 'collateralAmount debe ser un número válido',
+        received: { collateralAmount }
+      });
+    }
+
+    const sufficient = await collateralService.isSufficient(
+      amount,
+      collateralType,
+      collateralAmount
+    );
+
+    if (!sufficient) {
+      const collateralValue = await collateralService.calculateValue(collateralType, collateralAmount);
+      return res.status(400).json({
+        message: 'Colateral insuficiente para el monto solicitado',
+        details: {
+          requestedAmount: amount,
+          collateralValue: collateralValue,
+          minRequired: amount,
+          ltv: ((amount / collateralValue) * 100).toFixed(2) + '%'
+        }
+      });
+    }
+
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
     const offer = await Offer.create({
       userId,
       type: 'borrow',
@@ -78,8 +148,13 @@ const requestLoan = (
       message: 'Solicitud de préstamo publicada en el Marketplace'
     });
   } catch (error) {
+<<<<<<< HEAD
     console.error('[requestLoan]', error.message);
     res.status(500).json({ message: 'Error al solicitar préstamo' });
+=======
+    console.error('[requestLoan] Error:', error.message, error);
+    res.status(500).json({ message: 'Error al solicitar préstamo', error: error.message });
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
   }
 };
 
@@ -111,9 +186,13 @@ const getUserLoans = async (req, res) => {
   }
 };
 
+<<<<<<< HEAD
 const matchLoan = (
   loanFactory = defaultLoanFactory
 ) => async (req, res) => {
+=======
+const matchLoan = (loanFactory = defaultLoanFactory) => async (req, res) => {
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
   try {
     const offer = await Offer.findByPk(req.params.id);
 
@@ -135,7 +214,14 @@ const matchLoan = (
       return res.status(400).json({ message: 'Saldo insuficiente para prestar' });
     }
 
+<<<<<<< HEAD
     const loan = await loanFactory.createFromOffer(offer, req.user.id, offer.userId);
+=======
+    // Permitir especificar el tipo de tasa en el request body, por defecto 'fixed'
+    const { rateType = 'fixed' } = req.body;
+
+    const loan = await loanFactory.createFromOffer(offer, req.user.id, offer.userId, rateType);
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
 
     const borrowerWallet = await Wallet.findOne({ where: { userId: offer.userId } });
 
@@ -150,7 +236,16 @@ const matchLoan = (
       offer.update({ status: 'matched', matchedWith: req.user.id })
     ]);
 
+<<<<<<< HEAD
     res.json({ success: true, loan });
+=======
+    res.json({ 
+      success: true, 
+      loan,
+      rateType: loan.rateType,
+      message: `Préstamo creado con tasa ${loan.rateType}`
+    });
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
   } catch (error) {
     console.error('[matchLoan]', error.message);
     res.status(500).json({ message: 'Error al procesar match' });
@@ -160,7 +255,10 @@ const matchLoan = (
 const payLoan = async (req, res) => {
   try {
     const { Loan } = require('../models');
+<<<<<<< HEAD
     const StandardPaymentProcessor = require('../services/StandardPaymentProcessor');
+=======
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
     const { amount } = req.body;
     const loanId = parseInt(req.params.id);
 
@@ -195,13 +293,23 @@ const payLoan = async (req, res) => {
     res.status(400).json({ message: error.message || 'Error al procesar pago' });
   }
 };
+<<<<<<< HEAD
    
 
+=======
+
+// ============ ✅ EXPORTS CORREGIDOS ============
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff
 module.exports = {
   calculateLTV: calculateLTV(),
   requestLoan: requestLoan(),
   getUserLoans,
   matchLoan: matchLoan(),
+<<<<<<< HEAD
   _factories: { calculateLTV, requestLoan, matchLoan },
   payLoan  
 };
+=======
+  payLoan
+};
+>>>>>>> 08f070ad70ba6ed75feeb9cc53457694cc1c46ff

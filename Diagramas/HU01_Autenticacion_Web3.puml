@@ -1,0 +1,72 @@
+@startuml HU01_Autenticacion_Web3
+title HU-01 — Autenticación Web3\nRefactorización DIP + Singleton (Sprint 1 · DeFi360)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #2E75B6
+skinparam sequenceParticipantBackgroundColor #EBF3FB
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+
+actor       "Usuario"             as User
+participant "AuthController"      as AC
+participant "<<interface>>\nIWalletConnector" as IWC
+participant "MockWalletConnectorImpl" as MWC
+participant "DatabaseConnection\n<<Singleton>>" as DBC
+database    "PostgreSQL"          as DB
+
+autonumber
+
+note over AC, IWC
+  T-01: AuthController depende de IWalletConnector (DIP).
+  No instancia MockWallet directamente.
+end note
+
+User -> AC : POST /auth/connect\n{ walletAddress }
+
+AC -> IWC : connect(walletAddress)
+note right of AC
+  Constructor Injection:
+  AuthController(IWalletConnector connector)
+end note
+
+IWC -> MWC : connect(walletAddress)
+activate MWC
+
+alt walletAddress válida
+    MWC --> IWC : WalletSession { address, token }
+    IWC --> AC  : WalletSession
+
+    AC -> DBC : getInstance()
+    note right of DBC
+      T-02: Singleton garantiza
+      una única conexión a DB.
+    end note
+    activate DBC
+    DBC --> AC : Connection (única instancia)
+
+    AC -> DB : INSERT sesion (address, token, timestamp)
+    DB --> AC : OK
+
+    deactivate DBC
+    AC --> User : 200 OK { sessionToken }
+
+else walletAddress inválida
+    MWC --> IWC : throw InvalidWalletException
+    IWC --> AC  : InvalidWalletException
+    deactivate MWC
+    AC --> User : 401 Unauthorized { error: "Wallet inválida" }
+
+else sesión duplicada
+    MWC --> IWC : throw DuplicateSessionException
+    IWC --> AC  : DuplicateSessionException
+    AC --> User : 409 Conflict { error: "Sesión ya activa" }
+end
+
+note over User, DB
+  T-03 (QA): Pruebas unitarias cubren los 3 escenarios (conexión exitosa,
+  wallet inválida, sesión duplicada) usando mock de IWalletConnector.
+  Cobertura mínima requerida: 80%.
+end note
+
+@enduml
