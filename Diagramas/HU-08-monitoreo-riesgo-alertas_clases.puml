@@ -1,0 +1,194 @@
+@startuml HU-08 - Monitoreo de Riesgo y Alertas
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam packageFontSize 13
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #F8FAFB
+  BorderColor #2C3E50
+  HeaderBackgroundColor #2C3E50
+  HeaderFontColor #FFFFFF
+  ArrowColor #2C3E50
+}
+skinparam interface {
+  BackgroundColor #D6EAF8
+  BorderColor #2980B9
+}
+skinparam package {
+  BackgroundColor #EAF2FF
+  BorderColor #2980B9
+  FontColor #1A252F
+}
+
+title HU-08 — Monitoreo de Riesgo y Alertas\n[Sprint 1 · Refactorización SOLID: OCP + DIP · Observer + Strategy]
+
+' ─────────────────────────────────────────
+'  ENUMERACIONES
+' ─────────────────────────────────────────
+enum TipoAlerta {
+  RIESGO_MODERADO
+  RIESGO_ALTO
+  LIQUIDACION_INMINENTE
+  LIQUIDACION_EJECUTADA
+}
+
+enum EstadoAlerta {
+  PENDIENTE
+  ATENDIDA
+  IGNORADA
+}
+
+enum RiskLevel {
+  NORMAL
+  MODERADO
+  RIESGO_ALTO
+  LIQUIDACION_INMINENTE
+}
+
+' ─────────────────────────────────────────
+'  PAQUETE: Monitor de Riesgo
+' ─────────────────────────────────────────
+package "Monitor de Riesgo" {
+
+  ' T-15: OCP + DIP — Strategy, cambia algoritmo sin modificar MonitorRiesgo
+  interface IRiskStrategy {
+    +evaluate(prestamo: Prestamo, precioActual: decimal): RiskLevel
+  }
+
+  class LTVThresholdStrategy {
+    -umbralAlerta: decimal
+    -umbralLiquidacion: decimal
+    +LTVThresholdStrategy(umbralAlerta: decimal, umbralLiquidacion: decimal)
+    +evaluate(prestamo: Prestamo, precioActual: decimal): RiskLevel
+  }
+
+  class MockRiskStrategy {
+    -nivelForzado: RiskLevel
+    +MockRiskStrategy(nivel: RiskLevel)
+    +evaluate(prestamo: Prestamo, precioActual: decimal): RiskLevel
+  }
+
+  ' T-14: OCP + SRP — Observer, agregar suscriptor sin modificar MonitorRiesgo
+  interface RiskObserver {
+    +onRiskEvent(evento: RiskEvent): void
+  }
+
+  class NotificationObserver {
+    +onRiskEvent(evento: RiskEvent): void
+  }
+
+  class LogObserver {
+    -logger: LogEvento
+    +onRiskEvent(evento: RiskEvent): void
+  }
+
+  class EmailObserver {
+    ' Ejemplo de extensión OCP: nueva clase, sin tocar MonitorRiesgo
+    -smtpConfig: string
+    +onRiskEvent(evento: RiskEvent): void
+  }
+
+  class RiskEvent {
+    -prestamo: Prestamo
+    -nivelRiesgo: RiskLevel
+    -ltvActual: decimal
+    -precioActual: decimal
+    -fecha: datetime
+    +getNivelRiesgo(): RiskLevel
+    +getLtvActual(): decimal
+  }
+
+  class MonitorRiesgo {
+    -intervaloMonitoreoSeg: int
+    -estrategia: IRiskStrategy
+    -observers: List<RiskObserver>
+    +MonitorRiesgo(estrategia: IRiskStrategy)
+    +agregarObserver(observer: RiskObserver): void
+    +quitarObserver(observer: RiskObserver): void
+    +ejecutarCiclo(): void
+    +evaluarPrestamo(prestamo: Prestamo): void
+    -notificarObservers(evento: RiskEvent): void
+    +identificarEnRiesgo(): List<Prestamo>
+  }
+
+  class AlertaRiesgo {
+    -idAlerta: int
+    -tipo: TipoAlerta
+    -mensaje: string
+    -ltvAlMomentoAlerta: decimal
+    -fecha: datetime
+    -estado: EstadoAlerta
+    +enviarNotificacion(): void
+    +marcarAtendida(): void
+  }
+
+  class LogEvento {
+    -idLog: int
+    -tipo: string
+    -descripcion: string
+    -fecha: datetime
+    +registrar(): void
+  }
+
+  IRiskStrategy <|.. LTVThresholdStrategy : implements
+  IRiskStrategy <|.. MockRiskStrategy : implements
+
+  RiskObserver <|.. NotificationObserver : implements
+  RiskObserver <|.. LogObserver : implements
+  RiskObserver <|.. EmailObserver : implements
+
+  MonitorRiesgo --> IRiskStrategy : depende de\n«DIP · Strategy»
+  MonitorRiesgo --> "0..*" RiskObserver : notifica\n«Observer»
+  MonitorRiesgo ..> RiskEvent : crea y emite
+  MonitorRiesgo ..> Prestamo : evalua
+
+  NotificationObserver ..> AlertaRiesgo : genera
+  LogObserver --> LogEvento : registra
+}
+
+' ─────────────────────────────────────────
+'  PAQUETE: Lending (contexto)
+' ─────────────────────────────────────────
+package "Préstamos (contexto)" {
+
+  class Prestamo {
+    -idPrestamo: int
+    -monto: decimal
+    -ltvActual: decimal
+    -saldoPendiente: decimal
+    -estado: string
+    +calcularLTVActual(): decimal
+    +estaEnRiesgo(): boolean
+    +liquidarColateral(): boolean
+  }
+}
+
+MonitorRiesgo ..> Prestamo
+
+note top of IRiskStrategy
+  T-15 — Strategy (OCP + DIP):
+  MonitorRiesgo delega la evaluación
+  de riesgo a IRiskStrategy.
+  Cambiar el algoritmo = nueva clase
+  Strategy. LTVThresholdStrategy usa
+  umbralAlerta=90% y umbralLiquidacion=95%.
+  MockRiskStrategy permite tests aislados.
+end note
+
+note right of RiskObserver
+  T-14 — Observer (OCP + SRP):
+  MonitorRiesgo mantiene lista de
+  RiskObserver. Agregar EmailObserver
+  no modifica MonitorRiesgo (OCP).
+  Cada observer tiene una sola
+  responsabilidad (SRP).
+end note
+
+note bottom of MonitorRiesgo
+  T-16 — Criterios Gherkin validados:
+  LTV >= 90%  → RiskLevel.RIESGO_ALTO
+  LTV >= 95%  → RiskLevel.LIQUIDACION_INMINENTE
+  Verificado con LTVThresholdStrategy(0.90, 0.95)
+end note
+
+@enduml

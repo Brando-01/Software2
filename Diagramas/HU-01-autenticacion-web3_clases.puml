@@ -1,0 +1,142 @@
+@startuml HU-01 - Autenticación Web3
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam packageFontSize 13
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #F8FAFB
+  BorderColor #2C3E50
+  HeaderBackgroundColor #2C3E50
+  HeaderFontColor #FFFFFF
+  ArrowColor #2C3E50
+}
+skinparam interface {
+  BackgroundColor #D6EAF8
+  BorderColor #2980B9
+}
+skinparam package {
+  BackgroundColor #EAF2FF
+  BorderColor #2980B9
+  FontColor #1A252F
+}
+
+title HU-01 — Autenticación Web3\n[Sprint 1 · Refactorización SOLID: DIP + Singleton]
+
+' ─────────────────────────────────────────
+'  ENUMERACIONES
+' ─────────────────────────────────────────
+enum TipoUsuario {
+  INVERSIONISTA
+  PRESTATARIO
+  ADMINISTRADOR
+}
+
+' ─────────────────────────────────────────
+'  PAQUETE: Autenticación
+' ─────────────────────────────────────────
+package "Autenticación Web3" {
+
+  ' T-01: DIP — AuthController depende de abstracción, no de MockWallet
+  interface IWalletConnector {
+    +conectar(walletAddress: string): boolean
+    +desconectar(): void
+    +obtenerDireccion(): string
+    +estaConectado(): boolean
+  }
+
+  class MockWalletConnectorImpl {
+    -walletAddress: string
+    -conectado: boolean
+    +conectar(walletAddress: string): boolean
+    +desconectar(): void
+    +obtenerDireccion(): string
+    +estaConectado(): boolean
+  }
+
+  class AuthController {
+    -walletConnector: IWalletConnector
+    -dbConnection: DatabaseConnection
+    +AuthController(connector: IWalletConnector)
+    +iniciarSesion(walletAddress: string): boolean
+    +cerrarSesion(): void
+    +obtenerSesionActual(): SesionUsuario
+  }
+
+  ' T-02: Singleton — única instancia de conexión a PostgreSQL
+  class DatabaseConnection {
+    -{static} instancia: DatabaseConnection
+    -urlConexion: string
+    -conexionActiva: boolean
+    -DatabaseConnection()
+    +{static} getInstance(): DatabaseConnection
+    +conectar(): boolean
+    +desconectar(): void
+    +ejecutarQuery(sql: string): ResultSet
+  }
+
+  class SesionUsuario {
+    -idSesion: string
+    -walletAddress: string
+    -fechaInicio: datetime
+    -activa: boolean
+    +cerrar(): void
+    +esValida(): boolean
+  }
+
+  IWalletConnector <|.. MockWalletConnectorImpl : implements
+  AuthController --> IWalletConnector : depende de\n«DIP»
+  AuthController --> DatabaseConnection : usa\n«Singleton»
+  AuthController --> SesionUsuario : gestiona
+}
+
+' ─────────────────────────────────────────
+'  PAQUETE: Usuarios (contexto)
+' ─────────────────────────────────────────
+package "Usuarios (contexto)" {
+
+  abstract class Usuario {
+    -idUsuario: int
+    -nombre: string
+    -email: string
+    -tipo: TipoUsuario
+    -walletAddress: string
+    -fechaRegistro: datetime
+    -activo: boolean
+    +autenticar(walletAddress: string): boolean
+    +cerrarSesion(): void
+    +obtenerPerfil(): PerfilUsuario
+  }
+
+  class Inversionista {
+    -totalInvertido: decimal
+    -rendimientoAcumulado: decimal
+  }
+
+  class Prestatario {
+    -totalDeudaActiva: decimal
+    -historialCrediticio: int
+  }
+
+  Usuario <|-- Inversionista
+  Usuario <|-- Prestatario
+}
+
+AuthController ..> Usuario : autentica
+
+note top of IWalletConnector
+  T-01 — DIP aplicado:
+  AuthController inyecta IWalletConnector
+  en lugar de instanciar MockWallet
+  directamente. Permite sustituir
+  implementación sin tocar el controlador.
+end note
+
+note right of DatabaseConnection
+  T-02 — Singleton:
+  Constructor privado.
+  getInstance() garantiza una
+  única conexión a PostgreSQL.
+  Elimina instanciaciones dispersas.
+end note
+
+@enduml

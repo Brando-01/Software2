@@ -1,0 +1,177 @@
+@startuml HU-04 - Publicar Solicitud de Préstamo
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam packageFontSize 13
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #F8FAFB
+  BorderColor #2C3E50
+  HeaderBackgroundColor #2C3E50
+  HeaderFontColor #FFFFFF
+  ArrowColor #2C3E50
+}
+skinparam interface {
+  BackgroundColor #D6EAF8
+  BorderColor #2980B9
+}
+skinparam package {
+  BackgroundColor #EAF2FF
+  BorderColor #2980B9
+  FontColor #1A252F
+}
+
+title HU-04 — Publicar Solicitud de Préstamo\n[Sprint 1 · Refactorización SOLID: OCP + DIP + SRP · Factory Method]
+
+' ─────────────────────────────────────────
+'  ENUMERACIONES
+' ─────────────────────────────────────────
+enum EstadoSolicitud {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+  CANCELADA
+}
+
+enum EstadoPrestamo {
+  ACTIVO
+  EN_MORA
+  LIQUIDADO
+  COMPLETADO
+}
+
+' ─────────────────────────────────────────
+'  PAQUETE: Préstamos
+' ─────────────────────────────────────────
+package "Publicación de Préstamo" {
+
+  ' T-07: OCP + DIP — Factory Method, elimina instanciación directa de Prestamo
+  interface ILoanFactory {
+    +createLoan(solicitud: SolicitudPrestamo, oferta: OfertaLending): Prestamo
+  }
+
+  class FixedRateLoanFactory {
+    +createLoan(solicitud: SolicitudPrestamo, oferta: OfertaLending): Prestamo
+  }
+
+  class VariableRateLoanFactory {
+    +createLoan(solicitud: SolicitudPrestamo, oferta: OfertaLending): Prestamo
+  }
+
+  ' T-08: SRP — cálculo LTV extraído de LoanController
+  class LTVCalculatorService {
+    -umbralAlerta: decimal
+    -umbralLiquidacion: decimal
+    +calculateLTV(monto: decimal, colateral: decimal): LTVResult
+    +estaEnZonaAlerta(resultado: LTVResult): boolean
+    +estaEnZonaLiquidacion(resultado: LTVResult): boolean
+  }
+
+  class LTVResult {
+    -ltvPorcentaje: decimal
+    -montoColateralUSD: decimal
+    -montoPrestamo: decimal
+    -nivel: string
+    +getLtvPorcentaje(): decimal
+    +getNivel(): string
+  }
+
+  ' T-09: DIP — LoanController no acopla WalletManager directamente
+  interface IColateralService {
+    +bloquearColateral(walletId: int, activoId: int, monto: decimal): boolean
+    +liberarColateral(walletId: int, activoId: int, monto: decimal): boolean
+    +obtenerValorColateral(activoId: int, cantidad: decimal): decimal
+  }
+
+  class ColateralLockService {
+    -walletManager: WalletManager
+    +bloquearColateral(walletId: int, activoId: int, monto: decimal): boolean
+    +liberarColateral(walletId: int, activoId: int, monto: decimal): boolean
+    +obtenerValorColateral(activoId: int, cantidad: decimal): decimal
+  }
+
+  class WalletManager {
+    +bloquearFondos(walletId: int, monto: decimal): boolean
+    +liberarFondos(walletId: int, monto: decimal): boolean
+    +obtenerSaldo(walletId: int): decimal
+  }
+
+  class LoanController {
+    -loanFactory: ILoanFactory
+    -ltvCalculator: LTVCalculatorService
+    -colateralService: IColateralService
+    +LoanController(factory: ILoanFactory, ltvCalc: LTVCalculatorService, colateral: IColateralService)
+    +publicarSolicitud(solicitud: SolicitudPrestamo): boolean
+    +procesarAprobacion(solicitud: SolicitudPrestamo, oferta: OfertaLending): Prestamo
+  }
+
+  class SolicitudPrestamo {
+    -idSolicitud: int
+    -montoSolicitado: decimal
+    -montoColateral: decimal
+    -ltvObjetivo: decimal
+    -activoColateralId: int
+    -plazoSolicitadoDias: int
+    -estado: EstadoSolicitud
+    -fechaCreacion: datetime
+    +registrar(): boolean
+    +cancelar(): boolean
+    +validarColateral(): boolean
+  }
+
+  class Prestamo {
+    -idPrestamo: int
+    -monto: decimal
+    -tasaInteres: decimal
+    -ltvInicial: decimal
+    -ltvActual: decimal
+    -saldoPendiente: decimal
+    -cuotaMensual: decimal
+    -estado: EstadoPrestamo
+    -fechaInicio: datetime
+    -fechaVencimiento: datetime
+    +pagarCuota(monto: decimal): boolean
+    +calcularLTVActual(): decimal
+    +estaEnRiesgo(): boolean
+  }
+
+  ILoanFactory <|.. FixedRateLoanFactory : implements
+  ILoanFactory <|.. VariableRateLoanFactory : implements
+  IColateralService <|.. ColateralLockService : implements
+  ColateralLockService --> WalletManager : delega
+
+  LoanController --> ILoanFactory : depende de\n«DIP · OCP»
+  LoanController --> LTVCalculatorService : delega cálculo\n«SRP»
+  LoanController --> IColateralService : depende de\n«DIP»
+  LoanController ..> SolicitudPrestamo : procesa
+  LoanController ..> Prestamo : orquesta creación
+
+  ILoanFactory ..> SolicitudPrestamo : usa
+  ILoanFactory ..> Prestamo : crea
+  LTVCalculatorService ..> LTVResult : produce
+}
+
+note top of ILoanFactory
+  T-07 — Factory Method (OCP + DIP):
+  LoanController no instancia Prestamo
+  directamente. Agregar nuevo tipo de
+  préstamo = nueva Factory class,
+  sin modificar el controlador.
+end note
+
+note right of LTVCalculatorService
+  T-08 — SRP:
+  El cálculo LTV (antes inline en
+  LoanController) se delega aquí.
+  LTVResult es un value object tipado
+  que expresa la intención del negocio.
+end note
+
+note bottom of IColateralService
+  T-09 — DIP:
+  LoanController invoca IColateralService.
+  ColateralLockService encapsula
+  WalletManager; el controlador
+  no lo conoce directamente.
+end note
+
+@enduml

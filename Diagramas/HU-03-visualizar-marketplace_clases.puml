@@ -1,0 +1,132 @@
+@startuml HU-03 - Visualizar Marketplace
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam packageFontSize 13
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #F8FAFB
+  BorderColor #2C3E50
+  HeaderBackgroundColor #2C3E50
+  HeaderFontColor #FFFFFF
+  ArrowColor #2C3E50
+}
+skinparam interface {
+  BackgroundColor #D6EAF8
+  BorderColor #2980B9
+}
+skinparam package {
+  BackgroundColor #EAF2FF
+  BorderColor #2980B9
+  FontColor #1A252F
+}
+
+title HU-03 — Visualizar Marketplace\n[Sprint 1 · Refactorización SOLID: DIP + SRP]
+
+' ─────────────────────────────────────────
+'  ENUMERACIONES
+' ─────────────────────────────────────────
+enum EstadoOferta {
+  PUBLICADA
+  EMPAREJADA
+  CANCELADA
+  EXPIRADA
+}
+
+' ─────────────────────────────────────────
+'  PAQUETE: Marketplace
+' ─────────────────────────────────────────
+package "Marketplace" {
+
+  ' T-04: DIP+OCP — Marketplace depende de IPriceOracle, no de OracleService externo
+  interface IPriceOracle {
+    +obtenerPrecio(simboloActivo: string): decimal
+    +obtenerHistorialPrecios(simboloActivo: string, dias: int): List<decimal>
+    +estaActualizado(): boolean
+  }
+
+  class SimulatedOracleAdapter {
+    -preciosSimulados: Map<string, decimal>
+    -ultimaActualizacion: datetime
+    +obtenerPrecio(simboloActivo: string): decimal
+    +obtenerHistorialPrecios(simboloActivo: string, dias: int): List<decimal>
+    +estaActualizado(): boolean
+  }
+
+  class RealOracleAdapter {
+    -urlFuente: string
+    -frecuenciaActualizacion: int
+    +obtenerPrecio(simboloActivo: string): decimal
+    +obtenerHistorialPrecios(simboloActivo: string, dias: int): List<decimal>
+    +estaActualizado(): boolean
+  }
+
+  ' T-05: SRP — lógica de filtrado extraída del controlador hacia este servicio
+  class OfertaQueryService {
+    -oracle: IPriceOracle
+    +OfertaQueryService(oracle: IPriceOracle)
+    +filtrarPorColateral(ofertas: List<OfertaLending>, simbolo: string): List<OfertaLending>
+    +filtrarPorTasa(ofertas: List<OfertaLending>, tasaMax: decimal): List<OfertaLending>
+    +filtrarPorPlazo(ofertas: List<OfertaLending>, plazoMaxDias: int): List<OfertaLending>
+    +obtenerOfertasConPrecio(ofertas: List<OfertaLending>): List<OfertaConPrecio>
+  }
+
+  class MarketplaceController {
+    -queryService: OfertaQueryService
+    +MarketplaceController(queryService: OfertaQueryService)
+    +listarOfertas(filtros: FiltrosMarketplace): List<OfertaConPrecio>
+    +obtenerDetalle(idOferta: int): OfertaConPrecio
+  }
+
+  class OfertaLending {
+    -idOferta: int
+    -monto: decimal
+    -tasaInteresAnual: decimal
+    -plazoDias: int
+    -montoMinimoPrestamo: decimal
+    -activoId: int
+    -estado: EstadoOferta
+    -fechaPublicacion: datetime
+    -fechaExpiracion: datetime
+    +publicar(): boolean
+    +cancelar(): boolean
+    +calcularRendimientoEsperado(): decimal
+    +estaDisponible(): boolean
+  }
+
+  class OfertaConPrecio {
+    -oferta: OfertaLending
+    -precioActualActivo: decimal
+    -rendimientoEstimadoUSD: decimal
+  }
+
+  class FiltrosMarketplace {
+    -simboloColateral: string
+    -tasaMaxima: decimal
+    -plazoMaximoDias: int
+  }
+
+  IPriceOracle <|.. SimulatedOracleAdapter : implements
+  IPriceOracle <|.. RealOracleAdapter : implements
+  MarketplaceController --> OfertaQueryService : delega filtrado\n«SRP»
+  OfertaQueryService --> IPriceOracle : depende de\n«DIP»
+  OfertaQueryService ..> OfertaLending : filtra
+  OfertaQueryService ..> OfertaConPrecio : produce
+  MarketplaceController ..> FiltrosMarketplace : recibe
+}
+
+note top of IPriceOracle
+  T-04 — DIP + OCP:
+  Marketplace depende de IPriceOracle.
+  Sustituir oracle real por simulado
+  = nueva clase Adapter, sin tocar
+  MarketplaceController ni OfertaQueryService.
+end note
+
+note right of OfertaQueryService
+  T-05 — SRP:
+  La lógica de filtrado (antes mezclada
+  en el controlador) se extrae a este
+  servicio. El controlador solo orquesta.
+end note
+
+@enduml

@@ -1,0 +1,146 @@
+@startuml HU-07 - Gestión y Pago de Cuotas
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam packageFontSize 13
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #F8FAFB
+  BorderColor #2C3E50
+  HeaderBackgroundColor #2C3E50
+  HeaderFontColor #FFFFFF
+  ArrowColor #2C3E50
+}
+skinparam interface {
+  BackgroundColor #D6EAF8
+  BorderColor #2980B9
+}
+skinparam package {
+  BackgroundColor #EAF2FF
+  BorderColor #2980B9
+  FontColor #1A252F
+}
+
+title HU-07 — Gestión y Pago de Cuotas\n[Sprint 1 · Refactorización SOLID: DIP · Constructor Injection]
+
+' ─────────────────────────────────────────
+'  ENUMERACIONES
+' ─────────────────────────────────────────
+enum EstadoPrestamo {
+  ACTIVO
+  EN_MORA
+  LIQUIDADO
+  COMPLETADO
+}
+
+' ─────────────────────────────────────────
+'  PAQUETE: Pagos
+' ─────────────────────────────────────────
+package "Gestión de Cuotas" {
+
+  ' T-11: DIP — LoanController inyecta IPaymentProcessor, no motor concreto
+  interface IPaymentProcessor {
+    +procesarPago(idPrestamo: int, monto: decimal): ResultadoPago
+    +calcularCuotaPendiente(idPrestamo: int): decimal
+    +obtenerHistorialPagos(idPrestamo: int): List<RegistroPago>
+  }
+
+  class StandardPaymentProcessor {
+    -dbConnection: DatabaseConnection
+    +procesarPago(idPrestamo: int, monto: decimal): ResultadoPago
+    +calcularCuotaPendiente(idPrestamo: int): decimal
+    +obtenerHistorialPagos(idPrestamo: int): List<RegistroPago>
+  }
+
+  class MockPaymentProcessor {
+    -pagosSimulados: Map<int, List<RegistroPago>>
+    +procesarPago(idPrestamo: int, monto: decimal): ResultadoPago
+    +calcularCuotaPendiente(idPrestamo: int): decimal
+    +obtenerHistorialPagos(idPrestamo: int): List<RegistroPago>
+  }
+
+  class LoanController {
+    -paymentProcessor: IPaymentProcessor
+    +LoanController(processor: IPaymentProcessor)
+    +pagarCuota(idPrestamo: int, monto: decimal): ResultadoPago
+    +obtenerEstadoCuenta(idPrestamo: int): ResumenPrestamo
+    +listarPrestamosActivos(idUsuario: int): List<Prestamo>
+  }
+
+  class ResultadoPago {
+    -exitoso: boolean
+    -nuevoSaldoPendiente: decimal
+    -nuevoLTV: decimal
+    -mensaje: string
+    +fueExitoso(): boolean
+    +getNuevoLTV(): decimal
+  }
+
+  class RegistroPago {
+    -idPago: int
+    -idPrestamo: int
+    -monto: decimal
+    -fecha: datetime
+    -saldoAntes: decimal
+    -saldoDespues: decimal
+    +registrar(): void
+  }
+
+  class ResumenPrestamo {
+    -idPrestamo: int
+    -saldoPendiente: decimal
+    -cuotaMensual: decimal
+    -ltvActual: decimal
+    -proximaFechaVencimiento: datetime
+    -pagosRealizados: int
+  }
+
+  class Prestamo {
+    -idPrestamo: int
+    -monto: decimal
+    -tasaInteres: decimal
+    -ltvActual: decimal
+    -saldoPendiente: decimal
+    -cuotaMensual: decimal
+    -estado: EstadoPrestamo
+    -fechaVencimiento: datetime
+    +pagarCuota(monto: decimal): boolean
+    +calcularLTVActual(): decimal
+    +estaEnRiesgo(): boolean
+    +calcularMoraAcumulada(): decimal
+  }
+
+  class DatabaseConnection <<Singleton>> {
+    -{static} instancia: DatabaseConnection
+    +{static} getInstance(): DatabaseConnection
+    +ejecutarQuery(sql: string): ResultSet
+  }
+
+  IPaymentProcessor <|.. StandardPaymentProcessor : implements
+  IPaymentProcessor <|.. MockPaymentProcessor : implements
+  StandardPaymentProcessor --> DatabaseConnection : usa\n«Singleton»
+
+  LoanController --> IPaymentProcessor : inyectado por constructor\n«DIP»
+  LoanController ..> Prestamo : consulta
+  LoanController ..> ResumenPrestamo : produce
+
+  IPaymentProcessor ..> ResultadoPago : retorna
+  IPaymentProcessor ..> RegistroPago : gestiona
+}
+
+note top of IPaymentProcessor
+  T-11 — DIP (Constructor Injection):
+  LoanController recibe IPaymentProcessor
+  en el constructor. El módulo de alto nivel
+  no depende del motor de pagos concreto.
+  MockPaymentProcessor permite pruebas
+  unitarias en aislamiento total.
+end note
+
+note right of MockPaymentProcessor
+  Usado por T-11 (tests):
+  Simula pagos sin BD real.
+  Permite cobertura >80% del
+  ciclo de pago en aislamiento.
+end note
+
+@enduml
