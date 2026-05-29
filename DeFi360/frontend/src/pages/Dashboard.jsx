@@ -4,7 +4,7 @@ import PaymentForm from '../components/PaymentForm';
 import { PaymentMock } from '../services/mock/PaymentMock';
 
 function Dashboard() {
-  const paymentProcessor = new MockPaymentProcessor();
+  const paymentProcessor = new PaymentMock();
   const [walletData, setWalletData] = useState({
     address: '',
     balance: 0,

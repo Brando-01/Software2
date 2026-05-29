@@ -13,7 +13,7 @@ import PrivateRoute from './components/PrivateRoute';
 import { PriceOracleMock } from './services/mock/PriceOracleMock';
 
 function App() {
-  const priceOracle = new MockPriceOracle();
+  const priceOracle = new PriceOracleMock();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navbar />
