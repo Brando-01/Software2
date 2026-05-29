@@ -1,20 +1,12 @@
 const path = require('path');
-const { setMock, clearMock } = require('./testHelpers');
 
-function equal(actual, expected, message) {
-  if (actual !== expected) {
-    throw new Error(message || `Esperado ${expected} pero fue ${actual}`);
-  }
+function equal(a, b, msg) {
+  if (a !== b) throw new Error(msg || `${b} !== ${a}`);
 }
 
-function ok(value, message) {
-  if (!value) {
-    throw new Error(message || `Esperado valor verdadero pero fue ${value}`);
-  }
+function ok(val, msg) {
+  if (!val) throw new Error(msg || 'Not ok');
 }
-
-const modelsPath = path.resolve(__dirname, '../models');
-const servicePath = path.resolve(__dirname, '../services/StandardPaymentProcessor');
 
 const borrowerWallet = {
   availableBalance: 150,
@@ -46,18 +38,31 @@ const mockModels = {
   Offer: {}
 };
 
-setMock(modelsPath, mockModels);
-const StandardPaymentProcessor = require(servicePath);
-clearMock(modelsPath);
+// Mock require() para devolver nuestros modelos
+const Module = require('module');
+const originalRequire = Module.prototype.require;
+
+Module.prototype.require = function(id) {
+  const modelsPath = path.resolve(__dirname, '../models');
+  if (id === modelsPath) {
+    return mockModels;
+  }
+  return originalRequire.apply(this, arguments);
+};
+
+const StandardPaymentProcessor = require(path.resolve(__dirname, '../services/StandardPaymentProcessor'));
+
+// Restaurar require original
+Module.prototype.require = originalRequire;
 
 describe('StandardPaymentProcessor', () => {
-  test('recalcula LTV correctamente con colateral positivo', () => {
+  test('recalcula LTV correctamente', () => {
     const processor = new StandardPaymentProcessor();
     const ltv = processor.recalculateLTV(50, 0.2, 2000);
-    ok(Math.abs(ltv - 12.5) < 0.0001, `LTV esperaba 12.5 pero fue ${ltv}`);
+    ok(Math.abs(ltv - 12.5) < 0.0001);
   });
 
-  test('procesa pago completo y actualiza balances', async () => {
+  test('procesa pago completo', async () => {
     const processor = new StandardPaymentProcessor();
     const result = await processor.processPayment({
       loanId: 1,

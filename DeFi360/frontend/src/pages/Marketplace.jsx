@@ -7,6 +7,19 @@ function Marketplace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [processingId, setProcessingId] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('userData');
+    if (userData) {
+      try {
+        const parsed = JSON.parse(userData);
+        setCurrentUserId(parsed?.id ?? null);
+      } catch (err) {
+        console.warn('Marketplace: no se pudo parsear userData', err);
+      }
+    }
+  }, []);
 
   const fetchOffers = async () => {
     try {
@@ -26,7 +39,7 @@ function Marketplace() {
   useEffect(() => {
     fetchOffers();
   }, [filter]);
-
+ 
   const handleMatchLoan = async (offerId) => {
     try {
       setProcessingId(offerId);
@@ -169,17 +182,24 @@ function Marketplace() {
               
               <button 
                 onClick={() => handleMatchLoan(offer.id)}
-                disabled={processingId === offer.id || offer.type === 'lend'}
+                disabled={
+                  processingId === offer.id ||
+                  offer.type === 'lend' ||
+                  offer.userId === currentUserId ||
+                  offer.User?.id === currentUserId
+                }
                 style={{ 
                   width: '100%',
-                  background: offer.type === 'lend' ? '#6b7280' : '#2563eb'
+                  background: offer.type === 'lend' || offer.userId === currentUserId || offer.User?.id === currentUserId ? '#6b7280' : '#2563eb'
                 }}
               >
                 {processingId === offer.id 
                   ? 'Procesando...' 
-                  : offer.type === 'lend' 
-                    ? 'Invertir' 
-                    : 'Aceptar Préstamo'}
+                  : offer.userId === currentUserId || offer.User?.id === currentUserId 
+                    ? 'Tu oferta' 
+                    : offer.type === 'lend' 
+                      ? 'Invertir' 
+                      : 'Aceptar Préstamo'}
               </button>
             </div>
           ))}

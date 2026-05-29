@@ -1,5 +1,4 @@
 class IPaymentProcessor {
-  
   async processPayment({ loanId, amount, borrowerId, lenderId }) {
     throw new Error('processPayment() debe ser implementado por la subclase');
   }

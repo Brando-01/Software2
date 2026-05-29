@@ -1,0 +1,87 @@
+@startuml HU04_Publicar_Solicitud_Prestamo
+title HU-04 — Publicar Solicitud de Préstamo\nRefactorización Factory Method + SRP + DIP (Sprint 1 · DeFi360)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #2E75B6
+skinparam sequenceParticipantBackgroundColor #EBF3FB
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+
+actor       "Prestatario"              as User
+participant "LoanController"           as LC
+participant "<<interface>>\nILoanFactory"     as ILF
+participant "FixedRateLoanFactory"     as FLF
+participant "LTVCalculatorService"     as LTV
+participant "<<interface>>\nIColateralService" as ICS
+participant "ColateralLockService"     as CLS
+participant "WalletManager"            as WM
+database    "PostgreSQL"               as DB
+
+autonumber
+
+note over LC, ILF
+  T-07: Factory Method desacopla creación de Prestamo de LoanController.
+  T-08: LTVCalculatorService extrae aritmética financiera de LoanController (SRP).
+  T-09: IColateralService desacopla LoanController de WalletManager concreto (DIP).
+end note
+
+User -> LC : POST /loans\n{ monto, colateral, tipo: "TASA_FIJA" }
+
+LC -> LTV : calculateLTV(monto, colateral)
+note right of LC
+  T-08: LoanController delega
+  cálculo LTV; no contiene
+  aritmética inline (SRP).
+end note
+activate LTV
+LTV --> LC : LTVResult { ratio: 0.65, nivel: NORMAL }
+deactivate LTV
+
+alt LTV > 0.95 (liquidación inminente)
+    LC --> User : 400 Bad Request\n{ error: "Colateral insuficiente" }
+else LTV ≤ 0.95 (permitido)
+
+    LC -> ICS : lockColateral(colateral, monto)
+    note right of LC
+      T-09: Constructor Injection:
+      LoanController(IColateralService cs)
+      No invoca WalletManager directamente.
+    end note
+    activate ICS
+    ICS -> CLS : lockColateral(colateral, monto)
+    activate CLS
+    CLS -> WM  : reserveFunds(colateral, monto)
+    WM --> CLS : reservationId
+    CLS --> ICS : ColateralReceipt { reservationId }
+    deactivate CLS
+    ICS --> LC  : ColateralReceipt
+    deactivate ICS
+
+    LC -> ILF : createLoan(monto, colateral, tasaFija)
+    note right of LC
+      T-07: LoanController depende de ILoanFactory.
+      OCP: nuevo tipo de préstamo = nueva Factory,
+      sin modificar LoanController.
+    end note
+    activate ILF
+    ILF -> FLF : createLoan(monto, colateral, tasaFija)
+    activate FLF
+    FLF --> ILF : Prestamo { id, monto, tasa, estado: PENDIENTE }
+    deactivate FLF
+    ILF --> LC  : Prestamo
+    deactivate ILF
+
+    LC -> DB : INSERT prestamo
+    DB --> LC : OK
+
+    LC --> User : 201 Created\n{ prestamoId, ltvRatio, estado }
+end
+
+note over User, DB
+  T-10 (QA): Pruebas unitarias de LTVCalculatorService
+  cubren LTV=50% (normal), 90% (alerta), 95% (liquidación).
+  Umbrales configurables via parámetros (OCP).
+end note
+
+@enduml

@@ -1,9 +1,17 @@
 const { Offer, User, Wallet } = require('../models');
-const OfertaQueryService = require('../services/OfertaQueryService');
+const { Op } = require('sequelize');
+const SimulatedOracleAdapter = require('../services/SimulatedOracleAdapter');
 
-const ofertaQueryService = new OfertaQueryService();
+// Instancia por defecto del precio oracle
+const defaultPriceOracle = new SimulatedOracleAdapter();
 
-const getOffers = async (req, res) => {
+/**
+ * Obtener todas las ofertas activas con cálculo de LTV enriquecido
+ * SOLID: DIP - El controlador depende de IPriceOracle inyectado
+ * 
+ * @param {IPriceOracle} priceOracle - Oracle de precios inyectado
+ */
+const getOffers = (priceOracle = defaultPriceOracle) => async (req, res) => {
   try {
     const whereClause = ofertaQueryService.buildWhereClause(req.query);
 
@@ -13,31 +21,73 @@ const getOffers = async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
-    res.json({ success: true, count: offers.length, offers });
+    // Enriquecer ofertas con información de precio de colateral
+    const enrichedOffers = await Promise.all(
+      offers.map(async (offer) => {
+        const offerData = offer.toJSON();
+
+        if (offer.collateralType && offer.collateralAmount) {
+          try {
+            const collateralPrice = await priceOracle.getPrice(offer.collateralType);
+            offerData.collateralPrice = collateralPrice;
+            offerData.collateralValueUSD = (offer.collateralAmount * collateralPrice).toFixed(2);
+            offerData.ltv = ((offer.amount / (offer.collateralAmount * collateralPrice)) * 100).toFixed(2);
+          } catch (error) {
+            console.warn(`No se pudo obtener precio para ${offer.collateralType}:`, error.message);
+          }
+        }
+
+        return offerData;
+      })
+    );
+
+    res.json({ success: true, count: enrichedOffers.length, offers: enrichedOffers });
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener ofertas' });
   }
 };
 
-const createOffer = async (req, res) => {
+// @desc    Crear oferta (Lend o Borrow)
+// @route   POST /api/marketplace/offers
+const createOffer = (priceOracle = defaultPriceOracle) => async (req, res) => {
   try {
     const { type, amount, apy, duration, collateralType, collateralAmount } = req.body;
 
     if (!type || !amount || !apy || !duration) {
-      return res.status(400).json({ message: 'Faltan campos requeridos' });
+      return res.status(400).json({
+        message: 'Faltan campos requeridos: type, amount, apy, duration',
+        received: { type, amount, apy, duration }
+      });
     }
 
     const userId = req.user.id;
     const wallet = await Wallet.findOne({ where: { userId } });
 
+    if (!wallet) {
+      return res.status(400).json({
+        message: 'No se encontró wallet del usuario',
+        userId
+      });
+    }
+
     if (type === 'lend') {
-      if (parseFloat(amount) > parseFloat(wallet.availableBalance)) {
-        return res.status(400).json({ message: 'Saldo insuficiente para ofrecer préstamo' });
+      const availableBalance = parseFloat(wallet.availableBalance);
+      const requestedAmount = parseFloat(amount);
+
+      if (requestedAmount > availableBalance) {
+        return res.status(400).json({
+          message: 'Saldo insuficiente para ofrecer préstamo',
+          details: {
+            requested: requestedAmount,
+            available: availableBalance,
+            deficit: (requestedAmount - availableBalance).toFixed(2)
+          }
+        });
       }
 
       await wallet.update({
-        availableBalance: wallet.availableBalance - parseFloat(amount),
-        blockedBalance: wallet.blockedBalance + parseFloat(amount)
+        availableBalance: availableBalance - requestedAmount,
+        blockedBalance: parseFloat(wallet.blockedBalance) + requestedAmount
       });
     }
 
@@ -52,10 +102,22 @@ const createOffer = async (req, res) => {
       status: 'active'
     });
 
-    res.status(201).json({ success: true, offer });
+    // Enriquecer respuesta con precio del colateral
+    const offerData = offer.toJSON();
+    if (collateralType && collateralAmount) {
+      try {
+        const collateralPrice = await priceOracle.getPrice(collateralType);
+        offerData.collateralPrice = collateralPrice;
+        offerData.collateralValueUSD = (collateralAmount * collateralPrice).toFixed(2);
+      } catch (error) {
+        console.warn(`No se pudo obtener precio para ${collateralType}:`, error.message);
+      }
+    }
+
+    res.status(201).json({ success: true, offer: offerData });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error al crear oferta' });
+    console.error('[createOffer] Error:', error.message, error);
+    res.status(500).json({ message: 'Error al crear oferta', error: error.message });
   }
 };
 
@@ -91,4 +153,8 @@ const cancelOffer = async (req, res) => {
   }
 };
 
-module.exports = { getOffers, createOffer, cancelOffer };
+module.exports = {
+  getOffers: getOffers(),
+  createOffer: createOffer(),
+  cancelOffer
+};

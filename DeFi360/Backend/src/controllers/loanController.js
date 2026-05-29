@@ -1,12 +1,12 @@
 const { Offer, Wallet, User } = require('../models');
 const LoanFactory = require('../factories/LoanFactory');
-const LTVRiskStrategy = require('../strategies/LTVRiskStrategy');
+const LTVThresholdStrategy = require('../strategies/LTVThresholdStrategy');
 const CollateralService = require('../services/CollateralService');
 const ColateralLockService = require('../services/ColateralLockService');
 const StandardPaymentProcessor = require('../services/StandardPaymentProcessor');
 
 const defaultLoanFactory = new LoanFactory();
-const defaultRiskStrategy = new LTVRiskStrategy();
+const defaultRiskStrategy = new LTVThresholdStrategy();
 const defaultCollateralService = new CollateralService();
 const defaultColateralLockService = new ColateralLockService();
 
@@ -15,7 +15,10 @@ const calculateLTV = (riskStrategy = defaultRiskStrategy, collateralService = de
     const { loanAmount, collateralAmount, collateralType = 'ETH' } = req.body;
 
     const collateralValue = await collateralService.calculateValue(collateralType, collateralAmount);
-    const { ratio, riskLevel, isHealthy, message } = riskStrategy.evaluate(parseFloat(loanAmount), collateralValue);
+    const riskLevel = riskStrategy.evaluate(
+      { remainingBalance: loanAmount, collateralAmount, collateral: { amount: collateralAmount } },
+      parseFloat(collateralValue) / parseFloat(collateralAmount)
+    );
 
     res.json({ loanAmount, collateralValue, ltv: ratio, riskLevel, isHealthy, message });
   } catch (error) {
@@ -29,10 +32,39 @@ const requestLoan = (collateralService = defaultCollateralService) => async (req
     const { amount, duration, collateralType = 'ETH', collateralAmount } = req.body;
     const userId = req.user.id;
 
-    const sufficient = await collateralService.isSufficient(amount, collateralType, collateralAmount);
+    // Validar datos requeridos
+    if (!amount || !duration) {
+      return res.status(400).json({
+        message: 'Faltan campos requeridos: amount y duration',
+        received: { amount, duration, collateralType, collateralAmount }
+      });
+    }
+
+    // Validar que collateralAmount sea un número
+    if (!collateralAmount || isNaN(parseFloat(collateralAmount))) {
+      return res.status(400).json({
+        message: 'collateralAmount debe ser un número válido',
+        received: { collateralAmount }
+      });
+    }
+
+    const sufficient = await collateralService.isSufficient(
+      amount,
+      collateralType,
+      collateralAmount
+    );
 
     if (!sufficient) {
-      return res.status(400).json({ message: 'Colateral insuficiente para el monto solicitado' });
+      const collateralValue = await collateralService.calculateValue(collateralType, collateralAmount);
+      return res.status(400).json({
+        message: 'Colateral insuficiente para el monto solicitado',
+        details: {
+          requestedAmount: amount,
+          collateralValue: collateralValue,
+          minRequired: amount,
+          ltv: ((amount / collateralValue) * 100).toFixed(2) + '%'
+        }
+      });
     }
 
     const offer = await Offer.create({
@@ -48,8 +80,8 @@ const requestLoan = (collateralService = defaultCollateralService) => async (req
 
     res.status(201).json({ success: true, offer, message: 'Solicitud de préstamo publicada en el Marketplace' });
   } catch (error) {
-    console.error('[requestLoan]', error.message);
-    res.status(500).json({ message: 'Error al solicitar préstamo' });
+    console.error('[requestLoan] Error:', error.message, error);
+    res.status(500).json({ message: 'Error al solicitar préstamo', error: error.message });
   }
 };
 
@@ -100,7 +132,11 @@ const matchLoan = (
       return res.status(400).json({ message: 'Saldo insuficiente para prestar' });
     }
 
-    const loan = await loanFactory.createFromOffer(offer, req.user.id, offer.userId);
+    // Permitir especificar el tipo de tasa en el request body, por defecto 'fixed'
+    const { rateType = 'fixed' } = req.body;
+
+    const loan = await loanFactory.createFromOffer(offer, req.user.id, offer.userId, rateType);
+
     const borrowerWallet = await Wallet.findOne({ where: { userId: offer.userId } });
 
     await colateralLockService.lockFunds(lenderWallet, offer.amount);
@@ -112,7 +148,12 @@ const matchLoan = (
       offer.update({ status: 'matched', matchedWith: req.user.id })
     ]);
 
-    res.json({ success: true, loan });
+    res.json({
+      success: true,
+      loan,
+      rateType: loan.rateType,
+      message: `Préstamo creado con tasa ${loan.rateType}`
+    });
   } catch (error) {
     console.error('[matchLoan]', error.message);
     res.status(500).json({ message: 'Error al procesar match' });
