@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { authService, loanService } from '../services/api';
+import PaymentForm from '../components/PaymentForm';
+import { PaymentMock } from '../services/mock/PaymentMock';
 
 function Dashboard() {
+  const paymentProcessor = new MockPaymentProcessor();
   const [walletData, setWalletData] = useState({
     address: '',
     balance: 0,
@@ -233,6 +236,9 @@ const handlePay = async (loanId) => {
           </div>
         )}
       </div>
+    <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', border: '1px solid #e4e7eb', marginTop: '24px'}}>
+    <PaymentForm currDebt={1500} colValue={3000} paymentProcessor={paymentProcessor}/>
+  </div>
     </div>
   );
 }

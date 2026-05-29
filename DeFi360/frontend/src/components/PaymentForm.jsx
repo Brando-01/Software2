@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { MockPaymentProcessor } from "../services/mock/PaymentMock";
+import { PaymentMock } from "../services/mock/PaymentMock";
 
-function PaymentForm({ currDebt, colValue }) {
+function PaymentForm({ currDebt, colValue, paymentProcessor }) {
     const [amount, setAmount] = useState("");
     const [error, setError] = useState("");
     const [ltvPreview, setLtvPreview] = useState(null);
-    const paymentProcessor = new MockPaymentProcessor();
 
     const validate = (value) => {
         if (value <= 0) return "Monto menor a 0";

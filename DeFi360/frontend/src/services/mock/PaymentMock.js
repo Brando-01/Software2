@@ -1,6 +1,6 @@
 import { IPaymentProcessor } from "../interfaces/IPaymentProcessor";
 
-export class MockPaymentProcessor extends IPaymentProcessor {
+export class PaymentMock extends IPaymentProcessor {
     async processPayment({ amount, currDebt, colValue }) {
         const newDebt = currDebt - amount;
         const newLTV = (newDebt / colValue) * 100;
