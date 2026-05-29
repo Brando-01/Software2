@@ -88,15 +88,15 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
 
         it('✅ Debería disparar RISK_ALERT_HIGH cuando LTV >= 90%', async () => {
             const loanMock = { 
-                id: 101, 
+                id: 101,
                 borrowerId: 'user1',
                 lenderId: 'user2',
-                amount: 900,
+                amount: 810,
                 collateralType: 'ETH',
                 collateralAmount: 0.3
             };
 
-            await monitor.evaluateLoanRisk(loanMock, 3000); // LTV = 90%
+            await monitor.evaluateLoanRisk(loanMock, 3000); // 810 / (0.3 * 3000) = LTV 90%
 
             const alerts = mockObserver.events.filter(e => e.type === 'RISK_ALERT_HIGH');
             assert.strictEqual(alerts.length, 1, 'Debe haber 1 alerta de RIESGO_ALTO');
@@ -106,15 +106,15 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
 
         it('✅ Debería disparar RISK_ALERT_CRITICAL cuando LTV >= 95%', async () => {
             const loanMock = { 
-                id: 102, 
+                id: 102,
                 borrowerId: 'user1',
                 lenderId: 'user2',
-                amount: 950,
+                amount: 855,
                 collateralType: 'ETH',
                 collateralAmount: 0.3
             };
 
-            await monitor.evaluateLoanRisk(loanMock, 3000); // LTV = 95%
+            await monitor.evaluateLoanRisk(loanMock, 3000); // 855 / (0.3 * 3000) = LTV 95%
 
             const alerts = mockObserver.events.filter(e => e.type === 'RISK_ALERT_CRITICAL');
             assert.strictEqual(alerts.length, 1, 'Debe haber 1 alerta CRÍTICA');
@@ -124,15 +124,15 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
 
         it('✅ NO debería disparar alertas cuando LTV < 90%', async () => {
             const loanMock = { 
-                id: 103, 
+                id: 103,
                 borrowerId: 'user1',
                 lenderId: 'user2',
-                amount: 800,
+                amount: 720,
                 collateralType: 'ETH',
                 collateralAmount: 0.3
             };
 
-            await monitor.evaluateLoanRisk(loanMock, 3000); // LTV = 80%
+            await monitor.evaluateLoanRisk(loanMock, 3000); // 720 / (0.3 * 3000) = LTV 80%
 
             const alerts = mockObserver.events.filter(e => 
                 e.type === 'RISK_ALERT_HIGH' || e.type === 'RISK_ALERT_CRITICAL'
@@ -281,7 +281,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
                 id: 701,
                 borrowerId: 'borrower1',
                 lenderId: 'lender1',
-                amount: 900,
+                amount: 810,
                 collateralType: 'ETH',
                 collateralAmount: 0.3
             };
@@ -298,7 +298,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
                 id: 702,
                 borrowerId: 'borrower1',
                 lenderId: 'lender1',
-                amount: 950,
+                amount: 855,
                 collateralType: 'ETH',
                 collateralAmount: 0.3
             };
@@ -326,7 +326,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
                 id: 800,
                 borrowerId: 'borrower1',
                 lenderId: 'lender1',
-                amount: 900,
+                amount: 810,
                 collateralType: 'ETH',
                 collateralAmount: 0.3
             };
@@ -346,7 +346,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
                 id: 801,
                 borrowerId: 'borrower1',
                 lenderId: 'lender1',
-                amount: 950,
+                amount: 855,
                 collateralType: 'ETH',
                 collateralAmount: 0.3
             };

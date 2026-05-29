@@ -39,6 +39,9 @@ const modelsPath = path.resolve(__dirname, '../models');
 require.cache[modelsPath] = { exports: mockModels };
 require.cache[path.join(modelsPath, 'index.js')] = { exports: mockModels };
 
+// Forzar recarga del servicio para que capture los modelos simulados aunque
+// otro test lo haya cargado antes con los modelos reales.
+delete require.cache[require.resolve('../services/StandardPaymentProcessor')];
 const StandardPaymentProcessor = require('../services/StandardPaymentProcessor');
 
 describe('StandardPaymentProcessor', () => {

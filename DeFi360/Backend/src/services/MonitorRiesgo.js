@@ -80,7 +80,7 @@ class MonitorRiesgo {
             // Actualizar estado
             this.activeMonitorings.set(loan.id, {
                 riskLevel,
-                ltv,
+                ltv: event.ltv,
                 lastEvaluated: new Date()
             });
 
