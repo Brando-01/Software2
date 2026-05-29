@@ -39,7 +39,7 @@ function Marketplace() {
   useEffect(() => {
     fetchOffers();
   }, [filter]);
-
+ 
   const handleMatchLoan = async (offerId) => {
     try {
       setProcessingId(offerId);
