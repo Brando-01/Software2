@@ -41,7 +41,13 @@ interface "IPriceOracle" as IOracle
 node "Backend — Adapters" {
   [SimulatedOracleAdapter] as SimOracle
   [ChainlinkOracleAdapter] as ChainOracle
-  
+
+}
+
+' ─── TÁCTICA DE PERFORMANCE: CACHÉ CON TTL ─────────────────────
+node "Backend — Performance" {
+  [CachedPriceOracle\n«caché TTL»] as CacheOracle
+
 }
 
 ' ─── SERVICIO DE CONSULTA ──────────────────────────────────────
@@ -77,12 +83,14 @@ MktPage       --> OfertaCard        : renderiza lista
 MktPage       ..> IOracle           : «depends on»\n(props inyectadas)
 SimOracle     ..|> IOracle          : «implements»
 ChainOracle   ..|> IOracle          : «implements»
+CacheOracle   ..|> IOracle          : «implements»\n(decorador transparente)
+CacheOracle   --> SimOracle         : delega en MISS / TTL vencido
 SimOracle     --> ExtOracle         : invoca fuente externa
 ChainOracle   --> ExtOracle         : invoca fuente externa
 
 MktPage       --> MktCtrl           : GET /marketplace/ofertas
 
-MktCtrl       ..> IOracle           : «depends on»
+MktCtrl       ..> IOracle           : «depends on»\n(recibe CachedPriceOracle)
 MktCtrl       --> OQuery            : delega filtrado
 OQuery        --> OfertaModel       : opera sobre
 OQuery        --> TblOferta         : SELECT con filtros

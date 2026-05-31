@@ -6,7 +6,8 @@ const testFiles = [
   './LTVRiskStrategy.test.js',
   './authController.test.js',
   './loanController.test.js',
-  './StandardPaymentProcessor.test.js'
+  './StandardPaymentProcessor.test.js',
+  './CachedPriceOracle.test.js'
 ];
 
 const isPromise = (value) => value && typeof value.then === 'function';
