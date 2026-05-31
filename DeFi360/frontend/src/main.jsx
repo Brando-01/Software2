@@ -794,9 +794,6 @@ function MatchModal({ offer, onClose, onDone }){
   );
 }
 
-// Indicador de la táctica de performance "Caché con TTL" sobre el oráculo de precios.
-// Tras cada carga del Marketplace muestra cuántas consultas se sirvieron desde memoria
-// (HIT) frente a las que golpearon el oráculo (MISS).
 function CacheStatsChip({ refreshKey }){
   const [data,setData]=useState(null);
   useEffect(()=>{

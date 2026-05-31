@@ -7,7 +7,6 @@ function ok(val, msg) {
   if (!val) throw new Error(msg || 'No es verdadero');
 }
 
-// Oráculo espía: cuenta cuántas veces se consulta realmente la fuente.
 class SpyOracle {
   constructor() {
     this.calls = 0;
@@ -41,7 +40,7 @@ describe('CachedPriceOracle', () => {
 
   test('Un precio expirado por TTL fuerza un nuevo MISS', async () => {
     const spy = new SpyOracle();
-    const cached = new CachedPriceOracle(spy, 0); // TTL inmediato
+    const cached = new CachedPriceOracle(spy, 0);
 
     await cached.getPrice('ETH');
     await cached.getPrice('ETH');

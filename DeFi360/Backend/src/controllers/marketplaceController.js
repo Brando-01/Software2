@@ -3,8 +3,6 @@ const { Op } = require('sequelize');
 const SimulatedOracleAdapter = require('../services/SimulatedOracleAdapter');
 const CachedPriceOracle = require('../services/CachedPriceOracle');
 
-// Oráculo por defecto: el adapter simulado envuelto por la caché con TTL.
-// La caché es transparente para el controlador (DIP: ambos son IPriceOracle).
 const defaultPriceOracle = new CachedPriceOracle(new SimulatedOracleAdapter());
 
 /**
@@ -186,8 +184,6 @@ const cancelOffer = async (req, res) => {
   }
 };
 
-// @desc    Métricas de la caché de precios (HIT/MISS/hitRate) para la demo
-// @route   GET /api/marketplace/cache-stats
 const getCacheStats = (req, res) => {
   res.json({ success: true, ttlMs: defaultPriceOracle.ttlMs, stats: defaultPriceOracle.getStats() });
 };
