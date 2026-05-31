@@ -1,8 +1,3 @@
-/**
- * FixedRateLoanFactory: Factory para crear préstamos con tasa fija
- * Implementa patrón Factory Method
- * SOLID: OCP - Añadir nuevos tipos de préstamos sin modificar LoanController
- */
 const ILoanFactory = require('../interfaces/ILoanFactory');
 const { Loan } = require('../models');
 
@@ -20,7 +15,6 @@ class FixedRateLoanFactory extends ILoanFactory {
             ? ((offer.amount / (offer.collateralAmount * 3000)) * 100).toFixed(2) 
             : null;
 
-        // Crear préstamo con tasa fija
         const loan = await Loan.create({
             lenderId,
             borrowerId,
@@ -38,9 +32,6 @@ class FixedRateLoanFactory extends ILoanFactory {
         return loan;
     }
 
-    /**
-     * Método adicional para crear préstamo con parámetros directos (sin offer)
-     */
     async createLoan(config) {
         const { 
             lenderId, 

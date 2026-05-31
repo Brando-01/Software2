@@ -11,6 +11,10 @@ class StandardPaymentProcessor extends IPaymentProcessor {
       throw new Error('Préstamo no encontrado o no activo');
     }
 
+    if (loan.borrowerId != null && borrowerId != null && loan.borrowerId !== borrowerId) {
+      throw new Error('No autorizado para pagar este préstamo');
+    }
+
     const paymentAmount = parseFloat(amount);
 
     if (paymentAmount <= 0) {
