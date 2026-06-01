@@ -19,7 +19,6 @@ class MonitorRiesgo {
     evaluarPrestamo(loan, collateralValue) {
         const resultado = this.estrategia.evaluate(loan.amount, collateralValue);
 
-        // Mapeamos los flags del backend ('high' y 'critical') a las alertas del plan de negocio
         if (resultado.riskLevel === 'high' || resultado.riskLevel === 'critical') {
             const nivelAlerta = resultado.riskLevel === 'high' ? 'RIESGO_ALTO' : 'LIQUIDACION_INMINENTE';
             
