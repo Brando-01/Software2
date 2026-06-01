@@ -78,5 +78,5 @@ testFiles.forEach((file) => {
     process.exit(1);
   }
 
-  console.log('\nTodas las pruebas pasaron');
+  console.log('\n Todas las pruebas pasaron');
 })();
