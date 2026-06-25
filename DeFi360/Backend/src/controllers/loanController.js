@@ -3,9 +3,11 @@ const LoanFactory = require('../factories/LoanFactory');
 const CollateralService = require('../services/CollateralService');
 const LTVCalculatorService = require('../services/LTVCalculatorService');
 const StandardPaymentProcessor = require('../services/StandardPaymentProcessor');
+const priceOracle = require('../services/priceOracle');
+const { liquidationService: defaultLiquidationService } = require('../services/riskWiring');
 
 const defaultLoanFactory = new LoanFactory();
-const defaultCollateralService = new CollateralService();
+const defaultCollateralService = new CollateralService(priceOracle);
 const defaultPaymentProcessor = new StandardPaymentProcessor();
 
 const calculateLTV = (collateralService = defaultCollateralService) => async (req, res) => {
@@ -181,11 +183,71 @@ const payLoan = (paymentProcessor = defaultPaymentProcessor) => async (req, res)
   }
 };
 
+const simulate = (oracle = priceOracle) => async (req, res) => {
+  try {
+    const { loanAmount, collateralType = 'ETH', collateralAmount, priceShockPct = 0 } = req.body;
+
+    if (!loanAmount || !collateralAmount) {
+      return res.status(400).json({ message: 'loanAmount y collateralAmount son obligatorios' });
+    }
+
+    const basePrice = await oracle.getPrice(collateralType);
+    const shockedPrice = parseFloat((basePrice * (1 + parseFloat(priceShockPct) / 100)).toFixed(2));
+    const collateralValue = parseFloat(collateralAmount) * shockedPrice;
+    const result = LTVCalculatorService.calculateLTV(parseFloat(loanAmount), collateralValue);
+
+    res.json({
+      basePrice,
+      shockedPrice,
+      collateralValue: parseFloat(collateralValue.toFixed(2)),
+      ltv: result.ratio,
+      riskLevel: result.riskLevel,
+      isHealthy: result.isHealthy,
+      message: result.message
+    });
+  } catch (error) {
+    console.error('[simulate]', error.message);
+    res.status(500).json({ message: 'Error al simular escenario', detail: error.message });
+  }
+};
+
+const liquidate = (liquidationService = defaultLiquidationService) => async (req, res) => {
+  try {
+    const loanId = parseInt(req.params.id, 10);
+    const result = await liquidationService.liquidateManual(loanId, {
+      actorRole: req.user?.role,
+      reason: req.body?.reason || 'manual_admin'
+    });
+    res.status(201).json({ success: true, ...result });
+  } catch (error) {
+    console.error('[liquidate]', error.message);
+    const status = error.statusCode || 400;
+    res.status(status).json({ message: error.message || 'Error al liquidar el préstamo' });
+  }
+};
+
+const getLiquidation = (liquidationService = defaultLiquidationService) => async (req, res) => {
+  try {
+    const loanId = parseInt(req.params.id, 10);
+    const liquidation = await liquidationService.getLiquidation(loanId);
+    if (!liquidation) {
+      return res.status(404).json({ message: 'Este préstamo no tiene liquidación' });
+    }
+    res.json({ success: true, liquidation });
+  } catch (error) {
+    console.error('[getLiquidation]', error.message);
+    res.status(500).json({ message: 'Error al obtener la liquidación' });
+  }
+};
+
 module.exports = {
   calculateLTV: calculateLTV(),
   requestLoan: requestLoan(),
   getUserLoans,
   matchLoan: matchLoan(),
   payLoan: payLoan(),
-  _factories: { calculateLTV, requestLoan, matchLoan, payLoan }
+  simulate: simulate(),
+  liquidate: liquidate(),
+  getLiquidation: getLiquidation(),
+  _factories: { calculateLTV, requestLoan, matchLoan, payLoan, simulate, liquidate, getLiquidation }
 };

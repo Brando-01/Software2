@@ -11,8 +11,8 @@ class FixedRateLoanFactory extends ILoanFactory {
             Date.now() + offer.duration * 24 * 60 * 60 * 1000
         );
 
-        const ltv = offer.collateralAmount 
-            ? ((offer.amount / (offer.collateralAmount * 3000)) * 100).toFixed(2) 
+        const ltv = offer.collateralAmount
+            ? ((offer.amount / (offer.collateralAmount * 3000)) * 100).toFixed(2)
             : null;
 
         const loan = await Loan.create({
@@ -21,7 +21,7 @@ class FixedRateLoanFactory extends ILoanFactory {
             offerId: offer.id,
             amount: offer.amount,
             apy: offer.apy,
-            rateType: 'fixed', // Tasa fija
+            rateType: 'fixed',
             duration: offer.duration,
             ltv,
             remainingBalance: offer.amount,
@@ -33,14 +33,14 @@ class FixedRateLoanFactory extends ILoanFactory {
     }
 
     async createLoan(config) {
-        const { 
-            lenderId, 
-            borrowerId, 
-            amount, 
-            apy, 
-            duration, 
+        const {
+            lenderId,
+            borrowerId,
+            amount,
+            apy,
+            duration,
             collateralAmount,
-            offerId = null 
+            offerId = null
         } = config;
 
         if (!lenderId || !borrowerId || !amount || !apy || !duration) {
@@ -51,7 +51,7 @@ class FixedRateLoanFactory extends ILoanFactory {
             Date.now() + duration * 24 * 60 * 60 * 1000
         );
 
-        const ltv = collateralAmount 
+        const ltv = collateralAmount
             ? ((amount / (collateralAmount * 3000)) * 100).toFixed(2)
             : null;
 

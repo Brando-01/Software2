@@ -16,8 +16,8 @@ class VariableRateLoanFactory extends ILoanFactory {
             Date.now() + offer.duration * 24 * 60 * 60 * 1000
         );
 
-        const ltv = offer.collateralAmount 
-            ? ((offer.amount / (offer.collateralAmount * 3000)) * 100).toFixed(2) 
+        const ltv = offer.collateralAmount
+            ? ((offer.amount / (offer.collateralAmount * 3000)) * 100).toFixed(2)
             : null;
 
         const nextRateAdjustmentDate = new Date(
@@ -45,12 +45,12 @@ class VariableRateLoanFactory extends ILoanFactory {
     }
 
     async createLoan(config) {
-        const { 
-            lenderId, 
-            borrowerId, 
-            amount, 
-            apy, 
-            duration, 
+        const {
+            lenderId,
+            borrowerId,
+            amount,
+            apy,
+            duration,
             collateralAmount,
             offerId = null,
             rateAdjustmentPeriod = this.rateAdjustmentPeriod
@@ -64,7 +64,7 @@ class VariableRateLoanFactory extends ILoanFactory {
             Date.now() + duration * 24 * 60 * 60 * 1000
         );
 
-        const ltv = collateralAmount 
+        const ltv = collateralAmount
             ? ((amount / (collateralAmount * 3000)) * 100).toFixed(2)
             : null;
 
@@ -94,7 +94,7 @@ class VariableRateLoanFactory extends ILoanFactory {
 
     async adjustRate(loan, newApy) {
         const adjustment = ((newApy - loan.apy) / loan.apy * 100).toFixed(2);
-        
+
         return {
             oldApy: loan.apy,
             newApy,
