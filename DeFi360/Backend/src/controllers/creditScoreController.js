@@ -14,8 +14,9 @@ const getCreditScore = (creditScoreService = defaultCreditScoreService) => async
     res.json({ success: true, ...result });
   } catch (error) {
     console.error('[getCreditScore]', error.message);
-    res.status(500).json({ message: 'Error al calcular el score crediticio' });
-  }
+     res.status(500).json({ message: 'Error al calcular el score crediticio' });
+  
+    }
 };
 
 module.exports = {
