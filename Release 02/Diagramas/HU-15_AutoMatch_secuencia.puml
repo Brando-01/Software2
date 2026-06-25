@@ -1,0 +1,90 @@
+@startuml HU15_AutoMatch_secuencia
+title HU-15 — Auto-match por preferencias del prestamista\nSpecification + Factory (Release 02 · DeFi360)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #2E75B6
+skinparam sequenceParticipantBackgroundColor #EBF3FB
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+
+actor       "Prestamista"                      as Lender
+boundary    "Frontend (React)"                 as UI
+control     "marketplaceController"            as MC
+participant "authMiddleware (protect)"         as MW
+participant "RecommendationService"            as RS
+participant "ISpecification\n(Amount/Apy/Collateral/Ltv/CreditScore)" as SPEC
+participant "CreditScoreService\n<<Strategy>>" as CSS
+participant "MatchingService"                  as MS
+participant "LoanFactory\n(Fixed/Variable)"    as LF
+participant "LedgerService"                    as LED
+participant "NotificationService"              as NTF
+database    "PostgreSQL\n(lender_preferences,\noffers, loans)" as DB
+
+autonumber
+
+note over RS, SPEC
+  Specification: las preferencias se traducen en specs componibles con .and().
+  spec = AmountSpec.and(ApySpec).and(CollateralSpec).and(LtvSpec).and(CreditScoreSpec).
+  Reutiliza LoanFactory del R01 para crear el préstamo.
+end note
+
+== Definir preferencias ==
+Lender -> UI : Guardar preferencias
+UI -> MC : POST /api/preferences { maxAmount, minApy,\n collateralTypes, maxLtv, minCreditScore, autoMatch } (JWT)
+MC -> MW : protect
+MW --> MC : req.user
+MC -> DB : LenderPreference.upsert({ lenderId, ... })
+DB --> MC : preference
+MC --> UI : 201 { preference }
+
+== Recomendaciones ==
+UI -> MC : GET /api/marketplace/recommendations (JWT)
+MC -> RS : getRecommendations(req.user.id)
+activate RS
+RS -> DB : LenderPreference.findOne({ lenderId })
+DB --> RS : preference
+RS -> RS : buildSpecification(preference)  (compone con .and())
+RS -> DB : Offer.findAll({ type:'borrow', status:'active' })
+DB --> RS : solicitudes
+loop por cada solicitud
+    RS -> SPEC : isSatisfiedBy(offer)
+    SPEC -> CSS : (CreditScoreSpec) getScore(borrowerId)
+    CSS --> SPEC : { score, category }
+    SPEC --> RS : true / false
+end
+RS --> MC : recomendaciones (solo las que cumplen TODAS las specs)
+deactivate RS
+MC --> UI : 200 [ ... ]
+
+== Auto-match ==
+UI -> MC : POST /api/marketplace/auto-match (JWT)
+MC -> MS : autoMatch(req.user.id)
+activate MS
+MS -> RS : getRecommendations(lenderId)
+RS --> MS : recomendaciones ordenadas
+alt no hay recomendación compatible
+    MS --> MC : null
+    MC --> UI : 404 { message: 'sin matches' }
+else hay mejor candidata
+    MS -> LF : createFromOffer(bestOffer, lenderId, borrowerId)
+    LF -> DB : Loan.create({ ... })
+    DB --> LF : loan
+    MS -> DB : Offer.update({ status:'matched' })
+    MS -> LED : record(borrowerId, 'DISBURSEMENT', amount, 'loan', loan.id)
+    LED -> DB : LedgerEntry.create(...)
+    MS -> NTF : notify(lenderId & borrowerId, 'MATCH', ...)
+    NTF -> DB : Notification.create(...) x2
+    MS --> MC : { loan }
+    deactivate MS
+    MC --> UI : 201 { loan }
+    UI --> Lender : Préstamo creado con la mejor solicitud compatible
+end
+
+note over Lender, DB
+  Specification permite añadir nuevos criterios sin tocar los existentes (OCP).
+  QA: recommendationService.test.js (cumple todas, excluye por score,
+  auto-match crea préstamo, complejidad ciclomática >4).
+end note
+
+@enduml

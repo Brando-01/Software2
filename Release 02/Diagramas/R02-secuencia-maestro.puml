@@ -1,0 +1,92 @@
+@startuml R02_Secuencia_Maestro
+title DeFi360 R02 — Secuencia Maestra\nRiesgo crítico -> Liquidación automática (State+Command) -> Asiento en libro mayor -> Notificación
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #2E75B6
+skinparam sequenceParticipantBackgroundColor #EBF3FB
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+
+boundary    "Frontend (React)"                 as UI
+participant "Scheduler\n(setInterval)"          as SCHED
+participant "priceOracle (Singleton)\nCircuitBreaker(Cache(Adapter))" as ORA
+control     "RiskMonitoringService\n+ MonitorRiesgo <<Subject>>" as RMS
+participant "LTVRiskStrategy <<Strategy>>"      as LTS
+participant "LiquidationService\n(State + Command)"  as LIQ
+participant "LedgerService <<Repository>>"      as LED
+participant "NotificationService\n(Observer + canal)" as NTF
+participant "INotificationChannel\nInApp / Email"     as CH
+database    "PostgreSQL\n(loans, liquidations,\nledger_entries, notifications)" as DB
+
+autonumber
+
+note over SCHED, LTS
+  Capas SEPARADAS: scheduler/servicio (control) -> servicios de patrón ->
+  modelos/BD. El monitor delega el veredicto a la Strategy (no conoce umbrales).
+end note
+
+== Evaluación periódica de riesgo ==
+SCHED -> ORA : getPrice(loan.collateralType)
+activate ORA
+ORA --> SCHED : precio (cache HIT / breaker CLOSED)
+deactivate ORA
+
+SCHED -> RMS : evaluateLoanRisk(loan, precio)
+activate RMS
+RMS -> LTS : evaluate(loan.amount, collateralValue)
+activate LTS
+LTS --> RMS : { ratio: 96, riskLevel: 'critical', isHealthy: false }
+deactivate LTS
+
+alt riskLevel == 'critical' (LTV >= 95%)
+    == Liquidación automática (State + Command) ==
+    RMS -> LIQ : liquidate(loan, ltv=96, reason='auto:LTV>=95')
+    activate LIQ
+    note right of LIQ
+      Transición State: ACTIVE -> LIQUIDATING -> LIQUIDATED.
+      LiquidateCommand.execute() encapsula la acción.
+    end note
+    LIQ -> DB : loan.update(status='liquidated', liquidationDate=now)
+    LIQ -> DB : Liquidation.create({loanId, ltvAtLiquidation,\ncollateralSeized, amountRecovered, reason})
+    DB --> LIQ : liquidation
+
+    == Asiento en libro mayor (Repository, append-only) ==
+    LIQ -> LED : record(lenderId, 'LIQUIDATION', amountRecovered,\n'liquidation', liquidation.id)
+    activate LED
+    LED -> DB : LedgerEntry.create({..., balanceAfter})
+    DB --> LED : entry
+    LED --> LIQ : entry
+    deactivate LED
+
+    == Notificación a las partes (Observer + Strategy de canal) ==
+    LIQ -> NTF : notify(borrowerId, 'LIQUIDATION', titulo, msg)
+    LIQ -> NTF : notify(lenderId, 'LIQUIDATION', titulo, msg)
+    activate NTF
+    NTF -> CH : send(notification)  (InApp / Email)
+    NTF -> DB : Notification.create({userId, type, channel, read:false})
+    DB --> NTF : notification
+    NTF --> LIQ : OK
+    deactivate NTF
+
+    LIQ --> RMS : { liquidation, ledgerEntry, notifications }
+    deactivate LIQ
+else riskLevel == 'high' (LTV >= 90%)
+    RMS -> NTF : onRiskEvent(RISK_ALERT_HIGH)  (solo notifica, no liquida)
+    activate NTF
+    NTF -> DB : Notification.create({type:'RISK_ALERT_HIGH', read:false})
+    deactivate NTF
+else préstamo sano
+    RMS -> RMS : sin acción (permanece 'active')
+end
+
+RMS --> SCHED : event
+deactivate RMS
+
+note over UI, DB
+  El prestatario/prestamista verá en su bandeja (GET /api/notifications)
+  la liquidación, y en GET /api/ledger el asiento LIQUIDATION con balanceAfter.
+  Auditabilidad: 1 movimiento de dinero = exactamente 1 asiento (escenario 5).
+end note
+
+@enduml

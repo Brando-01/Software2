@@ -1,5 +1,5 @@
 @startuml HU08_Monitor_Riesgo_Alertas
-title HU-08 — Monitoreo de Riesgo y Alertas\nPatrones Observer + Strategy (Sprint 1 · DeFi360)
+title HU-08 — Monitoreo de Riesgo y Alertas\nObserver + Strategy (Sprint 1 · DeFi360)
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8
@@ -8,107 +8,66 @@ skinparam sequenceParticipantBackgroundColor #EBF3FB
 skinparam noteBorderColor #F0A500
 skinparam noteBackgroundColor #FFF8E1
 
-participant "Scheduler\n(cron / evento)" as SCHED
-participant "MonitorRiesgo"         as MR
-participant "<<interface>>\nIRiskStrategy"   as IRS
-participant "LTVThresholdStrategy"  as LTS
-participant "<<interface>>\nRiskObserver"    as RO
-participant "NotificationObserver"  as NO
-participant "LogObserver"           as LO
-participant "LTVCalculatorService"  as LTV
-database    "PostgreSQL"            as DB
+participant "RiskMonitoringService"        as RMS
+participant "Scheduler\n(setInterval en startMonitoring)" as SCHED
+participant "MonitorRiesgo\n<<Subject>>"   as MR
+participant "<<interface>>\nIRiskStrategy" as IRS
+participant "LTVRiskStrategy\n<<Strategy>>" as LTS
+participant "priceOracle (Singleton)"      as ORA
+participant "<<interface>>\nIRiskObserver" as IRO
+participant "NotificationObserver"         as NO
+participant "LogObserver"                  as LO
 
 autonumber
 
 note over MR, IRS
-  T-14: Patrón Observer — MonitorRiesgo notifica a suscriptores (OCP + SRP).
-  T-15: Patrón Strategy — Algoritmo de riesgo encapsulado en IRiskStrategy (OCP + DIP).
-  T-16 (QA): Integración Observer + Strategy validada con pruebas Gherkin.
+  RiskMonitoringService construye MonitorRiesgo(LTVRiskStrategy) y suscribe
+  NotificationObserver + LogObserver. MonitorRiesgo notifica a los observers
+  (Observer/OCP) y delega la evaluación a IRiskStrategy (Strategy/DIP).
 end note
 
-SCHED -> MR : checkRisks()
-note right of SCHED
-  Puede ser trigger periódico
-  o evento de cambio de precio
-  del oráculo.
-end note
-activate MR
+RMS -> MR : subscribe(NotificationObserver)
+RMS -> MR : subscribe(LogObserver)
 
-MR -> DB : SELECT prestamos WHERE estado = ACTIVO
-DB --> MR : List<Prestamo>
+MR -> SCHED : startMonitoring(loan, priceOracle, intervalMs)\n→ setInterval(checkRisk)
 
-loop para cada Prestamo activo
+loop cada intervalMs (checkRisk)
+    SCHED -> ORA : getPrice(loan.collateralType)
+    ORA --> SCHED : precio actual (caché TTL)
 
-    MR -> LTV : calculateLTV(prestamo.saldo, precioActualColateral)
-    activate LTV
-    LTV --> MR : LTVResult { ratio }
-    deactivate LTV
+    SCHED -> MR : evaluateLoanRisk(loan, currentCollateralPrice)
+    activate MR
 
-    MR -> IRS : evaluate(prestamo, precioActualColateral)
-    note right of MR
-      T-15: Constructor Injection:
-      MonitorRiesgo(IRiskStrategy strategy)
-      OCP: cambiar algoritmo = nueva Strategy.
-    end note
-    activate IRS
-    IRS -> LTS : evaluate(prestamo, precioActualColateral)
+    MR -> IRS : evaluate(loan.amount, collateralValue)
+    IRS -> LTS : evaluate(...)
     activate LTS
-
-    alt LTVResult.ratio ≥ 0.95
-        LTS --> IRS : RiskLevel.LIQUIDACION_INMINENTE
-    else LTVResult.ratio ≥ 0.90
-        LTS --> IRS : RiskLevel.RIESGO_ALTO
-    else LTVResult.ratio < 0.90
-        LTS --> IRS : RiskLevel.NORMAL
-    end
-
+    LTS --> MR : { ratio, riskLevel, isHealthy, message }
     deactivate LTS
-    IRS --> MR : RiskLevel
-    deactivate IRS
 
-    alt RiskLevel ≠ NORMAL
-
-        note over MR, LO
-          T-14: Observer pattern — MonitorRiesgo itera sobre
-          su lista de RiskObserver y llama onRiskEvent().
-          OCP: agregar EmailObserver no modifica MonitorRiesgo.
-        end note
-
-        MR -> RO : onRiskEvent(RiskEvent { prestamo, nivel, ltvRatio })
-        activate RO
-
-        RO -> NO : onRiskEvent(event)
+    alt ltv >= 95% (CRITICAL) o ltv >= 90% (HIGH)
+        MR -> IRO : _notifyObservers(alertEvent)
+        IRO -> NO : onRiskEvent(event)
         activate NO
-        NO -> NO : enviarNotificacion(usuario, nivel)
-        NO --> RO : OK
+        NO -> NO : crear notificación + sentNotifications.push
+        NO --> IRO : OK (envío real o demo)
         deactivate NO
-
-        RO -> LO : onRiskEvent(event)
+        IRO -> LO : onRiskEvent(event)
         activate LO
-        LO -> DB : INSERT risk_log { prestamoId, nivel, timestamp }
-        DB --> LO : OK
-        LO --> RO : OK
+        LO -> LO : eventLog.push (auditoría en memoria)
+        LO --> IRO : OK
         deactivate LO
-
-        deactivate RO
-
-        alt RiskLevel = LIQUIDACION_INMINENTE
-            MR -> DB : UPDATE prestamo SET estado = LIQUIDACION_PENDIENTE
-            DB --> MR : OK
-        end
-
+    else LTV bajó ≥ 5% respecto al estado previo
+        MR -> IRO : _notifyObservers(RISK_IMPROVED)
     end
 
+    MR --> SCHED : event
+    deactivate MR
 end
 
-MR --> SCHED : checkCompleted { alertasGeneradas, liquidacionesPendientes }
-deactivate MR
-
-note over SCHED, DB
-  T-16 (QA): Criterios Gherkin validados:
-  • LTV ≥ 90% → RiskLevel.RIESGO_ALTO → NotificationObserver dispara alerta.
-  • LTV ≥ 95% → RiskLevel.LIQUIDACION_INMINENTE → estado cambia a LIQUIDACION_PENDIENTE.
-  MockRiskStrategy permite testing aislado sin precios reales.
+note over RMS, LO
+  QA: src/test/observerPattern.test.js, LTVRiskStrategy.test.js,
+  riskIntegration.test.js. Alertas/logs se almacenan en memoria
+  (no hay tabla de alertas en Release 01).
 end note
 
 @enduml

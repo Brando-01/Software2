@@ -1,5 +1,5 @@
 @startuml HU04_Publicar_Solicitud_Prestamo
-title HU-04 — Publicar Solicitud de Préstamo\nRefactorización Factory Method + SRP + DIP (Sprint 1 · DeFi360)
+title HU-04 — Publicar Solicitud de Préstamo\nDIP (Colateral/Oráculo) + SRP (LTV) + Factory Method (Sprint 1 · DeFi360)
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8
@@ -8,80 +8,71 @@ skinparam sequenceParticipantBackgroundColor #EBF3FB
 skinparam noteBorderColor #F0A500
 skinparam noteBackgroundColor #FFF8E1
 
-actor       "Prestatario"              as User
-participant "LoanController"           as LC
-participant "<<interface>>\nILoanFactory"     as ILF
-participant "FixedRateLoanFactory"     as FLF
-participant "LTVCalculatorService"     as LTV
-participant "<<interface>>\nIColateralService" as ICS
-participant "ColateralLockService"     as CLS
-participant "WalletManager"            as WM
-database    "PostgreSQL"               as DB
+actor       "Prestatario"                    as User
+boundary    "Frontend (React)"              as UI
+control     "loanController"                as LC
+participant "CollateralService\n(DIP IPriceOracle)" as CS
+participant "priceOracle (Singleton)"       as ORA
+participant "LTVCalculatorService"          as LTV
+participant "<<interface>>\nILoanFactory"   as ILF
+participant "FixedRate / VariableRate\nLoanFactory" as LF
+database    "PostgreSQL\n(Offer, Loan)"     as DB
 
 autonumber
 
-note over LC, ILF
-  T-07: Factory Method desacopla creación de Prestamo de LoanController.
-  T-08: LTVCalculatorService extrae aritmética financiera de LoanController (SRP).
-  T-09: IColateralService desacopla LoanController de WalletManager concreto (DIP).
+note over LC, CS
+  loanController.requestLoan(collateralService = new CollateralService(priceOracle)).
+  CollateralService depende de IPriceOracle (DIP). LTVCalculatorService aísla la
+  aritmética financiera (SRP). LoanFactory crea el Loan (Factory Method) en el match.
 end note
 
-User -> LC : POST /loans\n{ monto, colateral, tipo: "TASA_FIJA" }
+== Solicitar préstamo (POST /api/loans/request) ==
 
-LC -> LTV : calculateLTV(monto, colateral)
-note right of LC
-  T-08: LoanController delega
-  cálculo LTV; no contiene
-  aritmética inline (SRP).
-end note
-activate LTV
-LTV --> LC : LTVResult { ratio: 0.65, nivel: NORMAL }
-deactivate LTV
+User -> UI : { amount, duration, collateralType, collateralAmount }
+UI -> LC : POST /api/loans/request (JWT)
 
-alt LTV > 0.95 (liquidación inminente)
-    LC --> User : 400 Bad Request\n{ error: "Colateral insuficiente" }
-else LTV ≤ 0.95 (permitido)
+LC -> CS : calculateValue(collateralType, collateralAmount)
+CS -> ORA : getPrice(collateralType)  (DIP)
+ORA --> CS : precio (caché TTL)
+CS --> LC : collateralValue
 
-    LC -> ICS : lockColateral(colateral, monto)
-    note right of LC
-      T-09: Constructor Injection:
-      LoanController(IColateralService cs)
-      No invoca WalletManager directamente.
-    end note
-    activate ICS
-    ICS -> CLS : lockColateral(colateral, monto)
-    activate CLS
-    CLS -> WM  : reserveFunds(colateral, monto)
-    WM --> CLS : reservationId
-    CLS --> ICS : ColateralReceipt { reservationId }
-    deactivate CLS
-    ICS --> LC  : ColateralReceipt
-    deactivate ICS
-
-    LC -> ILF : createLoan(monto, colateral, tasaFija)
-    note right of LC
-      T-07: LoanController depende de ILoanFactory.
-      OCP: nuevo tipo de préstamo = nueva Factory,
-      sin modificar LoanController.
-    end note
-    activate ILF
-    ILF -> FLF : createLoan(monto, colateral, tasaFija)
-    activate FLF
-    FLF --> ILF : Prestamo { id, monto, tasa, estado: PENDIENTE }
-    deactivate FLF
-    ILF --> LC  : Prestamo
-    deactivate ILF
-
-    LC -> DB : INSERT prestamo
-    DB --> LC : OK
-
-    LC --> User : 201 Created\n{ prestamoId, ltvRatio, estado }
+alt collateralValue < amount
+    LC --> UI : 400 { Colateral insuficiente, ltv }
+    UI --> User : Error de colateral
+else colateral suficiente
+    LC -> DB : Offer.create(type='borrow', status='active')
+    DB --> LC : offer
+    LC --> UI : 201 { success, offer }
+    UI --> User : Solicitud publicada en Marketplace
 end
 
+== Calcular LTV (POST /api/loans/calculate-ltv) ==
+
+User -> UI : { loanAmount, collateralAmount, collateralType }
+UI -> LC : POST /api/loans/calculate-ltv
+LC -> CS : calculateValue(...)
+CS -> ORA : getPrice(...)
+ORA --> CS : precio
+CS --> LC : collateralValue
+LC -> LTV : calculateLTV(loanAmount, collateralValue)
+LTV --> LC : { ratio, riskLevel, isHealthy, message }
+LC --> UI : 200 { ltv, riskLevel, isHealthy }
+
+== Financiar solicitud (POST /api/loans/match/:id) — crea el Loan ==
+
+User -> UI : Acepta solicitud { rateType }
+UI -> LC : POST /api/loans/match/{id} (JWT)
+LC -> ILF : createFromOffer(offer, lenderId, borrowerId, rateType)
+ILF -> LF : createFromOffer(...)  (fixed | variable)
+LF -> DB : Loan.create(rateType, remainingBalance, ...)
+DB --> LF : loan
+LF --> LC : loan
+LC -> DB : update Wallets (bloqueo/transferencia) + Offer.status='matched'
+LC --> UI : 200 { loan, rateType }
+
 note over User, DB
-  T-10 (QA): Pruebas unitarias de LTVCalculatorService
-  cubren LTV=50% (normal), 90% (alerta), 95% (liquidación).
-  Umbrales configurables via parámetros (OCP).
+  QA: src/test/CollateralService.test.js (DIP),
+  LTVRiskStrategy.test.js, simulateController.test.js.
 end note
 
 @enduml

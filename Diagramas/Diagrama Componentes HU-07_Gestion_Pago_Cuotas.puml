@@ -1,5 +1,5 @@
 @startuml HU-07_Gestion_Pago_Cuotas
-title HU-07 — Gestión y Pago de Cuotas\nDeFi360 · Sprint 1 · Release 01
+title HU-07 — Gestión y Pago de Cuotas (Componentes)\nDeFi360 · Sprint 1 · Release 01
 
 skinparam componentStyle rectangle
 skinparam backgroundColor #FAFAFA
@@ -25,63 +25,60 @@ skinparam arrow {
   FontSize 10
 }
 
-' ─── FRONTEND ──────────────────────────────────────────────────
-node "Frontend (React)" {
-  [PaymentForm.jsx] as PayForm
-  [LTVIndicator.jsx] as LTVWidget
-  
+' ─── FRONTEND ───────────────────────────────────────────────────
+node "Frontend (React SPA)" {
+  [main.jsx — Pago / LTV] as PayForm
 }
 
-' ─── CONTROLADOR ───────────────────────────────────────────────
+' ─── CONTROLADOR ────────────────────────────────────────────────
 node "Backend — Controllers" {
-  [LoanController] as LoanCtrl
-  
+  [loanController (payLoan)] as LoanCtrl
 }
 
-' ─── INTERFAZ DIP ──────────────────────────────────────────────
+' ─── INTERFAZ DIP ───────────────────────────────────────────────
 interface "IPaymentProcessor" as IPayProc
 
-
-' ─── IMPLEMENTACIÓN ────────────────────────────────────────────
+' ─── IMPLEMENTACIÓN ─────────────────────────────────────────────
 node "Backend — Services" {
   [StandardPaymentProcessor] as StdPayProc
-  [LTVCalculatorService] as LTVSvc
-  
 }
 
-' ─── INFRAESTRUCTURA BD ────────────────────────────────────────
+' ─── MODELOS ────────────────────────────────────────────────────
+node "Backend — Domain Model" {
+  [Loan] as LoanModel
+  [Wallet] as WalletModel
+  [Offer] as OfferModel
+}
+
+' ─── INFRAESTRUCTURA ────────────────────────────────────────────
 node "Backend — Infrastructure" {
-  [DatabaseConnection\n«Singleton»] as DBConn
+  [DatabaseConnection «Singleton»] as DBConn
 }
 
-' ─── BASE DE DATOS ─────────────────────────────────────────────
 database "PostgreSQL" as PG {
-  [tabla: PRESTAMO\n+ índice compuesto:\n(id_usuario, estado,\nfecha_vencimiento)] as TblPrestamo
-  [tabla: CUOTA] as TblCuota
-  
+  [tabla: loans\n+ índice (borrower_id, status, end_date)] as TblLoans
+  [tabla: wallets] as TblWallets
 }
 
-' ─── PRUEBAS ───────────────────────────────────────────────────
-node "Tests (Jest / JUnit)" {
-  [PaymentProcessor.test] as PayTest
-  
+' ─── PRUEBAS ────────────────────────────────────────────────────
+node "Tests (Jest)" {
+  [StandardPaymentProcessor.test.js] as PayTest
+  [loanController.test.js] as LoanTest
 }
 
-' ─── RELACIONES ────────────────────────────────────────────────
-PayForm       --> LTVWidget         : actualiza LTV
-
-PayForm       --> LoanCtrl          : POST /loans/{id}/pagar
-
-LoanCtrl      ..> IPayProc          : «depends on»\n(constructor injection)
-StdPayProc    ..|> IPayProc         : «implements»
-
-StdPayProc    --> LTVSvc            : recalcula LTV tras pago
-StdPayProc    --> DBConn            : actualiza saldo y cuota
-
-DBConn        --> TblPrestamo       : UPDATE saldo_pendiente, ltv
-DBConn        --> TblCuota          : INSERT registro de pago
-
-PayTest       ..> IPayProc          : mock
-PayTest       --> LoanCtrl          : prueba unitaria / integración
+' ─── RELACIONES ─────────────────────────────────────────────────
+PayForm    --> LoanCtrl    : POST /api/loans/{id}/pay
+LoanCtrl   ..> IPayProc    : «depends on» (inyección por parámetro)
+StdPayProc ..|> IPayProc   : «implements»
+StdPayProc --> LoanModel   : findByPk / update (remainingBalance, ltv, status)
+StdPayProc --> WalletModel : update saldos (borrower / lender)
+StdPayProc ..> OfferModel  : collateralAmount (recalculateLTV)
+LoanModel  --> DBConn
+WalletModel --> DBConn
+DBConn     --> PG          : Sequelize (instancia única)
+LoanModel  ..> TblLoans    : UPDATE
+WalletModel ..> TblWallets : UPDATE
+PayTest    ..> IPayProc    : prueba directa del processor
+LoanTest   --> LoanCtrl    : prueba payLoan (mock processor)
 
 @enduml

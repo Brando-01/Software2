@@ -1,5 +1,5 @@
 @startuml HU-08_Monitoreo_Riesgo_Alertas
-title HU-08 — Monitoreo de Riesgo y Alertas\nDeFi360 · Sprint 1 · Release 01
+title HU-08 — Monitoreo de Riesgo y Alertas (Componentes)\nDeFi360 · Sprint 1 · Release 01
 
 skinparam componentStyle rectangle
 skinparam backgroundColor #FAFAFA
@@ -25,93 +25,68 @@ skinparam arrow {
   FontSize 10
 }
 
-' ─── FRONTEND ──────────────────────────────────────────────────
-node "Frontend (React)" {
-  [RiskDashboard.jsx] as RiskDash
-  [AlertBanner.jsx] as AlertBanner
-  
-}
-
-' ─── NÚCLEO: MONITOR DE RIESGO ─────────────────────────────────
+' ─── ORQUESTADOR ────────────────────────────────────────────────
 node "Backend — Core" {
-  [MonitorRiesgo] as Monitor
-  
+  [RiskMonitoringService\n(orquesta + suscribe observers)] as RMS
+  [MonitorRiesgo «Subject»\n(setInterval scheduler)] as Monitor
 }
 
-' ─── PATRÓN STRATEGY ───────────────────────────────────────────
+' ─── PATRÓN STRATEGY ────────────────────────────────────────────
 interface "IRiskStrategy" as IRiskStrat
-note bottom of IRiskStrat
-  <<interface>> — Strategy
-  + evaluate(prestamo, precioActual): RiskLevel
-end note
-
 node "Backend — Strategies" {
-  [LTVThresholdStrategy] as LTVStrat
-  [MockRiskStrategy] as MockStrat
-  
+  [LTVRiskStrategy] as LTVStrat
 }
 
-' ─── PATRÓN OBSERVER ───────────────────────────────────────────
-interface "RiskObserver" as IRiskObs
-
-
+' ─── PATRÓN OBSERVER ────────────────────────────────────────────
+interface "IRiskObserver" as IRiskObs
 node "Backend — Observers" {
   [NotificationObserver] as NotifObs
   [LogObserver] as LogObs
-  [EmailObserver] as EmailObs
-  
-  
 }
 
-' ─── MODELO ────────────────────────────────────────────────────
-node "Backend — Domain Model" {
-  [RiskEvent] as RiskEvt
-  [RiskLevel\n«enum»] as RiskLvl
-  
-}
-
-' ─── FUENTE DE DATOS PRECIO ────────────────────────────────────
-node "Backend — Adapters" {
-  [SimulatedOracleAdapter] as SimOracle
-}
+' ─── ORÁCULO (fuente de precio) ─────────────────────────────────
 interface "IPriceOracle" as IOracle
-
-' ─── BASE DE DATOS ─────────────────────────────────────────────
-database "PostgreSQL" as PG {
-  [tabla: PRESTAMO\n(índice compuesto)] as TblPrestamo
-  [tabla: ALERTA] as TblAlerta
+node "Backend — Services" {
+  [priceOracle «Singleton»\nCached + Simulated] as Oracle
 }
 
-' ─── PRUEBAS ───────────────────────────────────────────────────
-node "Tests (Jest / JUnit)" {
-  [RiskMonitor.integration.test] as RiskTest
-  
+' ─── MODELO ─────────────────────────────────────────────────────
+node "Backend — Domain Model" {
+  [Loan] as LoanModel
 }
 
-' ─── RELACIONES ────────────────────────────────────────────────
-RiskDash      --> AlertBanner       : muestra alertas
-RiskDash      <.. NotifObs          : notifica evento UI
+' ─── PRUEBAS ────────────────────────────────────────────────────
+node "Tests (Jest)" {
+  [observerPattern.test.js] as ObsTest
+  [riskIntegration.test.js] as RiskTest
+  [LTVRiskStrategy.test.js] as StratTest
+}
 
-Monitor       ..> IRiskStrat        : «depends on»\n(Strategy inyectada)
-LTVStrat      ..|> IRiskStrat       : «implements»
-MockStrat     ..|> IRiskStrat       : «implements»
+' ─── RELACIONES ─────────────────────────────────────────────────
+RMS        --> Monitor      : crea MonitorRiesgo(LTVRiskStrategy)
+RMS        --> NotifObs     : subscribe
+RMS        --> LogObs       : subscribe
 
-Monitor       --> IRiskObs          : notifica a observers
-NotifObs      ..|> IRiskObs         : «implements»
-LogObs        ..|> IRiskObs         : «implements»
-EmailObs      ..|> IRiskObs         : «implements»
+Monitor    ..> IRiskStrat   : «depends on» (Strategy inyectada)
+LTVStrat   ..|> IRiskStrat  : «implements»
 
-Monitor       ..> IOracle           : «depends on»
-SimOracle     ..|> IOracle          : «implements»
+Monitor    --> IRiskObs     : _notifyObservers (Observer)
+NotifObs   ..|> IRiskObs    : «implements»
+LogObs     ..|> IRiskObs    : «implements»
 
-Monitor       --> RiskEvt           : crea y emite
-IRiskStrat    --> RiskLvl           : retorna nivel
+Monitor    ..> IOracle      : getPrice (monitoreo periódico)
+Oracle     ..|> IOracle     : «implements»
 
-Monitor       --> TblPrestamo       : consulta préstamos activos
-NotifObs      --> TblAlerta         : INSERT alerta
-LogObs        --> TblAlerta         : INSERT log
+Monitor    ..> LoanModel    : evalúa loan (amount, collateralAmount)
 
-RiskTest      --> Monitor           : prueba integración
-RiskTest      ..> MockStrat         : inyecta mock strategy
+ObsTest    --> Monitor      : prueba Observer
+RiskTest   --> RMS          : prueba integración
+StratTest  --> LTVStrat     : prueba Strategy
+
+note bottom of LogObs
+  Decisión de alcance: alertas y logs se mantienen en memoria
+  (eventLog / sentNotifications). No hay tabla de alertas en BD
+  ni EmailObserver real en Release 01.
+end note
 
 @enduml

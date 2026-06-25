@@ -1,0 +1,77 @@
+@startuml HU12_Notificaciones_secuencia
+title HU-12 — Notificaciones persistentes multicanal\nObserver + Strategy de canal (Release 02 · DeFi360)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #2E75B6
+skinparam sequenceParticipantBackgroundColor #EBF3FB
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+
+actor       "Usuario"                          as User
+boundary    "Frontend (React)"                 as UI
+control     "MonitorRiesgo <<Subject>>"        as MR
+control     "notificationController"           as NC
+participant "authMiddleware (protect)"         as MW
+participant "NotificationService\n<<Observer>>" as NTF
+participant "INotificationChannel"             as ICH
+participant "InAppChannel <<Strategy>>"        as INA
+participant "EmailChannel <<Strategy>>"        as EMA
+database    "PostgreSQL\n(notifications)"       as DB
+
+autonumber
+
+note over MR, NTF
+  NotificationService implementa IRiskObserver: se suscribe a MonitorRiesgo
+  (extiende el Observer del R01) y persiste. La Strategy de canal decide
+  el envío (InApp por defecto, Email simulado).
+end note
+
+== Generación por evento de riesgo ==
+MR -> NTF : onRiskEvent(RISK_ALERT_HIGH, loan, ltv=92)
+activate NTF
+NTF -> NTF : resolver destinatarios (borrowerId, lenderId)
+NTF -> ICH : send(notification)
+ICH -> INA : send(...)  (canal in_app)
+INA --> NTF : OK
+opt preferencia de canal = email
+    ICH -> EMA : send(...)  (canal email simulado)
+    EMA --> NTF : OK
+end
+NTF -> DB : Notification.create({ userId, type:'RISK_ALERT_HIGH',\n channel, title, message, read:false })
+DB --> NTF : notification
+deactivate NTF
+
+== Consulta de bandeja ==
+User -> UI : Abrir bandeja
+UI -> NC : GET /api/notifications?unread=true (JWT)
+NC -> MW : protect
+MW --> NC : req.user
+NC -> NTF : getForUser(req.user.id, onlyUnread=true)
+NTF -> DB : Notification.findAll({ userId, read:false })
+DB --> NTF : no leídas
+NTF --> NC : notifications
+NC --> UI : 200 [ ... ]
+
+== Marcar como leída ==
+UI -> NC : PATCH /api/notifications/{id}/read (JWT)
+NC -> NTF : markAsRead(id, req.user.id)
+NTF -> DB : Notification.update({ read:true } where id, userId)
+DB --> NTF : OK
+NTF --> NC : ok
+NC --> UI : 200
+
+opt marcar todas
+    UI -> NC : PATCH /api/notifications/read-all (JWT)
+    NC -> NTF : markAllAsRead(req.user.id)
+    NTF -> DB : Notification.update({ read:true } where userId, read:false)
+    NC --> UI : 200
+end
+
+note over User, DB
+  Tipos: RISK_ALERT_HIGH, RISK_ALERT_CRITICAL, PAYMENT, LIQUIDATION, MATCH.
+  QA: NotificationService.test.js (crea no leída por evento, markAsRead,
+  filtro unread, multicanal).
+end note
+
+@enduml

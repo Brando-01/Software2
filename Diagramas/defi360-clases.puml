@@ -16,386 +16,432 @@ skinparam package {
   FontColor #1A252F
 }
 
-title DeFi360 — Diagrama de Clases Completo
+title DeFi360 — Diagrama de Clases de Diseño (reconciliado con el código real)
 
 ' ─────────────────────────────────────────
-'  ENUMERACIONES
+'  ENUMERACIONES (valores reales de los modelos Sequelize / ENUM Postgres)
 ' ─────────────────────────────────────────
-enum TipoUsuario {
-  INVERSIONISTA
-  PRESTATARIO
-  ADMINISTRADOR
+enum UserRole {
+  user
+  admin
 }
 
-enum EstadoOferta {
-  PUBLICADA
-  EMPAREJADA
-  CANCELADA
-  EXPIRADA
+enum OfferType {
+  lend
+  borrow
 }
 
-enum EstadoSolicitud {
-  PENDIENTE
-  APROBADA
-  RECHAZADA
-  CANCELADA
+enum OfferStatus {
+  active
+  matched
+  cancelled
+  completed
 }
 
-enum EstadoPrestamo {
-  ACTIVO
-  EN_MORA
-  LIQUIDADO
-  COMPLETADO
+enum LoanRateType {
+  fixed
+  variable
 }
 
-enum EstadoAlerta {
-  PENDIENTE
-  ATENDIDA
-  IGNORADA
+enum LoanStatus {
+  active
+  paid
+  defaulted
+  liquidated
 }
 
-enum TipoAlerta {
-  RIESGO_MODERADO
-  RIESGO_ALTO
-  LIQUIDACION_INMINENTE
-  LIQUIDACION_EJECUTADA
+enum TicketPriority {
+  low
+  medium
+  high
+  critical
 }
 
-enum TipoActivo {
-  CRIPTOMONEDA
-  STABLECOIN
-  TOKEN
-}
-
-enum EstadoTicket {
-  ABIERTO
-  EN_PROCESO
-  CERRADO
+enum TicketStatus {
+  open
+  in_progress
+  resolved
+  closed
 }
 
 ' ─────────────────────────────────────────
-'  PAQUETE: Usuarios y Seguridad
+'  PAQUETE: Modelos de Dominio (src/models — Sequelize)
 ' ─────────────────────────────────────────
-package "Usuarios y Seguridad" {
+package "Modelos de Dominio (src/models)" {
 
-  abstract class Usuario {
-    -idUsuario: int
-    -nombre: string
-    -email: string
-    -tipo: TipoUsuario
-    -walletAddress: string
-    -fechaRegistro: datetime
-    -activo: boolean
-    +autenticar(walletAddress: string): boolean
-    +cerrarSesion(): void
-    +obtenerPerfil(): PerfilUsuario
-    +actualizarDatos(nombre: string, email: string): void
+  class User {
+    +id: int
+    +walletAddress: string
+    +email: string
+    +passwordHash: string
+    +name: string
+    +role: UserRole
+    +isActive: boolean
+    +lastLogin: datetime
+    +compareWallet(walletAddress): boolean
   }
-
-  class Inversionista {
-    -totalInvertido: decimal
-    -rendimientoAcumulado: decimal
-    +publicarOfertaLending(oferta: OfertaLending): boolean
-    +verRendimientos(): List<OfertaLending>
-    +retirarFondos(idOferta: int): decimal
-  }
-
-  class Prestatario {
-    -totalDeudaActiva: decimal
-    -historialCrediticio: int
-    +solicitarPrestamo(solicitud: SolicitudPrestamo): boolean
-    +pagarCuota(idPrestamo: int, monto: decimal): boolean
-    +verPrestamosActivos(): List<Prestamo>
-  }
-
-  class Administrador {
-    -nivelAcceso: int
-    +gestionarTicket(idTicket: int, accion: string): void
-    +gestionarContenidoEducativo(): void
-    +verLogsDelSistema(): List<LogEvento>
-    +suspenderUsuario(idUsuario: int): void
-    +ejecutarLiquidacion(idPrestamo: int): boolean
-  }
-
-  class LogEvento {
-    -idLog: int
-    -tipo: string
-    -descripcion: string
-    -fecha: datetime
-    -ipOrigen: string
-    +registrar(): void
-  }
-
-  class TicketSoporte {
-    -idTicket: int
-    -asunto: string
-    -descripcion: string
-    -estado: EstadoTicket
-    -prioridad: int
-    -fechaCreacion: datetime
-    -fechaCierre: datetime
-    +abrir(): void
-    +cerrar(resolucion: string): void
-    +escalar(): void
-  }
-
-  Usuario <|-- Inversionista
-  Usuario <|-- Prestatario
-  Usuario <|-- Administrador
-  Usuario "1" --> "0..*" TicketSoporte : registra
-  Administrador "1" --> "0..*" TicketSoporte : atiende
-  Administrador "1" --> "0..*" LogEvento : genera
-}
-
-' ─────────────────────────────────────────
-'  PAQUETE: Wallet y Activos
-' ─────────────────────────────────────────
-package "Wallet y Activos" {
 
   class Wallet {
-    -idWallet: int
-    -walletAddress: string
-    -saldoTotal: decimal
-    -saldoDisponible: decimal
-    -saldoBloqueado: decimal
-    -fechaCreacion: datetime
-    +actualizarSaldo(): void
-    +bloquearFondos(monto: decimal): boolean
-    +liberarFondos(monto: decimal): boolean
-    +obtenerHistorial(): List<Transaccion>
+    +id: int
+    +userId: int
+    +totalBalance: decimal
+    +availableBalance: decimal
+    +blockedBalance: decimal
+    +totalEarned: decimal
   }
 
-  class Activo {
-    -idActivo: int
-    -simbolo: string
-    -nombre: string
-    -tipo: TipoActivo
-    -decimales: int
-    -activo: boolean
-    +obtenerPrecioActual(): decimal
+  class Offer {
+    +id: int
+    +userId: int
+    +type: OfferType
+    +amount: decimal
+    +apy: decimal
+    +duration: int
+    +collateralType: string
+    +collateralAmount: decimal
+    +status: OfferStatus
+    +matchedWith: int
   }
 
-  class PosicionWallet {
-    -idPosicion: int
-    -cantidad: decimal
-    -cantidadBloqueada: decimal
-    -bloqueadoComoColateral: boolean
-    -ultimaActualizacion: datetime
-    +getValorEnUSD(): decimal
-    +bloquear(cantidad: decimal): boolean
-    +liberar(cantidad: decimal): boolean
+  class Loan {
+    +id: int
+    +lenderId: int
+    +borrowerId: int
+    +offerId: int
+    +amount: decimal
+    +apy: decimal
+    +rateType: LoanRateType
+    +baseApy: decimal
+    +rateAdjustmentPeriod: int
+    +nextRateAdjustmentDate: datetime
+    +duration: int
+    +ltv: decimal
+    +remainingBalance: decimal
+    +status: LoanStatus
+    +startDate: datetime
+    +endDate: datetime
   }
 
-  class Transaccion {
-    -idTransaccion: int
-    -tipo: string
-    -monto: decimal
-    -activoId: int
-    -fecha: datetime
-    -referencia: string
-    +registrar(): void
+  class Ticket {
+    +id: int
+    +userId: int
+    +ticketNumber: string
+    +subject: string
+    +description: string
+    +priority: TicketPriority
+    +status: TicketStatus
+    +response: string
+    +resolvedAt: datetime
   }
 
-  Usuario "1" o-- "1" Wallet : posee
-  Wallet "1" *-- "0..*" PosicionWallet : contiene
-  Wallet "1" --> "0..*" Transaccion : registra
-  PosicionWallet "0..*" --> "1" Activo : referencia
+  ' Asociaciones Sequelize reales (src/models/index.js)
+  User "1" --> "0..1" Wallet : hasOne (userId)
+  User "1" --> "0..*" Offer : hasMany (userId)
+  User "1" --> "0..*" Loan  : as 'LentLoans' (lenderId)
+  User "1" --> "0..*" Loan  : as 'BorrowedLoans' (borrowerId)
+  Loan "0..*" --> "1" User  : as 'Lender' (lenderId)
+  Loan "0..*" --> "1" User  : as 'Borrower' (borrowerId)
+  Loan "0..*" --> "1" Offer : belongsTo (offerId)
+  User "1" --> "0..*" Ticket : hasMany (userId)
 }
 
 ' ─────────────────────────────────────────
-'  PAQUETE: Lending / Borrowing
+'  PAQUETE: Capa de Controladores (src/controllers)
 ' ─────────────────────────────────────────
-package "Lending / Borrowing" {
+package "Controladores (src/controllers)" {
 
-  class OfertaLending {
-    -idOferta: int
-    -monto: decimal
-    -tasaInteresAnual: decimal
-    -plazoDias: int
-    -montoMinimoPrestamo: decimal
-    -activoId: int
-    -estado: EstadoOferta
-    -fechaPublicacion: datetime
-    -fechaExpiracion: datetime
-    +publicar(): boolean
-    +cancelar(): boolean
-    +calcularRendimientoEsperado(): decimal
-    +estaDisponible(): boolean
+  class authController {
+    +connectWallet(walletConnector): handler
+    +register(req,res)
+    +login(req,res)
+    +getProfile(req,res)
   }
 
-  class SolicitudPrestamo {
-    -idSolicitud: int
-    -montoSolicitado: decimal
-    -montoColateral: decimal
-    -ltvObjetivo: decimal
-    -activoColateralId: int
-    -plazoSolicitadoDias: int
-    -estado: EstadoSolicitud
-    -fechaCreacion: datetime
-    +registrar(): boolean
-    +cancelar(): boolean
-    +calcularLTV(): decimal
-    +validarColateral(): boolean
+  class loanController {
+    +calculateLTV(collateralService): handler
+    +requestLoan(collateralService): handler
+    +getUserLoans(req,res)
+    +matchLoan(loanFactory): handler
+    +payLoan(paymentProcessor): handler
+    +simulate(oracle): handler
   }
 
-  class Prestamo {
-    -idPrestamo: int
-    -monto: decimal
-    -tasaInteres: decimal
-    -ltvInicial: decimal
-    -ltvActual: decimal
-    -saldoPendiente: decimal
-    -cuotaMensual: decimal
-    -estado: EstadoPrestamo
-    -fechaInicio: datetime
-    -fechaVencimiento: datetime
-    +pagarCuota(monto: decimal): boolean
-    +calcularLTVActual(): decimal
-    +estaEnRiesgo(): boolean
-    +liquidarColateral(): boolean
-    +calcularMoraAcumulada(): decimal
-    +obtenerEstadoCuenta(): ResumenPrestamo
+  class marketplaceController {
+    +getOffers(priceOracle): handler
+    +createOffer(priceOracle): handler
+    +cancelOffer(req,res)
+    +getCacheStats(req,res)
+    +getPrices(priceOracle): handler
   }
 
-  class Colateral {
-    -idColateral: int
-    -montoBloqueado: decimal
-    -valorActualUSD: decimal
-    -ltvActual: decimal
-    -umbralAlerta: decimal
-    -umbralLiquidacion: decimal
-    -fechaBloqueo: datetime
-    +actualizarValor(precioActual: decimal): void
-    +calcularLTV(saldoPrestamo: decimal): decimal
-    +requiereAlerta(): boolean
-    +requiereLiquidacion(): boolean
+  class supportController {
+    +createTicket(req,res)
+    +getUserTickets(req,res)
+    +getTicketById(req,res)
   }
-
-  class MotorEmparejamiento {
-    +buscarOfertaCompatible(solicitud: SolicitudPrestamo): OfertaLending
-    +emparejar(oferta: OfertaLending, solicitud: SolicitudPrestamo): Prestamo
-    +calcularTasaOptima(): decimal
-  }
-
-  Inversionista "1" --> "0..*" OfertaLending : publica
-  Prestatario "1" --> "0..*" SolicitudPrestamo : crea
-  OfertaLending "0..1" --> "0..*" Prestamo : origina
-  SolicitudPrestamo "0..1" --> "0..1" Prestamo : seConvierteEn
-  Prestamo "1" *-- "1..*" Colateral : garantiza
-  Colateral "1" --> "1" Activo : usa
-  MotorEmparejamiento ..> OfertaLending : consulta
-  MotorEmparejamiento ..> SolicitudPrestamo : consulta
-  MotorEmparejamiento ..> Prestamo : crea
 }
 
 ' ─────────────────────────────────────────
-'  PAQUETE: Riesgo y Oráculo
+'  PATRÓN: Singleton — conexión de BD (src/config/database.js)
 ' ─────────────────────────────────────────
-package "Riesgo y Oráculo" {
-
-  class OraculoPrecios {
-    -urlFuente: string
-    -frecuenciaActualizacion: int
-    -ultimaActualizacion: datetime
-    +obtenerPrecio(activo: Activo): decimal
-    +obtenerHistorialPrecios(activo: Activo, dias: int): List<decimal>
-    +estaActualizado(): boolean
+package "Infraestructura — Singleton" {
+  class DatabaseConnection <<Singleton>> {
+    -{static} instance: DatabaseConnection
+    +sequelize: Sequelize
+    +testConnection(): Promise
   }
-
-  class RegistroPrecio {
-    -idRegistro: int
-    -activoId: int
-    -precio: decimal
-    -fuente: string
-    -fecha: datetime
-  }
-
-  class MonitorRiesgo {
-    -intervaloMonitoreoSeg: int
-    +ejecutarCiclo(): void
-    +evaluarPrestamo(prestamo: Prestamo): void
-    +calcularLTVGlobal(): List<decimal>
-    +identificarEnRiesgo(): List<Prestamo>
-  }
-
-  class AlertaRiesgo {
-    -idAlerta: int
-    -tipo: TipoAlerta
-    -mensaje: string
-    -ltvAlMomentoAlerta: decimal
-    -fecha: datetime
-    -estado: EstadoAlerta
-    +enviarNotificacion(): void
-    +marcarAtendida(): void
-  }
-
-  OraculoPrecios "1" --> "0..*" RegistroPrecio : genera
-  OraculoPrecios --> Activo : consultaPrecio
-  MonitorRiesgo --> OraculoPrecios : usa
-  MonitorRiesgo --> Prestamo : evalua
-  MonitorRiesgo "1" --> "0..*" AlertaRiesgo : genera
-  Prestamo "1" --> "0..*" AlertaRiesgo : recibe
-  Usuario "1" --> "0..*" AlertaRiesgo : notificado
+  note right of DatabaseConnection
+    Singleton: el constructor devuelve
+    instance si ya existe; Object.freeze.
+    Exporta sequelize compartida.
+  end note
 }
 
 ' ─────────────────────────────────────────
-'  PAQUETE: Zona Educativa
+'  PATRÓN: Adapter + Decorator (TTL) + DIP — Oráculo de precios
+'  (src/interfaces, src/services)
 ' ─────────────────────────────────────────
-package "Zona Educativa" {
+package "Oráculo de Precios (Adapter + Decorator + DIP)" {
 
-  class RecursoEducativo {
-    -idRecurso: int
-    -titulo: string
-    -tipoRecurso: string
-    -contenido: string
-    -urlContenido: string
-    -nivel: string
-    -etiquetas: List<string>
-    -vecesVisto: int
-    +incrementarVistas(): void
-    +obtenerContenido(): string
+  interface IPriceOracle <<interface>> {
+    +getPrice(symbol): Promise<number>
+    +getPrices(symbols): Promise<Object>
+    +isSymbolSupported(symbol): Promise<boolean>
   }
 
-  class TerminoGlosario {
-    -idTermino: int
-    -termino: string
-    -definicion: string
-    -ejemplos: string
-    -relacionados: List<string>
-    +buscar(query: string): List<TerminoGlosario>
+  class SimulatedOracleAdapter <<Adapter>> {
+    -prices: Object
+    -volatility: number
+    +getPrice(symbol)
+    +getPrices(symbols)
+    +isSymbolSupported(symbol)
+    +setPrice(symbol, price)
+    +getSupportedSymbols(): string[]
+    +setVolatility(v)
   }
 
-  class SimulacionDeFi {
-    -idSimulacion: int
-    -tipo: string
-    -montoInicial: decimal
-    -tasaAnual: decimal
-    -plazoDias: int
-    -activoId: int
-    -rendimientoEstimado: decimal
-    -ltvSimulado: decimal
-    -resultadoDetallado: string
-    -fecha: datetime
-    +calcularRendimiento(): decimal
-    +calcularLTV(): decimal
-    +generarProyeccion(): List<decimal>
-    +guardarResultado(): void
+  class CachedPriceOracle <<Decorator>> {
+    -oracle: IPriceOracle
+    -ttlMs: number
+    -cache: Map
+    -stats: Object
+    +getPrice(symbol)
+    +getPrices(symbols)
+    +isSymbolSupported(symbol)
+    +invalidate(symbol)
+    +clear()
+    +getStats(): Object
   }
 
-  class ActividadEducativa {
-    -idActividad: int
-    -usuarioId: int
-    -recursoId: int
-    -tipoActividad: string
-    -fecha: datetime
-    +registrar(): void
+  class priceOracle <<Singleton>> {
+    ' Módulo: instancia única
+    ' new CachedPriceOracle(new SimulatedOracleAdapter())
   }
 
-  Usuario "1" --> "0..*" SimulacionDeFi : ejecuta
-  Usuario "1" --> "0..*" ActividadEducativa : genera
-  RecursoEducativo "1" --> "0..*" ActividadEducativa : registra
-  Administrador "1" --> "0..*" RecursoEducativo : administra
-  SimulacionDeFi --> OraculoPrecios : consulta
+  IPriceOracle <|.. SimulatedOracleAdapter
+  IPriceOracle <|.. CachedPriceOracle
+  CachedPriceOracle o--> "1" IPriceOracle : envuelve (oracle)
+  priceOracle ..> CachedPriceOracle : instancia
+  priceOracle ..> SimulatedOracleAdapter : adapter
 }
+
+' ─────────────────────────────────────────
+'  PATRÓN: DIP — Servicio de Colateral y LTV
+' ─────────────────────────────────────────
+package "Colateral y LTV" {
+
+  interface ICollateralService <<interface>> {
+    +getPrice(collateralType)
+    +calculateValue(collateralType, collateralAmount)
+    +isSufficient(loanAmount, collateralType, collateralAmount)
+  }
+
+  class CollateralService {
+    -oracle: IPriceOracle
+    +getPrice(collateralType)
+    +calculateValue(collateralType, collateralAmount)
+    +isSufficient(loanAmount, collateralType, collateralAmount)
+  }
+
+  class LTVCalculatorService {
+    +{static} calculateLTV(loanAmount, collateralValue): LTVResult
+  }
+
+  ICollateralService <|.. CollateralService
+  CollateralService --> "1" IPriceOracle : DIP (oracle inyectado)
+}
+
+' ─────────────────────────────────────────
+'  PATRÓN: Factory Method — creación de préstamos
+' ─────────────────────────────────────────
+package "Factory de Préstamos (Factory Method)" {
+
+  interface ILoanFactory <<interface>> {
+    +createFromOffer(offer, lenderId, borrowerId)
+    +createLoan(config)
+  }
+
+  class LoanFactory {
+    -factories: Object
+    +createFromOffer(offer, lenderId, borrowerId, rateType)
+    +createLoan(config)
+    +registerFactory(rateType, factory)
+    +getSupportedRateTypes(): string[]
+  }
+
+  class FixedRateLoanFactory {
+    +createFromOffer(offer, lenderId, borrowerId)
+    +createLoan(config)
+  }
+
+  class VariableRateLoanFactory {
+    -rateAdjustmentPeriod: int
+    +createFromOffer(offer, lenderId, borrowerId)
+    +createLoan(config)
+    +adjustRate(loan, newApy)
+  }
+
+  ILoanFactory <|.. LoanFactory
+  ILoanFactory <|.. FixedRateLoanFactory
+  ILoanFactory <|.. VariableRateLoanFactory
+  LoanFactory o--> "1" FixedRateLoanFactory : factories['fixed']
+  LoanFactory o--> "1" VariableRateLoanFactory : factories['variable']
+  FixedRateLoanFactory ..> Loan : crea
+  VariableRateLoanFactory ..> Loan : crea
+}
+
+' ─────────────────────────────────────────
+'  PATRÓN: DIP — Procesador de pagos
+' ─────────────────────────────────────────
+package "Procesador de Pagos (DIP)" {
+
+  interface IPaymentProcessor <<interface>> {
+    +processPayment({loanId, amount, borrowerId, lenderId})
+    +recalculateLTV(remainingBalance, collateralAmount, collateralPrice)
+  }
+
+  class StandardPaymentProcessor {
+    +processPayment({loanId, amount, borrowerId, lenderId})
+    +recalculateLTV(remainingBalance, collateralAmount, collateralPrice)
+  }
+
+  IPaymentProcessor <|.. StandardPaymentProcessor
+  StandardPaymentProcessor ..> Loan : findByPk / update
+  StandardPaymentProcessor ..> Wallet : update saldos
+}
+
+' ─────────────────────────────────────────
+'  PATRÓN: Observer + Strategy — Monitoreo de riesgo
+' ─────────────────────────────────────────
+package "Monitoreo de Riesgo (Observer + Strategy)" {
+
+  interface IRiskStrategy <<interface>> {
+    +evaluate(loanAmount, collateralValue)
+  }
+
+  class LTVRiskStrategy <<Strategy>> {
+    -thresholds: Object
+    +evaluate(loanAmount, collateralValue)
+  }
+
+  interface IRiskObserver <<interface>> {
+    +onRiskEvent(event)
+  }
+
+  class LogObserver <<Observer>> {
+    -logger
+    -eventLog: array
+    +onRiskEvent(event)
+    +getEventHistory(limit)
+    +getStatistics()
+    +getRecentAlerts(limit)
+  }
+
+  class NotificationObserver <<Observer>> {
+    -notificationService
+    -sentNotifications: array
+    +onRiskEvent(event)
+    +getNotificationHistory(limit)
+  }
+
+  class MonitorRiesgo <<Subject>> {
+    -riskStrategy: IRiskStrategy
+    -observers: IRiskObserver[]
+    -activeMonitorings: Map
+    +subscribe(observer)
+    +unsubscribe(observer)
+    +evaluateLoanRisk(loan, currentCollateralPrice)
+    +startMonitoring(loan, priceOracle, intervalMs)
+    +stopMonitoring(monitoringId)
+  }
+
+  class RiskMonitoringService {
+    -monitor: MonitorRiesgo
+    -notificationObserver: NotificationObserver
+    -logObserver: LogObserver
+    +evaluateLoanRisk(loan, collateralPrice)
+    +startMonitoring(loan, priceOracle, intervalMs)
+    +getRiskReport(loanId)
+  }
+
+  IRiskStrategy <|.. LTVRiskStrategy
+  IRiskObserver <|.. LogObserver
+  IRiskObserver <|.. NotificationObserver
+  MonitorRiesgo o--> "0..*" IRiskObserver : observers
+  MonitorRiesgo --> "1" IRiskStrategy : strategy (inyectada)
+  MonitorRiesgo ..> IPriceOracle : startMonitoring (precio)
+  RiskMonitoringService o--> "1" MonitorRiesgo
+  RiskMonitoringService o--> "1" LogObserver
+  RiskMonitoringService o--> "1" NotificationObserver
+}
+
+' ─────────────────────────────────────────
+'  PATRÓN: DIP — Conector de Wallet Web3
+' ─────────────────────────────────────────
+package "Conector Web3 (DIP)" {
+
+  interface IWalletConnector <<interface>> {
+    +connect(walletAddress)
+    +isValidWallet(walletAddress)
+    +hasDuplicateSession(walletAddress)
+  }
+
+  class MockWalletConnectorImpl <<Adapter/Mock>> {
+    -activeSessions: Map
+    +connect(walletAddress)
+    +isValidWallet(walletAddress)
+    +hasDuplicateSession(walletAddress)
+    +disconnect(walletAddress)
+  }
+
+  class AuthService {
+    +issueToken(userId)
+    +register({name, email, password})
+    +login({email, password})
+  }
+
+  IWalletConnector <|.. MockWalletConnectorImpl
+}
+
+' ─────────────────────────────────────────
+'  DEPENDENCIAS Controlador -> Servicios (uso real en el código)
+' ─────────────────────────────────────────
+authController --> IWalletConnector : DIP (connectWallet)
+authController ..> AuthService : issueToken/register/login
+authController ..> User
+authController ..> Wallet
+
+loanController --> ICollateralService : requestLoan/calculateLTV
+loanController --> ILoanFactory : matchLoan
+loanController --> IPaymentProcessor : payLoan
+loanController ..> LTVCalculatorService
+loanController ..> priceOracle : simulate
+loanController ..> Offer
+loanController ..> Loan
+
+marketplaceController --> IPriceOracle : DIP (precios/enriquecimiento)
+marketplaceController ..> Offer
+
+supportController ..> Ticket
 
 @enduml
