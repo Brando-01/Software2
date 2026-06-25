@@ -14,7 +14,7 @@ class PaymentHistoryScoringStrategy extends ICreditScoringStrategy {
     this.thresholds = {
       poor: config.thresholds?.poor ?? 500,
       fair: config.thresholds?.fair ?? 650,
-      good: config.thresholds?.good ?? 750
+       good: config.thresholds?.good ?? 750
     };
   }
 
@@ -37,7 +37,7 @@ class PaymentHistoryScoringStrategy extends ICreditScoringStrategy {
   }
 
     categorize(score) {
-    if (score < this.thresholds.poor) return 'poor';
+     if (score < this.thresholds.poor) return 'poor';
     if (score <= this.thresholds.fair) return 'fair';
     if (score < this.thresholds.good) return 'good';
     return 'excellent';
