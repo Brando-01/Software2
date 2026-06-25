@@ -4,13 +4,25 @@ import './styles.css';
 
 const { useState, useEffect, useRef, useCallback } = React;
 
-/* ============================================================
-   config + price oracle + risk + format helpers
-   ============================================================ */
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-const ORACLE = { ETH:3000, BTC:54000, USDC:1, USDT:1, DAI:1, LINK:25, AAVE:350, UNI:6.5 };
 const COINS = ['ETH','BTC','USDC','USDT','DAI','LINK'];
+
+const PricesContext = React.createContext({ prices:{}, ready:false });
+const usePrices = () => React.useContext(PricesContext);
+
+function PricesProvider({ children }){
+  const [prices,setPrices]=useState({});
+  const [ready,setReady]=useState(false);
+  useEffect(()=>{
+    let alive=true;
+    API.getPrices()
+      .then(d=>{ if(alive && d?.prices){ setPrices(d.prices); setReady(true); } })
+      .catch(()=>{ if(alive) setReady(true); });
+    return ()=>{ alive=false; };
+  },[]);
+  return <PricesContext.Provider value={{ prices, ready }}>{children}</PricesContext.Provider>;
+}
 
 function evalRisk(ltv){
   const v = parseFloat(ltv);
@@ -32,15 +44,17 @@ function mockAddress(){
   return s;
 }
 function fmtDate(iso){ return iso ? new Date(iso).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
-const ltvOf = (amount, collType, collAmount) => +(( amount / (collAmount * ORACLE[collType]) ) * 100).toFixed(2);
+const ltvOf = (amount, collType, collAmount, prices={}) => {
+  const price = prices[collType];
+  if(!price || !collAmount) return null;
+  return +(( amount / (collAmount * price) ) * 100).toFixed(2);
+};
 
-/* ============================================================
-   session
-   ============================================================ */
 const TOKEN_KEY='authToken', USER_KEY='userData', SESSION_KEY='defi360_session';
 function setSession(user, token){
+  const { wallet, ...identity } = user || {};
   localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  localStorage.setItem(USER_KEY, JSON.stringify(identity));
   localStorage.setItem(SESSION_KEY, '1');
 }
 function clearSession(){ [TOKEN_KEY,USER_KEY,SESSION_KEY].forEach(k=>localStorage.removeItem(k)); }
@@ -48,11 +62,6 @@ function getStoredUser(){ try{ return JSON.parse(localStorage.getItem(USER_KEY))
 function hasSession(){ return localStorage.getItem(SESSION_KEY)==='1' && !!localStorage.getItem(TOKEN_KEY); }
 function currentUserId(){ const u=getStoredUser(); return u ? u.id : null; }
 
-/* ============================================================
-   API — real Express backend (mismas rutas y formas que el server).
-   Sequelize devuelve DECIMAL como string, así que normalizamos a número
-   y aplanamos el colateral que viaja en loan.Offer.
-   ============================================================ */
 const num = (v) => (v===null || v===undefined || v==='') ? v : (isNaN(+v) ? v : +v);
 
 function normWallet(w){
@@ -122,8 +131,10 @@ const API = {
   async createOffer(body){ const d=await request('/marketplace/offers',{ method:'POST', body }); d.offer=normOffer(d.offer); return d; },
   async cancelOffer(id){ return request(`/marketplace/offers/${id}`,{ method:'DELETE' }); },
   async getCacheStats(){ return request('/marketplace/cache-stats'); },
+  async getPrices(){ return request('/marketplace/prices'); },
 
   async calculateLTV(body){ const d=await request('/loans/calculate-ltv',{ method:'POST', body }); d.ltv=num(d.ltv); d.collateralValue=num(d.collateralValue); return d; },
+  async simulate(body){ return request('/loans/simulate',{ method:'POST', body }); },
   async requestLoan(body){ const d=await request('/loans/request',{ method:'POST', body }); d.offer=normOffer(d.offer); return d; },
   async getMyLoans(){
     const d = await request('/loans/my-loans');
@@ -136,9 +147,6 @@ const API = {
   async getTickets(){ return request('/support/tickets'); },
 };
 
-/* ============================================================
-   ui — shared primitives
-   ============================================================ */
 function Icon({ name, size, fill=0, wght=400, className='', style }){
   const s = size ? { fontSize:size } : null;
   return <span className={'ms '+className}
@@ -347,10 +355,8 @@ function useAsync(fn, deps=[]){
   return { ...state, reload:run };
 }
 
-/* ============================================================
-   screens — auth
-   ============================================================ */
 function Login({ onAuth }){
+  const { prices } = usePrices();
   const [mode,setMode]=useState('login');
   const [form,setForm]=useState({ name:'', email:'', password:'' });
   const [busy,setBusy]=useState('');
@@ -407,7 +413,7 @@ function Login({ onAuth }){
         </div>
         <div className="auth-ticker">
           {COINS.map(c=>(
-            <span key={c} className="row gap-6"><Coin sym={c} size={20} /><b style={{fontSize:12.5}}>{c}</b><span className="mono faint" style={{fontSize:12}}>{usd0(ORACLE[c])}</span></span>
+            <span key={c} className="row gap-6"><Coin sym={c} size={20} /><b style={{fontSize:12.5}}>{c}</b><span className="mono faint" style={{fontSize:12}}>{prices[c]!=null?usd0(prices[c]):'—'}</span></span>
           ))}
         </div>
       </aside>
@@ -463,15 +469,14 @@ function Login({ onAuth }){
   );
 }
 
-/* ============================================================
-   screens — dashboard
-   ============================================================ */
 function LoanCard({ loan, role, onPay }){
+  const { prices } = usePrices();
   const risk=evalRisk(loan.ltv);
   const paid=loan.amount-loan.remainingBalance;
   const paidPct=loan.amount>0 ? (paid/loan.amount)*100 : 0;
   const counter = role==='borrower' ? loan.Lender : loan.Borrower;
-  const collValue = loan.collateralAmount ? loan.collateralAmount*ORACLE[loan.collateralType] : null;
+  const collPrice = prices[loan.collateralType];
+  const collValue = loan.collateralAmount && collPrice ? loan.collateralAmount*collPrice : null;
   return (
     <Card className="lcard rise">
       <div className="between">
@@ -540,11 +545,12 @@ function LoanCard({ loan, role, onPay }){
 }
 
 function PayModal({ loan, onClose, onDone }){
+  const { prices } = usePrices();
   const [amount,setAmount]=useState(()=> Math.min(loan.remainingBalance, Math.round(loan.remainingBalance/2)) );
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState('');
-  const projected = loan.collateralAmount
-    ? ltvOf(Math.max(0,loan.remainingBalance-amount), loan.collateralType, loan.collateralAmount) : loan.ltv;
+  const projected = (loan.collateralAmount
+    ? ltvOf(Math.max(0,loan.remainingBalance-amount), loan.collateralType, loan.collateralAmount, prices) : null) ?? loan.ltv;
   const pr=evalRisk(projected), cr=evalRisk(loan.ltv);
   const pay=async()=>{
     setBusy(true); setErr('');
@@ -687,9 +693,6 @@ function Dashboard({ session, refreshSession }){
   );
 }
 
-/* ============================================================
-   screens — marketplace
-   ============================================================ */
 function OfferCard({ offer, onMatch, onCancel, navigate }){
   const mine=offer.userId===currentUserId();
   const risk=offer.ltv!=null?evalRisk(offer.ltv):null;
@@ -901,15 +904,13 @@ function Marketplace({ navigate, refreshSession }){
   );
 }
 
-/* ============================================================
-   screens — forms (Borrow + Lend)
-   ============================================================ */
 function CollateralPicker({ type, amount, onType, onAmount }){
+  const { prices } = usePrices();
   return (
     <div className="grid g-2" style={{gap:12}}>
       <Field label="Tipo de colateral">
         <Select value={type} onChange={e=>onType(e.target.value)}>
-          {COINS.map(c=><option key={c} value={c}>{c} · {usd0(ORACLE[c])}</option>)}
+          {COINS.map(c=><option key={c} value={c}>{c}{prices[c]!=null?` · ${usd0(prices[c])}`:''}</option>)}
         </Select>
       </Field>
       <Field label="Cantidad de colateral">
@@ -920,6 +921,7 @@ function CollateralPicker({ type, amount, onType, onAmount }){
 }
 
 function Borrow({ navigate, refreshSession }){
+  const { prices } = usePrices();
   const [amount,setAmount]=useState(1500);
   const [collType,setCollType]=useState('ETH');
   const [collAmount,setCollAmount]=useState(1);
@@ -940,7 +942,7 @@ function Borrow({ navigate, refreshSession }){
     return ()=>clearTimeout(t);
   },[amount,collType,collAmount]);
 
-  const collValue=(+collAmount||0)*ORACLE[collType];
+  const collValue=(+collAmount||0)*(prices[collType]||0);
   const insufficient=collValue < +amount;
   const interest=(+amount)*0.05*(duration/365);
 
@@ -1099,9 +1101,6 @@ function FormDone({ title, sub, navigate, primary, secondary }){
   );
 }
 
-/* ============================================================
-   screens — tools (Simulator, Education, Support)
-   ============================================================ */
 function Simulator(){
   const [mode,setMode]=useState('borrow');
   const [amount,setAmount]=useState(2000);
@@ -1110,11 +1109,21 @@ function Simulator(){
   const [collType,setCollType]=useState('ETH');
   const [collAmount,setCollAmount]=useState(1);
   const [shock,setShock]=useState(0);
+  const [sim,setSim]=useState(null);
 
-  const price=ORACLE[collType]*(1+shock/100);
-  const collValue=collAmount*price;
-  const ltv=mode==='borrow'? (amount/(collValue||1))*100 : 0;
-  const r=evalRisk(ltv);
+  useEffect(()=>{
+    if(mode!=='borrow' || !amount || !collAmount){ setSim(null); return; }
+    const t=setTimeout(async()=>{
+      try{ setSim(await API.simulate({ loanAmount:+amount, collateralType:collType, collateralAmount:+collAmount, priceShockPct:shock })); }
+      catch(e){ setSim(null); }
+    },300);
+    return ()=>clearTimeout(t);
+  },[mode,amount,collType,collAmount,shock]);
+
+  const price=sim?.shockedPrice ?? 0;
+  const collValue=sim?.collateralValue ?? 0;
+  const ltv=sim?.ltv ?? 0;
+  const r=sim ? { riskLevel:sim.riskLevel, isHealthy:sim.isHealthy, message:sim.message } : evalRisk(0);
   const liqPrice=amount/(collAmount*0.95);
   const borrowInterest=amount*0.05*(duration/365);
   const lendInterest=amount*(apy/100)*(duration/365);
@@ -1122,7 +1131,7 @@ function Simulator(){
   return (
     <div className="page page-narrow">
       <Card pad className="between" style={{marginBottom:18}}>
-        <div className="col gap-4"><h3>Simulador de escenarios</h3><span className="faint" style={{fontSize:13}}>Cálculo local instantáneo — no consume la API ni afecta tu wallet.</span></div>
+        <div className="col gap-4"><h3>Simulador de escenarios</h3><span className="faint" style={{fontSize:13}}>El LTV y el precio shockeado los calcula el backend. No afecta tu wallet.</span></div>
         <Seg value={mode} onChange={setMode} options={[
           { value:'borrow', label:'Pedir prestado', icon:'request_quote', tone:'borrow' },
           { value:'lend', label:'Prestar', icon:'trending_up', tone:'lend' },
@@ -1309,9 +1318,6 @@ function Support(){
   );
 }
 
-/* ============================================================
-   app shell — sidebar, topbar, routing, mount
-   ============================================================ */
 const NAV=[
   { id:'dashboard',   label:'Dashboard',  icon:'space_dashboard', title:'Dashboard', sub:'Resumen de tu wallet y préstamos' },
   { id:'marketplace', label:'Marketplace', icon:'storefront',     title:'Marketplace', sub:'Ofertas y solicitudes P2P' },
@@ -1381,11 +1387,14 @@ function App(){
   const refreshSession=useCallback(async()=>{
     try{ const p=await API.getProfile();
       const next={ id:p.user.id, name:p.user.name, email:p.user.email, walletAddress:p.user.walletAddress, role:p.user.role, wallet:p.wallet };
-      localStorage.setItem('userData', JSON.stringify(next)); setSession(next);
+      const { wallet, ...identity }=next;
+      localStorage.setItem(USER_KEY, JSON.stringify(identity)); setSession(next);
     }catch(e){}
   },[]);
   const onAuth=(user)=>{ setSession(user); setView('dashboard'); };
   const onLogout=()=>{ clearSession(); setSession(null); setView('dashboard'); toast({ kind:'info', title:'Sesión cerrada' }); };
+
+  useEffect(()=>{ if(hasSession()) refreshSession(); },[refreshSession]);
 
   if(!session){
     return <><Login onAuth={onAuth} /><ToastHost /></>;
@@ -1415,4 +1424,6 @@ function App(){
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(
+  <PricesProvider><App /></PricesProvider>
+);
