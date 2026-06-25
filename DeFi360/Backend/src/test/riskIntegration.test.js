@@ -60,6 +60,7 @@ describe('T-16 / HU-08: Pruebas de Integración - Ciclo Observer + Strategy', ()
 
 
         estrategiaLTV = new LTVRiskStrategy();
+        estrategiaLTV = new LTVRiskStrategy(); 
         monitor = new MonitorRiesgo(estrategiaLTV);
 
         class TestObserver extends IRiskObserver {
@@ -82,6 +83,8 @@ describe('T-16 / HU-08: Pruebas de Integración - Ciclo Observer + Strategy', ()
     test('Debería disparar alerta RIESGO_ALTO a todos los observadores cuando LTV alcanza el umbral alto (>=90%)', () => {
 
         const loanMock = { id: 10, amount: 900.00 };
+    test('Debería disparar alerta RIESGO_ALTO a todos los observadores cuando LTV supera el umbral alto (>70%)', () => {
+        const loanMock = { id: 10, amount: 750.00 };
         const colateralPrecioCaido = 1000.00;
 
         monitor.evaluarPrestamo(loanMock, colateralPrecioCaido);
@@ -98,6 +101,8 @@ describe('T-16 / HU-08: Pruebas de Integración - Ciclo Observer + Strategy', ()
     test('Debería disparar alerta LIQUIDACION_INMINENTE cuando LTV alcanza el umbral crítico (>=95%)', () => {
 
         const loanMock = { id: 11, amount: 950.00 };
+    test('Debería disparar alerta LIQUIDACION_INMINENTE cuando LTV supera el umbral crítico (>80%)', () => {
+        const loanMock = { id: 11, amount: 850.00 };
         const colateralPrecioCritico = 1000.00;
 
         monitor.evaluarPrestamo(loanMock, colateralPrecioCritico);
