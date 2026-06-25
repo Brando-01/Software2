@@ -17,7 +17,7 @@ class CreditScoreService {
       where: { borrowerId: userId }
     });
 
-    let late = 0;
+     let late = 0;
     let defaults = 0;
     for (const loan of loans) {
       if (loan.status === 'defaulted') defaults++;
