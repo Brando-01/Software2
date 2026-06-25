@@ -1,7 +1,4 @@
-/**
- * Tests de integración: Observer Pattern + Risk Monitoring
- * Valida que el ciclo completo funciona según especificación HU-08
- */
+
 const MonitorRiesgo = require('../services/MonitorRiesgo');
 const NotificationObserver = require('../services/NotificationObserver');
 const LogObserver = require('../services/LogObserver');
@@ -10,25 +7,21 @@ const LTVRiskStrategy = require('../strategies/LTVRiskStrategy');
 const IRiskObserver = require('../interfaces/IRiskObserver');
 const assert = require('assert');
 
-// ============ TESTS ============
+
 
 describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
 
-    // ============ PRUEBAS DE MONITORIESGO ============
+
 
     describe('MonitorRiesgo - Gestión de Observers', () => {
         let monitor;
         let mockObserver;
 
         beforeEach(() => {
-            const strategy = new LTVRiskStrategy({
-                medium: 50,
-                high: 70,
-                critical: 80
-            });
+            const strategy = new LTVRiskStrategy();
             monitor = new MonitorRiesgo(strategy);
 
-            // Crear mock observer
+
             class MockObserver extends IRiskObserver {
                 constructor() {
                     super();
@@ -59,18 +52,14 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
         });
     });
 
-    // ============ PRUEBAS DE ALERTAS DE RIESGO ============
+
 
     describe('MonitorRiesgo - Alertas según LTV', () => {
         let monitor;
         let mockObserver;
 
         beforeEach(() => {
-            const strategy = new LTVRiskStrategy({
-                medium: 50,
-                high: 70,
-                critical: 80
-            });
+            const strategy = new LTVRiskStrategy();
             monitor = new MonitorRiesgo(strategy);
 
             class MockObserver extends IRiskObserver {
@@ -87,7 +76,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
         });
 
         it('✅ Debería disparar RISK_ALERT_HIGH cuando LTV >= 90%', async () => {
-            const loanMock = { 
+            const loanMock = {
                 id: 101,
                 borrowerId: 'user1',
                 lenderId: 'user2',
@@ -96,7 +85,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
                 collateralAmount: 0.3
             };
 
-            await monitor.evaluateLoanRisk(loanMock, 3000); // 810 / (0.3 * 3000) = LTV 90%
+            await monitor.evaluateLoanRisk(loanMock, 3000);
 
             const alerts = mockObserver.events.filter(e => e.type === 'RISK_ALERT_HIGH');
             assert.strictEqual(alerts.length, 1, 'Debe haber 1 alerta de RIESGO_ALTO');
@@ -105,7 +94,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
         });
 
         it('✅ Debería disparar RISK_ALERT_CRITICAL cuando LTV >= 95%', async () => {
-            const loanMock = { 
+            const loanMock = {
                 id: 102,
                 borrowerId: 'user1',
                 lenderId: 'user2',
@@ -114,7 +103,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
                 collateralAmount: 0.3
             };
 
-            await monitor.evaluateLoanRisk(loanMock, 3000); // 855 / (0.3 * 3000) = LTV 95%
+            await monitor.evaluateLoanRisk(loanMock, 3000);
 
             const alerts = mockObserver.events.filter(e => e.type === 'RISK_ALERT_CRITICAL');
             assert.strictEqual(alerts.length, 1, 'Debe haber 1 alerta CRÍTICA');
@@ -123,7 +112,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
         });
 
         it('✅ NO debería disparar alertas cuando LTV < 90%', async () => {
-            const loanMock = { 
+            const loanMock = {
                 id: 103,
                 borrowerId: 'user1',
                 lenderId: 'user2',
@@ -132,16 +121,16 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
                 collateralAmount: 0.3
             };
 
-            await monitor.evaluateLoanRisk(loanMock, 3000); // 720 / (0.3 * 3000) = LTV 80%
+            await monitor.evaluateLoanRisk(loanMock, 3000);
 
-            const alerts = mockObserver.events.filter(e => 
+            const alerts = mockObserver.events.filter(e =>
                 e.type === 'RISK_ALERT_HIGH' || e.type === 'RISK_ALERT_CRITICAL'
             );
             assert.strictEqual(alerts.length, 0, 'No debe haber alertas');
         });
     });
 
-    // ============ PRUEBAS DE NOTIFICATIONOBSERVER ============
+
 
     describe('NotificationObserver - Generación de Notificaciones', () => {
         let observer;
@@ -202,7 +191,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
         });
     });
 
-    // ============ PRUEBAS DE LOGOBSERVER ============
+
 
     describe('LogObserver - Auditoría de Eventos', () => {
         let observer;
@@ -262,7 +251,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
         });
     });
 
-    // ============ PRUEBAS DE RISKMONITORINGSERVICE ============
+
 
     describe('RiskMonitoringService - Integración Completa', () => {
         let service;
@@ -310,7 +299,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
         });
     });
 
-    // ============ PRUEBAS GHERKIN SPECIFICATION ============
+
 
     describe('Criterios de Aceptación Gherkin - HU-08', () => {
         let service;
@@ -321,7 +310,7 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
         });
 
         it('Given caída de precio del colateral, When LTV=90%, Then monitorear dispara alert RIESGO_ALTO', async () => {
-            // Given: Préstamo existente
+
             const loan = {
                 id: 800,
                 borrowerId: 'borrower1',
@@ -331,17 +320,17 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
                 collateralAmount: 0.3
             };
 
-            // When: LTV alcanza 90%
+
             await service.evaluateLoanRisk(loan, 3000);
 
-            // Then: Se dispara alerta RIESGO_ALTO
+
             const auditLog = service.getAuditLog(800);
             const alerts = auditLog.filter(e => e.type === 'RISK_ALERT_HIGH');
             assert.strictEqual(alerts.length, 1, 'Debe disparar RIESGO_ALTO');
         });
 
         it('Given caída crítica del colateral, When LTV=95%, Then monitorear dispara alert LIQUIDACION_INMINENTE', async () => {
-            // Given: Préstamo existente
+
             const loan = {
                 id: 801,
                 borrowerId: 'borrower1',
@@ -351,10 +340,10 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
                 collateralAmount: 0.3
             };
 
-            // When: LTV alcanza 95%
+
             await service.evaluateLoanRisk(loan, 3000);
 
-            // Then: Se dispara alerta LIQUIDACION_INMINENTE
+
             const auditLog = service.getAuditLog(801);
             const alerts = auditLog.filter(e => e.type === 'RISK_ALERT_CRITICAL');
             assert.strictEqual(alerts.length, 1, 'Debe disparar LIQUIDACION_INMINENTE');
