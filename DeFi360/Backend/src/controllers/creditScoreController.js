@@ -1,11 +1,12 @@
 const CreditScoreService = require('../services/CreditScoreService');
 
-const defaultCreditScoreService = new CreditScoreService();
+const  defaultCreditScoreService = new CreditScoreService();
 
 const getCreditScore = (creditScoreService = defaultCreditScoreService) => async (req, res) => {
   try {
     const userId = parseInt(req.params.id, 10);
     if (Number.isNaN(userId)) {
+
       return res.status(400).json({ message: 'id de usuario inválido' });
     }
 
@@ -20,4 +21,7 @@ const getCreditScore = (creditScoreService = defaultCreditScoreService) => async
 module.exports = {
   getCreditScore: getCreditScore(),
   _factories: { getCreditScore }
+
+
+
 };
