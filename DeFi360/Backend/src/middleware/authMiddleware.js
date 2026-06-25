@@ -26,11 +26,23 @@ const protect = async (req, res, next) => {
   }
 };
 
-const adminOnly = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
-    return next();
+const authorize = (...roles) => (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'No autorizado, no hay sesión' });
   }
-  return res.status(403).json({ message: 'Acceso restringido a administradores' });
+
+  if (!roles.includes(req.user.role)) {
+
+    console.warn(
+      `[RBAC] 403 — userId=${req.user.id} role='${req.user.role}' ` +
+      `intentó acceder a ${req.method} ${req.originalUrl}; requiere [${roles.join(', ')}]`
+    );
+    return res.status(403).json({ message: 'Acceso denegado: rol insuficiente' });
+  }
+
+  return next();
 };
 
-module.exports = { protect, adminOnly };
+const adminOnly = authorize('admin');
+
+module.exports = { protect, authorize, adminOnly };

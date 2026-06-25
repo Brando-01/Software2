@@ -1,5 +1,5 @@
 @startuml HU01_Autenticacion_Web3
-title HU-01 — Autenticación Web3\nRefactorización DIP + Singleton (Sprint 1 · DeFi360)
+title HU-01 — Autenticación Web3\nDIP (IWalletConnector) + JWT + Singleton DB (Sprint 1 · DeFi360)
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8
@@ -8,65 +8,67 @@ skinparam sequenceParticipantBackgroundColor #EBF3FB
 skinparam noteBorderColor #F0A500
 skinparam noteBackgroundColor #FFF8E1
 
-actor       "Usuario"             as User
-participant "AuthController"      as AC
+actor       "Usuario"                         as User
+boundary    "Frontend (React)"               as UI
+control     "authController"                 as AC
 participant "<<interface>>\nIWalletConnector" as IWC
-participant "MockWalletConnectorImpl" as MWC
+participant "MockWalletConnectorImpl"        as MWC
+participant "AuthService (JWT)"              as AS
 participant "DatabaseConnection\n<<Singleton>>" as DBC
-database    "PostgreSQL"          as DB
+database    "PostgreSQL\n(User, Wallet)"     as DB
 
 autonumber
 
 note over AC, IWC
-  T-01: AuthController depende de IWalletConnector (DIP).
-  No instancia MockWallet directamente.
+  authController.connectWallet(walletConnector = MockWalletConnectorImpl)
+  depende de la abstracción IWalletConnector (DIP, inyección por parámetro).
 end note
 
-User -> AC : POST /auth/connect\n{ walletAddress }
+User -> UI : Clic "Conectar Wallet"
+UI -> AC : POST /api/auth/connect-wallet { walletAddress }
 
 AC -> IWC : connect(walletAddress)
-note right of AC
-  Constructor Injection:
-  AuthController(IWalletConnector connector)
-end note
-
 IWC -> MWC : connect(walletAddress)
 activate MWC
 
-alt walletAddress válida
-    MWC --> IWC : WalletSession { address, token }
-    IWC --> AC  : WalletSession
+alt walletAddress válida (regex 0x + 40 hex) y sin sesión activa
+    MWC --> AC : { success, sessionId }
+    deactivate MWC
 
-    AC -> DBC : getInstance()
+    AC -> DB : User.findOne({ walletAddress })
     note right of DBC
-      T-02: Singleton garantiza
-      una única conexión a DB.
+      Singleton: sequelize compartida
+      (src/config/database.js).
     end note
-    activate DBC
-    DBC --> AC : Connection (única instancia)
+    DB --> AC : user | null
 
-    AC -> DB : INSERT sesion (address, token, timestamp)
-    DB --> AC : OK
+    alt usuario nuevo
+        AC -> DB : User.create({ walletAddress })
+        AC -> DB : Wallet.create({ userId, totalBalance: 5000 })
+        DB --> AC : user + wallet (isNewUser=true)
+    else usuario existente
+        AC -> DB : user.update({ lastLogin })
+        DB --> AC : OK
+    end
 
-    deactivate DBC
-    AC --> User : 200 OK { sessionToken }
+    AC -> AS : issueToken(user.id)
+    AS --> AC : JWT
+    AC --> UI : 200 { success, token, user, wallet }
+    UI --> User : Dashboard
 
 else walletAddress inválida
-    MWC --> IWC : throw InvalidWalletException
-    IWC --> AC  : InvalidWalletException
-    deactivate MWC
-    AC --> User : 401 Unauthorized { error: "Wallet inválida" }
+    MWC --> AC : throw Error('Dirección de wallet inválida')
+    AC --> UI : 400 { message }
+    UI --> User : Error de validación
 
 else sesión duplicada
-    MWC --> IWC : throw DuplicateSessionException
-    IWC --> AC  : DuplicateSessionException
-    AC --> User : 409 Conflict { error: "Sesión ya activa" }
+    MWC --> AC : throw Error('Ya existe una sesión activa')
+    AC --> UI : 400 { message }
 end
 
 note over User, DB
-  T-03 (QA): Pruebas unitarias cubren los 3 escenarios (conexión exitosa,
-  wallet inválida, sesión duplicada) usando mock de IWalletConnector.
-  Cobertura mínima requerida: 80%.
+  QA: src/test/authController.test.js cubre conexión exitosa,
+  wallet inválida y registro/login por correo (AuthService).
 end note
 
 @enduml

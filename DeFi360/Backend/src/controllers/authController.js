@@ -23,9 +23,6 @@ const buildSession = (user, wallet, token, extra = {}) => ({
   ...extra
 });
 
-// HU-01 — Autenticación Web3. El controlador depende de la abstracción
-// IWalletConnector (DIP); en producción se inyecta el conector real y en
-// pruebas un mock.
 const connectWallet = (walletConnector = defaultWalletConnector) => async (req, res) => {
   try {
     const { walletAddress } = req.body;
@@ -67,7 +64,6 @@ const connectWallet = (walletConnector = defaultWalletConnector) => async (req, 
   }
 };
 
-// Login tradicional por correo/contraseña, complementario al acceso Web3.
 const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -107,10 +103,39 @@ const getProfile = async (req, res) => {
   }
 };
 
+const VALID_ROLES = ['borrower', 'lender', 'admin'];
+const updateRole = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    const { role } = req.body;
+
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({
+        message: `Rol inválido. Permitidos: ${VALID_ROLES.join(', ')}`
+      });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    await user.update({ role });
+    res.json({
+      success: true,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+    });
+  } catch (error) {
+    console.error('[updateRole]', error.message);
+    res.status(500).json({ message: 'Error al actualizar el rol' });
+  }
+};
+
 module.exports = {
   connectWallet: connectWallet(),
   register,
   login,
   getProfile,
+  updateRole,
   _factories: { connectWallet }
 };

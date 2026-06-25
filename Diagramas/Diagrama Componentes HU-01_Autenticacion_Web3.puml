@@ -1,5 +1,5 @@
 @startuml HU-01_Autenticacion_Web3
-title HU-01 — Autenticación Web3\nDeFi360 · Sprint 1 · Release 01
+title HU-01 — Autenticación Web3 (Componentes)\nDeFi360 · Sprint 1 · Release 01
 
 skinparam componentStyle rectangle
 skinparam backgroundColor #FAFAFA
@@ -26,62 +26,62 @@ skinparam arrow {
   FontSize 10
 }
 
-' ─── CAPA: FRONTEND ────────────────────────────────────────────
-node "Frontend (React)" {
-  [LoginPage.jsx] as LoginPage
-  [WalletButton.jsx] as WalletBtn
-  
+' ─── FRONTEND ───────────────────────────────────────────────────
+node "Frontend (React SPA)" {
+  [main.jsx (login / connect-wallet)] as LoginUI
 }
 
-' ─── CAPA: CONTROLADOR ─────────────────────────────────────────
+' ─── CONTROLADOR ────────────────────────────────────────────────
 node "Backend — Controllers" {
-  [AuthController] as AuthCtrl
-  
+  [authController] as AuthCtrl
 }
 
-' ─── INTERFAZ (abstracción DIP) ────────────────────────────────
+' ─── MIDDLEWARE ─────────────────────────────────────────────────
+node "Backend — Middleware" {
+  [authMiddleware (protect, JWT)] as Mw
+}
+
+' ─── ABSTRACCIÓN DIP ────────────────────────────────────────────
 interface "IWalletConnector" as IWallet
 
-
-' ─── IMPLEMENTACIONES ──────────────────────────────────────────
+' ─── SERVICES / ADAPTERS ────────────────────────────────────────
 node "Backend — Services / Adapters" {
   [MockWalletConnectorImpl] as MockWallet
-  [MetaMaskConnectorImpl] as MetaMask
-  
+  [AuthService (JWT + bcrypt)] as AuthSvc
 }
 
-' ─── SINGLETON DE BASE DE DATOS ────────────────────────────────
+' ─── SINGLETON DE BASE DE DATOS ─────────────────────────────────
 node "Backend — Infrastructure" {
-  [DatabaseConnection\n«Singleton»] as DBConn
-  
+  [DatabaseConnection «Singleton»] as DBConn
 }
 
-database "PostgreSQL\n(DeFi360 DB)" as PG {
-  [tabla: USUARIO] as TblUsuario
-  [tabla: SESION] as TblSesion
+database "PostgreSQL (DeFi360)" as PG {
+  [tabla: users] as TblUsers
+  [tabla: wallets] as TblWallets
 }
 
-' ─── PRUEBAS ───────────────────────────────────────────────────
-node "Tests (Jest / JUnit)" {
-  [AuthController.test] as AuthTest
-  
+' ─── PRUEBAS ────────────────────────────────────────────────────
+node "Tests (Jest)" {
+  [authController.test.js] as AuthTest
 }
 
-' ─── RELACIONES ────────────────────────────────────────────────
-LoginPage     --> WalletBtn         : usa
-WalletBtn     --> AuthCtrl          : POST /auth/connect
+' ─── RELACIONES ─────────────────────────────────────────────────
+LoginUI   --> AuthCtrl    : POST /api/auth/connect-wallet\nPOST /register · /login
+AuthCtrl  ..> IWallet     : «depends on»\n(inyección por parámetro)
+MockWallet ..|> IWallet   : «implements»
+AuthCtrl  ..> AuthSvc     : issueToken / register / login
+AuthCtrl  --> DBConn      : User / Wallet (Sequelize)
+Mw        ..> AuthSvc     : verifica JWT (GET /profile)
+DBConn    --> PG          : Sequelize (instancia única)
+DBConn    ..> TblUsers    : INSERT / SELECT
+DBConn    ..> TblWallets  : INSERT / SELECT
+AuthTest  ..> IWallet     : mock connector
+AuthTest  --> AuthCtrl    : prueba unitaria
 
-AuthCtrl      ..> IWallet           : «depends on»\n(inyección constructor)
-MockWallet    ..|> IWallet          : «implements»
-MetaMask      ..|> IWallet          : «implements»
-
-AuthCtrl      --> DBConn            : usa instancia única
-DBConn        --> PG                : JDBC / pg-node
-
-DBConn        ..> TblUsuario        : INSERT / SELECT
-DBConn        ..> TblSesion         : INSERT / SELECT
-
-AuthTest      ..> IWallet           : mock
-AuthTest      --> AuthCtrl          : prueba unitaria
+note bottom of MockWallet
+  Decisión de alcance: conexión de wallet SIMULADA
+  (valida formato 0x...). El conector real Web3/MetaMask
+  queda como extensión futura sobre la misma interfaz.
+end note
 
 @enduml

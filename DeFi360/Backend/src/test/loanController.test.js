@@ -6,7 +6,7 @@ function equal(a, b, msg) {
 }
 
 describe('LoanController - Pruebas de Rutas', () => {
-  
+
   test('payLoan: Debe procesar el pago exitosamente y retornar HTTP 200', async () => {
     const mockPaymentProcessor = {
       processPayment: async () => ({

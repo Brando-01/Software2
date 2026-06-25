@@ -1,5 +1,5 @@
 @startuml HU03_Visualizar_Marketplace
-title HU-03 — Visualizar Marketplace\nRefactorización DIP + SRP + Adapter Oracle (Sprint 1 · DeFi360)
+title HU-03 — Visualizar Marketplace\nDIP + Adapter + Decorator (caché TTL) (Sprint 1 · DeFi360)
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8
@@ -8,72 +8,51 @@ skinparam sequenceParticipantBackgroundColor #EBF3FB
 skinparam noteBorderColor #F0A500
 skinparam noteBackgroundColor #FFF8E1
 
-actor       "Usuario"                  as User
-participant "MarketplaceComponent\n<<React>>" as UI
-participant "MarketplaceController"    as MC
-participant "OfertaQueryService"       as OQS
-participant "<<interface>>\nIPriceOracle"     as IPO
-participant "SimulatedOracleAdapter"   as SOA
-participant "OracleService\n(externo)" as OS
+actor       "Usuario"                       as User
+boundary    "Frontend (React)\nPricesContext" as UI
+control     "marketplaceController"         as MC
+participant "<<interface>>\nIPriceOracle"   as IPO
+participant "priceOracle (Singleton)\nCachedPriceOracle <<Decorator>>" as CPO
+participant "SimulatedOracleAdapter\n<<Adapter>>" as SOA
+database    "PostgreSQL\n(Offer, User)"     as DB
 
 autonumber
 
 note over MC, IPO
-  T-04: MarketplaceController depende de IPriceOracle (DIP + OCP).
-  T-05: OfertaQueryService centraliza la lógica de filtrado (SRP).
-  T-06: MarketplaceComponent recibe datos tipados via props, sin import directo de OracleService.
+  marketplaceController.getOffers(priceOracle = priceOracle) depende
+  de IPriceOracle (DIP). El singleton es CachedPriceOracle envolviendo
+  a SimulatedOracleAdapter (Decorator + Adapter).
 end note
 
-User -> UI : Navega a /marketplace\n{ filtros: colateral, tasa, plazo }
+User -> UI : Abre /marketplace { type, minApy, maxAmount... }
+UI -> MC : GET /api/marketplace/offers?type&minApy...
 
-UI -> MC : GET /marketplace\n?colateral=ETH&tasaMax=5&plazo=30
+MC -> DB : Offer.findAll(where: filtros, include: User)
+DB --> MC : List<Offer>
 
-MC -> OQS : getOfertas(filtros)
-note right of MC
-  T-05: Lógica de filtrado
-  delegada a OfertaQueryService.
-  Controller solo orquesta.
-end note
-activate OQS
-
-OQS -> OQS : aplicarFiltros(colateral, tasaMax, plazo)
-OQS --> MC  : List<OfertaLending>
-
-MC -> IPO : getCurrentPrice(colateral)
-note right of MC
-  T-04: Constructor Injection:
-  MarketplaceController(IPriceOracle oracle)
-end note
-activate IPO
-
-IPO -> SOA : getCurrentPrice(colateral)
-activate SOA
-
-alt Ambiente de prueba / simulado
-    SOA --> IPO : PriceData { asset, price, timestamp }
-else Ambiente producción (futuro)
-    SOA -> OS   : fetchPrice(colateral)
-    OS  --> SOA : rawPrice
-    SOA --> IPO : PriceData normalizado
+loop por cada offer con collateralType y collateralAmount
+    MC -> IPO : getPrice(collateralType)
+    IPO -> CPO : getPrice(symbol)
+    activate CPO
+    alt caché válida (no expiró TTL)
+        CPO --> MC : precio (HIT, stats.hits++)
+    else MISS o TTL vencido
+        CPO -> SOA : getPrice(symbol)
+        SOA --> CPO : precio (prices[symbol], volatility=0)
+        CPO -> CPO : cache.set(symbol, { price, expiresAt })
+        CPO --> MC : precio (MISS, stats.misses++)
+    end
+    deactivate CPO
+    MC -> MC : offerData.collateralValueUSD / ltv
 end
 
-deactivate SOA
-IPO --> MC : PriceData
-deactivate IPO
+MC --> UI : 200 { success, count, offers enriquecidas }
+UI --> User : Render de ofertas con precio y LTV
 
-MC --> UI : MarketplaceDTO { ofertas, precio }
-note right of UI
-  T-06: Props tipadas (interface TypeScript).
-  Sin imports de OracleService en UI.
-end note
-
-UI --> User : Renderizado de ofertas\ncon precios actualizados
-
-deactivate OQS
-
-note over User, OS
-  OCP garantizado: cambiar Oracle real ↔ simulado
-  no requiere modificar MarketplaceController ni MarketplaceComponent.
+note over User, DB
+  GET /api/marketplace/prices reutiliza el mismo singleton:
+  priceOracle.getPrices(adapter.getSupportedSymbols()).
+  Frontend consume precios via PricesContext (sin oráculo hardcodeado).
 end note
 
 @enduml

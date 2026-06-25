@@ -1,0 +1,71 @@
+@startuml HU13_RBAC_secuencia
+title HU-13 — RBAC: roles y autorización\nAuthorization middleware (Chain of Responsibility) (Release 02 · DeFi360)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #2E75B6
+skinparam sequenceParticipantBackgroundColor #EBF3FB
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+
+actor       "Cliente (rol X)"                  as Client
+boundary    "Frontend (React)"                 as UI
+participant "rateLimiter\n(>100 req/min => 429)" as RL
+participant "protect (JWT)"                     as PRT
+participant "authorize(...roles)"              as AUTH
+control     "Controller protegido\n(p.ej. loanController.liquidate)" as CTL
+database    "PostgreSQL (users)"               as DB
+
+autonumber
+
+note over RL, AUTH
+  Chain of Responsibility: rateLimiter -> protect -> authorize(...roles) -> handler.
+  Cada eslabón corta la cadena con su propio status (429 / 401 / 403) o llama next().
+  User.role in {borrower, lender, admin}.
+end note
+
+Client -> UI : Acción sensible (p.ej. liquidar / PATCH role / GET metrics)
+UI -> RL : request (JWT)
+activate RL
+alt supera límite de tasa
+    RL --> UI : 429 Too Many Requests
+else dentro del límite
+    RL -> PRT : next()
+    deactivate RL
+    activate PRT
+    alt sin token / token inválido
+        PRT --> UI : 401 Unauthorized
+    else token válido
+        PRT -> DB : User.findByPk(decoded.id)
+        DB --> PRT : req.user (con role)
+        PRT -> AUTH : next()
+        deactivate PRT
+        activate AUTH
+        alt req.user.role NO está en roles permitidos
+            AUTH -> AUTH : log intento no autorizado
+            AUTH --> UI : 403 Forbidden (registrado)
+        else rol autorizado
+            AUTH -> CTL : next()
+            deactivate AUTH
+            activate CTL
+            CTL --> UI : 200 / 201 (operación ejecutada)
+            deactivate CTL
+        end
+    end
+end
+
+== Cambio de rol (solo admin) ==
+UI -> AUTH : PATCH /api/users/{id}/role { role } (JWT admin)
+AUTH -> CTL : authController.updateRole
+CTL -> DB : User.update({ role } where id)
+DB --> CTL : OK
+CTL --> UI : 200 { user }
+
+note over Client, DB
+  Endpoints protegidos por authorize('admin'): liquidación manual (HU-09),
+  /api/metrics (HU-14), PATCH role (HU-13). QA: rbac.test.js
+  (200 con rol correcto, 403 rol insuficiente, 401 sin token).
+  Escenario de calidad 4 (RBAC).
+end note
+
+@enduml

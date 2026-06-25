@@ -1,0 +1,219 @@
+@startuml DeFi360 R02 - Diagrama de Base de Datos
+left to right direction
+skinparam linetype ortho
+skinparam entity {
+  BackgroundColor #F0F7FF
+  BorderColor #2C3E50
+  HeaderBackgroundColor #1A3A5C
+  HeaderFontColor #FFFFFF
+  FontSize 11
+}
+skinparam arrow {
+  Color #2C3E50
+  FontSize 10
+}
+
+title DeFi360 — Base de Datos Release 02 (corresponde a la futura migración V3__Schema_Release02.sql)
+
+' Nota: snake_case (Sequelize underscored: true).
+' Tablas R01: users, wallets, offers, loans, tickets.
+' Tablas R02 (nuevas): liquidations, ledger_entries, notifications, lender_preferences.
+
+' =====================================================================
+'  USERS  (+ role enum borrower|lender|admin)
+' =====================================================================
+entity users {
+  *id               : SERIAL (PK)
+  --
+  wallet_address    : VARCHAR(255) UNIQUE NULL
+  email             : VARCHAR(255) UNIQUE NULL
+  password_hash     : VARCHAR(255) NULL
+  name              : VARCHAR(255) NULL
+  role              : enum_users_role DEFAULT 'borrower'
+  is_active         : BOOLEAN NOT NULL DEFAULT TRUE
+  last_login        : TIMESTAMPTZ NULL
+  created_at        : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at        : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+}
+note bottom of users
+  R02 HU-13: enum_users_role pasa a
+  {borrower, lender, admin}, default 'borrower'.
+  (Migra el enum {user, admin} del R01.)
+end note
+
+' =====================================================================
+'  WALLETS
+' =====================================================================
+entity wallets {
+  *id               : SERIAL (PK)
+  --
+  #user_id          : INTEGER (FK → users.id) NOT NULL
+  total_balance     : NUMERIC(20,2) DEFAULT 0
+  available_balance : NUMERIC(20,2) DEFAULT 0
+  blocked_balance   : NUMERIC(20,2) DEFAULT 0
+  total_earned      : NUMERIC(20,2) DEFAULT 0
+  created_at        : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at        : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+}
+
+' =====================================================================
+'  OFFERS
+' =====================================================================
+entity offers {
+  *id               : SERIAL (PK)
+  --
+  #user_id          : INTEGER (FK → users.id) NOT NULL
+  type              : enum_offers_type NOT NULL
+  amount            : NUMERIC(20,2) NOT NULL
+  apy               : NUMERIC(5,2) NOT NULL
+  duration          : INTEGER NOT NULL
+  collateral_type   : VARCHAR(255) NULL
+  collateral_amount : NUMERIC(20,2) NULL
+  status            : enum_offers_status DEFAULT 'active'
+  matched_with      : INTEGER NULL
+  created_at        : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at        : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+}
+
+' =====================================================================
+'  LOANS  (+ status liquidated, + liquidation_date)
+' =====================================================================
+entity loans {
+  *id                        : SERIAL (PK)
+  --
+  #lender_id                 : INTEGER (FK → users.id) NOT NULL
+  #borrower_id               : INTEGER (FK → users.id) NOT NULL
+  #offer_id                  : INTEGER (FK → offers.id) NOT NULL
+  amount                     : NUMERIC(20,2) NOT NULL
+  apy                        : NUMERIC(5,2) NOT NULL
+  rate_type                  : enum_loans_rate_type DEFAULT 'fixed'
+  base_apy                   : NUMERIC(5,2) NULL
+  rate_adjustment_period     : INTEGER NULL
+  next_rate_adjustment_date  : TIMESTAMPTZ NULL
+  duration                   : INTEGER NOT NULL
+  ltv                        : NUMERIC(5,2) NULL
+  remaining_balance          : NUMERIC(20,2) NOT NULL
+  status                     : enum_loans_status DEFAULT 'active'
+  liquidation_date           : TIMESTAMPTZ NULL
+  start_date                 : TIMESTAMPTZ DEFAULT NOW()
+  end_date                   : TIMESTAMPTZ NULL
+  created_at                 : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at                 : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  --
+  INDEX idx_prestamo_usuario_estado_fecha (borrower_id, status, end_date)
+}
+note bottom of loans
+  R02 HU-09: enum_loans_status ya admite
+  'liquidated'; + columna liquidation_date.
+end note
+
+' =====================================================================
+'  TICKETS
+' =====================================================================
+entity tickets {
+  *id               : SERIAL (PK)
+  --
+  #user_id          : INTEGER (FK → users.id) NOT NULL
+  ticket_number     : VARCHAR(255) UNIQUE NOT NULL
+  subject           : VARCHAR(255) NOT NULL
+  description       : TEXT NOT NULL
+  priority          : enum_tickets_priority DEFAULT 'medium'
+  status            : enum_tickets_status DEFAULT 'open'
+  response          : TEXT NULL
+  resolved_at       : TIMESTAMPTZ NULL
+  created_at        : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at        : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+}
+
+' =====================================================================
+'  LIQUIDATIONS (NUEVA · HU-09)
+' =====================================================================
+entity liquidations {
+  *id                 : SERIAL (PK)
+  --
+  #loan_id            : INTEGER (FK → loans.id) NOT NULL
+  ltv_at_liquidation  : NUMERIC(5,2) NOT NULL
+  collateral_seized   : NUMERIC(20,2) NOT NULL
+  amount_recovered    : NUMERIC(20,2) NOT NULL
+  reason              : VARCHAR(255) NULL
+  created_at          : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+}
+
+' =====================================================================
+'  LEDGER_ENTRIES (NUEVA · HU-10) — append-only
+' =====================================================================
+entity ledger_entries {
+  *id                 : SERIAL (PK)
+  --
+  #user_id            : INTEGER (FK → users.id) NOT NULL
+  type                : enum_ledger_type NOT NULL
+  amount              : NUMERIC(20,2) NOT NULL
+  balance_after       : NUMERIC(20,2) NOT NULL
+  ref_type            : VARCHAR(50) NULL
+  ref_id              : INTEGER NULL
+  created_at          : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  --
+  INDEX idx_ledger_user_created (user_id, created_at)
+}
+note bottom of ledger_entries
+  HU-10: append-only (event-log lite).
+  enum_ledger_type = {DISBURSEMENT, PAYMENT,
+  LIQUIDATION, LOCK, RELEASE}.
+  ref_type/ref_id apuntan a loan/liquidation.
+end note
+
+' =====================================================================
+'  NOTIFICATIONS (NUEVA · HU-12)
+' =====================================================================
+entity notifications {
+  *id                 : SERIAL (PK)
+  --
+  #user_id            : INTEGER (FK → users.id) NOT NULL
+  type                : VARCHAR(50) NOT NULL
+  channel             : enum_notification_channel DEFAULT 'in_app'
+  title               : VARCHAR(255) NOT NULL
+  message             : TEXT NOT NULL
+  read                : BOOLEAN NOT NULL DEFAULT FALSE
+  created_at          : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  --
+  INDEX idx_notif_user_read (user_id, read)
+}
+
+' =====================================================================
+'  LENDER_PREFERENCES (NUEVA · HU-15)
+' =====================================================================
+entity lender_preferences {
+  *id                 : SERIAL (PK)
+  --
+  #lender_id          : INTEGER (FK → users.id) NOT NULL
+  max_amount          : NUMERIC(20,2) NULL
+  min_apy             : NUMERIC(5,2) NULL
+  collateral_types    : JSONB NULL
+  max_ltv             : NUMERIC(5,2) NULL
+  min_credit_score    : INTEGER NULL
+  auto_match          : BOOLEAN NOT NULL DEFAULT FALSE
+  created_at          : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at          : TIMESTAMPTZ NOT NULL DEFAULT NOW()
+}
+
+' =====================================================================
+'  RELACIONES (FKs)
+' =====================================================================
+users ||--o| wallets             : "hasOne (user_id)"
+users ||--o{ offers              : "hasMany (user_id)"
+users ||--o{ loans               : "lender_id (LentLoans)"
+users ||--o{ loans               : "borrower_id (BorrowedLoans)"
+offers ||--o{ loans              : "offer_id"
+users ||--o{ tickets             : "hasMany (user_id)"
+loans ||--o{ liquidations        : "loan_id"
+users ||--o{ ledger_entries      : "user_id"
+users ||--o{ notifications       : "user_id"
+users ||--o{ lender_preferences  : "lender_id"
+
+note as N1
+  R02 — Score crediticio (HU-11): se calcula
+  on-demand desde ledger_entries + loans;
+  NO requiere tabla nueva (cacheable en memoria).
+end note
+
+@enduml

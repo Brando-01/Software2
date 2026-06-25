@@ -1,0 +1,89 @@
+@startuml HU09_Liquidacion_secuencia
+title HU-09 — Liquidación automática de colateral\nState + Command (Release 02 · DeFi360)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #2E75B6
+skinparam sequenceParticipantBackgroundColor #EBF3FB
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+
+actor       "Admin / Sistema"                  as Admin
+boundary    "Frontend (React)"                 as UI
+control     "loanController"                   as LC
+participant "authMiddleware\nprotect + authorize('admin')" as MW
+participant "LiquidationService"               as LIQ
+participant "ILoanState\nACTIVE/LIQUIDATING/LIQUIDATED" as ST
+participant "LiquidateCommand <<Command>>"     as CMD
+participant "LedgerService"                    as LED
+participant "NotificationService"              as NTF
+database    "PostgreSQL\n(loans, liquidations)" as DB
+
+autonumber
+
+note over LC, LIQ
+  Dos disparadores: (a) MonitorRiesgo al detectar LTV crítico (auto),
+  (b) POST /api/loans/:id/liquidate (manual, requiere rol admin · HU-13).
+end note
+
+== Camino manual (RBAC) ==
+Admin -> UI : Liquidar préstamo
+UI -> LC : POST /api/loans/{id}/liquidate (JWT)
+LC -> MW : protect + authorize('admin')
+alt rol != admin
+    MW --> LC : 403 Forbidden
+    LC --> UI : 403 (queda registrado)
+else rol admin
+    MW --> LC : next()
+
+    LC -> LIQ : liquidateManual(loanId, actorRole='admin')
+    activate LIQ
+    LIQ -> DB : Loan.findByPk(loanId, include Offer)
+    DB --> LIQ : loan
+
+    LIQ -> ST : canLiquidate()  (estado actual del préstamo)
+    activate ST
+    alt loan.status != 'active' (no liquidable)
+        ST --> LIQ : false
+        LIQ --> LC : throw Error('préstamo no liquidable')
+        LC --> UI : 400 { message }
+    else liquidable
+        ST --> LIQ : true (ACTIVE -> LIQUIDATING)
+        deactivate ST
+
+        LIQ -> CMD : new LiquidateCommand(loan, this, context).execute()
+        activate CMD
+        CMD -> LIQ : transition + persist
+        LIQ -> DB : loan.update(status='liquidated', liquidationDate=now)
+        LIQ -> DB : Liquidation.create({loanId, ltvAtLiquidation,\ncollateralSeized, amountRecovered, reason})
+        DB --> LIQ : liquidation
+
+        LIQ -> LED : record(lenderId, 'LIQUIDATION', amountRecovered,\n'liquidation', liquidation.id)
+        LED -> DB : LedgerEntry.create({..., balanceAfter})
+        LIQ -> LED : record(borrowerId, 'RELEASE', collateralSeized,\n'liquidation', liquidation.id)
+        LED -> DB : LedgerEntry.create({..., balanceAfter})
+
+        LIQ -> NTF : notify(borrowerId, 'LIQUIDATION', ...)
+        LIQ -> NTF : notify(lenderId, 'LIQUIDATION', ...)
+        NTF -> DB : Notification.create(...) x2
+
+        CMD --> LIQ : { liquidation }
+        deactivate CMD
+        LIQ --> LC : { liquidation, ledgerEntries, notifications }
+        deactivate LIQ
+        LC --> UI : 201 { liquidation }
+    end
+end
+
+== Consulta ==
+UI -> LC : GET /api/loans/{id}/liquidation (JWT)
+LC -> DB : Liquidation.findOne({ loanId })
+DB --> LC : liquidation
+LC --> UI : 200 { liquidation }
+
+note over Admin, DB
+  QA: LiquidationService.test.js (State+Command, LTV<95 no liquida,
+  RBAC 403). Integra escenarios de calidad 4 (RBAC) y 5 (auditabilidad).
+end note
+
+@enduml

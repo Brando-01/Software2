@@ -1,5 +1,5 @@
 @startuml HU07_Gestion_Pago_Cuotas
-title HU-07 — Gestión y Pago de Cuotas\nRefactorización DIP — IPaymentProcessor + UI (Sprint 1 · DeFi360)
+title HU-07 — Gestión y Pago de Cuotas\nDIP (IPaymentProcessor) + índice compuesto (Sprint 1 · DeFi360)
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8
@@ -8,78 +8,57 @@ skinparam sequenceParticipantBackgroundColor #EBF3FB
 skinparam noteBorderColor #F0A500
 skinparam noteBackgroundColor #FFF8E1
 
-actor       "Prestatario"               as User
-participant "PagoCuotaComponent\n<<React>>" as UI
-participant "LoanController"            as LC
+actor       "Prestatario"                     as User
+boundary    "Frontend (React)"               as UI
+control     "loanController"                 as LC
 participant "<<interface>>\nIPaymentProcessor" as IPP
-participant "StandardPaymentProcessor" as SPP
-participant "LTVCalculatorService"      as LTV
-database    "PostgreSQL\n(idx compuesto)" as DB
+participant "StandardPaymentProcessor"       as SPP
+database    "PostgreSQL\n(Loan, Wallet, Offer)" as DB
 
 autonumber
 
 note over LC, IPP
-  T-11: DIP — LoanController inyecta IPaymentProcessor via constructor.
-  T-12: Índice compuesto (id_usuario, estado, fecha_vencimiento) en tabla PRESTAMO.
-  T-13: PagoCuotaComponent valida input; lógica financiera permanece en backend.
+  loanController.payLoan(paymentProcessor = new StandardPaymentProcessor())
+  depende de IPaymentProcessor (DIP). El processor resuelve lender/borrower
+  del propio préstamo (fix bug Fase A: ya no llega lenderId undefined).
 end note
 
-User -> UI : Ingresa monto de cuota\n{ prestamoId, montoPago }
+User -> UI : Ingresa monto de cuota
+UI -> UI : valida monto > 0
+UI -> LC : POST /api/loans/{id}/pay { amount } (JWT)
 
-note over UI
-  T-13: Validaciones cliente:
-  monto > 0,
-  monto ≤ saldoPendiente.
-  SRP: solo presenta y valida input.
+LC -> IPP : processPayment({ loanId, amount, borrowerId: req.user.id })
+IPP -> SPP : processPayment(...)
+activate SPP
+
+SPP -> DB : Loan.findByPk(loanId, include Offer)
+note right of DB
+  Índice compuesto
+  (borrower_id, status, end_date)
+  acelera consultas del ciclo de pago.
 end note
+DB --> SPP : loan (+ Offer)
 
-UI -> UI : validarInput(monto, saldoPendiente)
+SPP -> SPP : resolvedBorrowerId = borrowerId ?? loan.borrowerId\nresolvedLenderId = lenderId ?? loan.lenderId
 
-alt Input inválido
-    UI --> User : Error visual\n"Monto fuera de rango"
-else Input válido
-    UI -> LC : POST /loans/{id}/payments\n{ montoPago }
-
-    LC -> DB : SELECT cuotas WHERE\nid_usuario=? AND estado=PENDIENTE\nORDER BY fecha_vencimiento
-    note right of DB
-      T-12: Índice compuesto acelera
-      consulta del ciclo de pago.
-    end note
-    DB --> LC : List<Cuota>
-
-    LC -> IPP : processPayment(prestamoId, montoPago)
-    note right of LC
-      T-11: Constructor Injection:
-      LoanController(IPaymentProcessor pp)
-      DIP: módulo alto nivel no depende
-      de módulo concreto de pagos.
-    end note
-    activate IPP
-    IPP -> SPP : processPayment(prestamoId, montoPago)
-    activate SPP
-    SPP -> DB  : UPDATE cuota SET estado=PAGADO, montoAbonado=?
-    DB  --> SPP : OK
-    SPP --> IPP : PaymentReceipt { cuotaId, montoPagado, fechaPago }
+alt préstamo inactivo / no autorizado / saldo insuficiente
+    SPP --> LC : throw Error(...)
+    LC --> UI : 400 { message }
+else pago válido
+    SPP -> DB : borrowerWallet.update(availableBalance -= amount)
+    SPP -> DB : lenderWallet.update(availableBalance += amount, blockedBalance -= amount)
+    SPP -> SPP : recalculateLTV(newRemainingBalance, collateralAmount)
+    SPP -> DB : loan.update(remainingBalance, ltv, status)
+    DB --> SPP : OK
+    SPP --> LC : { transactionId, newRemainingBalance, newLTV, loanStatus }
     deactivate SPP
-    IPP --> LC  : PaymentReceipt
-    deactivate IPP
-
-    LC -> LTV : calculateLTV(saldoRestante, colateralActual)
-    activate LTV
-    LTV --> LC : LTVResult { ratio, nivel }
-    deactivate LTV
-
-    LC -> DB   : UPDATE prestamo SET saldoPendiente=?, ltvRatio=?
-    DB --> LC  : OK
-
-    LC --> UI  : 200 OK\n{ receipt, ltvPostPago, saldoRestante }
-
-    UI --> User : Feedback visual:\nCuota pagada ✓\nLTV actualizado: {ratio}%
+    LC --> UI : 200 { receipt }
+    UI --> User : Saldo restante y LTV actualizados
 end
 
 note over User, DB
-  Gracias al DIP, IPaymentProcessor puede ser mockeado
-  en pruebas unitarias sin necesidad de DB real.
+  Gracias al DIP, IPaymentProcessor se mockea en pruebas.
+  QA: src/test/StandardPaymentProcessor.test.js, loanController.test.js.
 end note
 
 @enduml

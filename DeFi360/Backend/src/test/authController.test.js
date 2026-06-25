@@ -51,7 +51,7 @@ const genToken = (id) => jwt.sign({ id }, 'secret', { expiresIn: '7d' });
 const connectWalletHandler = (connector) => async (req, res) => {
   try {
     const { walletAddress } = req.body;
-    
+
     if (!walletAddress) {
       return res.status(400).json({ message: 'Wallet required' });
     }
@@ -61,16 +61,16 @@ const connectWalletHandler = (connector) => async (req, res) => {
     if (connector.isConnected(walletAddress)) {
       return res.status(409).json({ message: 'Already connected', isDuplicate: true });
     }
-    
+
     let user = await User.findOne({ where: { walletAddress } });
     if (!user) {
       user = await User.create({ walletAddress, role: 'user' });
       await Wallet.create({ userId: user.id, balance: 5000 });
     }
-    
+
     connector.connect(walletAddress);
     const token = genToken(user.id);
-    
+
     res.status(200).json({ success: true, token });
   } catch (err) {
     res.status(500).json({ message: 'Error' });
@@ -85,7 +85,7 @@ describe('Autenticación Web3', () => {
     mockUserStore.clear();
     mockWalletStore.clear();
     userId = 1;
-    
+
     connector = new MockWalletConnector([
       '0x1234567890abcdef1234567890abcdef12345678'
     ]);
@@ -95,7 +95,7 @@ describe('Autenticación Web3', () => {
   test('Flujo: Conexión exitosa', async () => {
     const req = { body: { walletAddress: '0x1234567890abcdef1234567890abcdef12345678' } };
     let respData, statusCode;
-    
+
     const res = {
       status: (code) => { statusCode = code; return res; },
       json: (data) => { respData = data; }
@@ -111,7 +111,7 @@ describe('Autenticación Web3', () => {
   test('Flujo: Wallet inválida rechazada', async () => {
     const req = { body: { walletAddress: '0xFALSA' } };
     let respData, statusCode;
-    
+
     const res = {
       status: (code) => { statusCode = code; return res; },
       json: (data) => { respData = data; }
@@ -125,7 +125,7 @@ describe('Autenticación Web3', () => {
 
   test('Flujo: Sesión duplicada bloqueada (409)', async () => {
     const req = { body: { walletAddress: '0x1234567890abcdef1234567890abcdef12345678' } };
-    
+
     const res1 = {
       status: function(code) { this.statusCode = code; return this; },
       json: function(data) { this.respData = data; }

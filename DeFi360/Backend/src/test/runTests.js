@@ -1,4 +1,30 @@
 const path = require('path');
+const Module = require('module');
+
+const mockRegistry = new Map();
+global.jest = {
+  mock: (request, factory) => {
+
+    const resolved = require.resolve(path.resolve(__dirname, request));
+    mockRegistry.set(resolved, factory());
+
+    delete require.cache[resolved];
+    const servicesDir = path.resolve(__dirname, '../services');
+    Object.keys(require.cache)
+      .filter((k) => k.startsWith(servicesDir))
+      .forEach((k) => delete require.cache[k]);
+  },
+  fn: (impl) => (impl || (() => {}))
+};
+
+const originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+  try {
+    const resolved = Module._resolveFilename(request, parent, isMain);
+    if (mockRegistry.has(resolved)) return mockRegistry.get(resolved);
+  } catch (_) {  }
+  return originalLoad.apply(this, arguments);
+};
 
 const testFiles = [
   './observerPattern.test.js',
@@ -7,7 +33,10 @@ const testFiles = [
   './authController.test.js',
   './loanController.test.js',
   './StandardPaymentProcessor.test.js',
-  './CachedPriceOracle.test.js'
+  './CachedPriceOracle.test.js',
+  './CollateralService.test.js',
+  './simulateController.test.js',
+  './CacheSecurity.test.js'
 ];
 
 const isPromise = (value) => value && typeof value.then === 'function';

@@ -4,7 +4,11 @@ const Offer = require('./Offer');
 const Loan = require('./Loan');
 const Ticket = require('./Ticket');
 
-// Definir relaciones
+const Liquidation = require('./Liquidation');
+const LedgerEntry = require('./LedgerEntry');
+const Notification = require('./Notification');
+const LenderPreference = require('./LenderPreference');
+
 User.hasOne(Wallet, { foreignKey: 'userId' });
 Wallet.belongsTo(User, { foreignKey: 'userId' });
 
@@ -20,10 +24,26 @@ Loan.belongsTo(Offer, { foreignKey: 'offerId' });
 User.hasMany(Ticket, { foreignKey: 'userId' });
 Ticket.belongsTo(User, { foreignKey: 'userId' });
 
+Loan.hasMany(Liquidation, { foreignKey: 'loanId' });
+Liquidation.belongsTo(Loan, { foreignKey: 'loanId' });
+
+User.hasMany(LedgerEntry, { foreignKey: 'userId' });
+LedgerEntry.belongsTo(User, { foreignKey: 'userId' });
+
+User.hasMany(Notification, { foreignKey: 'userId' });
+Notification.belongsTo(User, { foreignKey: 'userId' });
+
+User.hasMany(LenderPreference, { foreignKey: 'lenderId', as: 'Preferences' });
+LenderPreference.belongsTo(User, { foreignKey: 'lenderId', as: 'Lender' });
+
 module.exports = {
   User,
   Wallet,
   Offer,
   Loan,
-  Ticket
+  Ticket,
+  Liquidation,
+  LedgerEntry,
+  Notification,
+  LenderPreference
 };

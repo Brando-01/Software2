@@ -1,0 +1,833 @@
+@startuml DeFi360 R02 - Diagrama de Clases
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam packageFontSize 13
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor #F8FAFB
+  BorderColor #2C3E50
+  HeaderBackgroundColor #2C3E50
+  HeaderFontColor #FFFFFF
+  ArrowColor #2C3E50
+}
+skinparam package {
+  BackgroundColor #EAF2FF
+  BorderColor #2980B9
+  FontColor #1A252F
+}
+
+title DeFi360 — Diagrama de Clases de Diseño (Release 02, dirigido por ESPEC_R02)
+
+' =====================================================================
+'  ENUMERACIONES (R01 + cambios R02)
+' =====================================================================
+enum UserRole {
+  borrower
+  lender
+  admin
+}
+
+enum OfferType {
+  lend
+  borrow
+}
+
+enum OfferStatus {
+  active
+  matched
+  cancelled
+  completed
+}
+
+enum LoanRateType {
+  fixed
+  variable
+}
+
+enum LoanStatus {
+  active
+  paid
+  defaulted
+  liquidated
+}
+
+enum TicketPriority {
+  low
+  medium
+  high
+  critical
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+enum LedgerEntryType {
+  DISBURSEMENT
+  PAYMENT
+  LIQUIDATION
+  LOCK
+  RELEASE
+}
+
+enum NotificationChannel {
+  in_app
+  email
+}
+
+enum CreditScoreCategory {
+  poor
+  fair
+  good
+  excellent
+}
+
+' =====================================================================
+'  PAQUETE: Modelos de Dominio (src/models — Sequelize)
+' =====================================================================
+package "Modelos de Dominio (src/models)" {
+
+  class User {
+    +id: int
+    +walletAddress: string
+    +email: string
+    +passwordHash: string
+    +name: string
+    +role: UserRole
+    +isActive: boolean
+    +lastLogin: datetime
+    +compareWallet(walletAddress): boolean
+  }
+
+  class Wallet {
+    +id: int
+    +userId: int
+    +totalBalance: decimal
+    +availableBalance: decimal
+    +blockedBalance: decimal
+    +totalEarned: decimal
+  }
+
+  class Offer {
+    +id: int
+    +userId: int
+    +type: OfferType
+    +amount: decimal
+    +apy: decimal
+    +duration: int
+    +collateralType: string
+    +collateralAmount: decimal
+    +status: OfferStatus
+    +matchedWith: int
+  }
+
+  class Loan {
+    +id: int
+    +lenderId: int
+    +borrowerId: int
+    +offerId: int
+    +amount: decimal
+    +apy: decimal
+    +rateType: LoanRateType
+    +baseApy: decimal
+    +rateAdjustmentPeriod: int
+    +nextRateAdjustmentDate: datetime
+    +duration: int
+    +ltv: decimal
+    +remainingBalance: decimal
+    +status: LoanStatus
+    +liquidationDate: datetime
+    +startDate: datetime
+    +endDate: datetime
+  }
+
+  class Ticket {
+    +id: int
+    +userId: int
+    +ticketNumber: string
+    +subject: string
+    +description: string
+    +priority: TicketPriority
+    +status: TicketStatus
+    +response: string
+    +resolvedAt: datetime
+  }
+
+  ' ---------- NUEVAS ENTIDADES R02 ----------
+  class Liquidation <<R02>> {
+    +id: int
+    +loanId: int
+    +ltvAtLiquidation: decimal
+    +collateralSeized: decimal
+    +amountRecovered: decimal
+    +reason: string
+    +createdAt: datetime
+  }
+
+  class LedgerEntry <<R02>> {
+    +id: int
+    +userId: int
+    +type: LedgerEntryType
+    +amount: decimal
+    +balanceAfter: decimal
+    +refType: string
+    +refId: int
+    +createdAt: datetime
+  }
+
+  class Notification <<R02>> {
+    +id: int
+    +userId: int
+    +type: string
+    +channel: NotificationChannel
+    +title: string
+    +message: string
+    +read: boolean
+    +createdAt: datetime
+  }
+
+  class LenderPreference <<R02>> {
+    +id: int
+    +lenderId: int
+    +maxAmount: decimal
+    +minApy: decimal
+    +collateralTypes: string[]
+    +maxLtv: decimal
+    +minCreditScore: int
+    +autoMatch: boolean
+    +createdAt: datetime
+  }
+
+  ' Asociaciones Sequelize (R01)
+  User "1" --> "0..1" Wallet : hasOne (userId)
+  User "1" --> "0..*" Offer : hasMany (userId)
+  User "1" --> "0..*" Loan  : as 'LentLoans' (lenderId)
+  User "1" --> "0..*" Loan  : as 'BorrowedLoans' (borrowerId)
+  Loan "0..*" --> "1" Offer : belongsTo (offerId)
+  User "1" --> "0..*" Ticket : hasMany (userId)
+
+  ' Asociaciones R02
+  Loan "1" --> "0..*" Liquidation : hasMany (loanId)
+  User "1" --> "0..*" LedgerEntry : hasMany (userId)
+  User "1" --> "0..*" Notification : hasMany (userId)
+  User "1" --> "0..*" LenderPreference : hasMany (lenderId)
+}
+
+' =====================================================================
+'  CONTROLADORES (src/controllers)
+' =====================================================================
+package "Controladores (src/controllers)" {
+
+  class authController {
+    +connectWallet(walletConnector): handler
+    +register(req,res)
+    +login(req,res)
+    +getProfile(req,res)
+    +updateRole(req,res)
+  }
+
+  class loanController {
+    +calculateLTV(collateralService): handler
+    +requestLoan(collateralService): handler
+    +getUserLoans(req,res)
+    +matchLoan(loanFactory): handler
+    +payLoan(paymentProcessor): handler
+    +simulate(oracle): handler
+    +liquidate(liquidationService): handler
+    +getLiquidation(req,res)
+  }
+
+  class marketplaceController {
+    +getOffers(priceOracle): handler
+    +createOffer(priceOracle): handler
+    +cancelOffer(req,res)
+    +getCacheStats(req,res)
+    +getPrices(priceOracle): handler
+    +getRecommendations(recommendationService): handler
+    +autoMatch(matchingService): handler
+  }
+
+  class supportController {
+    +createTicket(req,res)
+    +getUserTickets(req,res)
+    +getTicketById(req,res)
+  }
+
+  class ledgerController <<R02>> {
+    +getLedger(ledgerService): handler
+    +getStatement(ledgerService): handler
+  }
+
+  class creditScoreController <<R02>> {
+    +getCreditScore(creditScoreService): handler
+  }
+
+  class notificationController <<R02>> {
+    +getNotifications(notificationService): handler
+    +markAsRead(notificationService): handler
+    +markAllAsRead(notificationService): handler
+  }
+
+  class metricsController <<R02>> {
+    +health(req,res)
+    +ready(metricsService): handler
+    +metrics(metricsService): handler
+  }
+}
+
+' =====================================================================
+'  MIDDLEWARE (src/middleware) — RBAC + Rate Limiting
+' =====================================================================
+package "Middleware (Seguridad / Disponibilidad)" {
+
+  class authMiddleware {
+    +protect(req,res,next)
+    +authorize(...roles): handler
+  }
+  note right of authMiddleware
+    HU-13: authorize(...roles) implementa
+    Chain of Responsibility (protect -> authorize).
+    401 sin token, 403 rol insuficiente.
+    (adminOnly del R01 se generaliza a authorize)
+  end note
+
+  class rateLimiter <<R02>> {
+    -windowMs: number
+    -maxRequests: number
+    -hits: Map
+    +middleware(req,res,next)
+    +getStats(): Object
+  }
+  note right of rateLimiter
+    Táctica de seguridad/disponibilidad:
+    >100 req/min => HTTP 429.
+  end note
+}
+
+' =====================================================================
+'  PATRÓN: Singleton — conexión de BD
+' =====================================================================
+package "Infraestructura — Singleton" {
+  class DatabaseConnection <<Singleton>> {
+    -{static} instance: DatabaseConnection
+    +sequelize: Sequelize
+    +testConnection(): Promise
+  }
+}
+
+' =====================================================================
+'  ORÁCULO: Adapter + Decorator(Cache) + Circuit Breaker + DIP
+' =====================================================================
+package "Oráculo de Precios (Adapter + Decorator + Circuit Breaker)" {
+
+  interface IPriceOracle <<interface>> {
+    +getPrice(symbol): Promise<number>
+    +getPrices(symbols): Promise<Object>
+    +isSymbolSupported(symbol): Promise<boolean>
+  }
+
+  class SimulatedOracleAdapter <<Adapter>> {
+    -prices: Object
+    -volatility: number
+    +getPrice(symbol)
+    +getPrices(symbols)
+    +isSymbolSupported(symbol)
+    +setPrice(symbol, price)
+    +getSupportedSymbols(): string[]
+    +setVolatility(v)
+  }
+
+  class CachedPriceOracle <<Decorator>> {
+    -oracle: IPriceOracle
+    -ttlMs: number
+    -cache: Map
+    -stats: Object
+    +getPrice(symbol)
+    +getPrices(symbols)
+    +isSymbolSupported(symbol)
+    +invalidate(symbol)
+    +clear()
+    +getStats(): Object
+  }
+
+  class CircuitBreakerOracle <<R02>> <<Decorator/CircuitBreaker>> {
+    -oracle: IPriceOracle
+    -state: string
+    -failureCount: int
+    -failureThreshold: int
+    -cooldownMs: number
+    -lastFailureAt: number
+    -maxRetries: int
+    +getPrice(symbol)
+    +getPrices(symbols)
+    +isSymbolSupported(symbol)
+    -retry(fn)
+    +getState(): Object
+  }
+  note right of CircuitBreakerOracle
+    Patrón cloud (resiliencia):
+    estados CLOSED -> OPEN -> HALF_OPEN.
+    5 fallos seguidos => OPEN (<50 ms).
+    retry() reintenta la llamada al adapter.
+  end note
+
+  class priceOracle <<Singleton>> {
+    ' new CircuitBreakerOracle(
+    '   new CachedPriceOracle(
+    '     new SimulatedOracleAdapter()))
+  }
+
+  IPriceOracle <|.. SimulatedOracleAdapter
+  IPriceOracle <|.. CachedPriceOracle
+  IPriceOracle <|.. CircuitBreakerOracle
+  CircuitBreakerOracle o--> "1" IPriceOracle : envuelve (oracle)
+  CachedPriceOracle o--> "1" IPriceOracle : envuelve (oracle)
+  priceOracle ..> CircuitBreakerOracle : instancia raíz
+  priceOracle ..> CachedPriceOracle : decora
+  priceOracle ..> SimulatedOracleAdapter : adapter
+}
+
+' =====================================================================
+'  Colateral y LTV (DIP) — R01
+' =====================================================================
+package "Colateral y LTV" {
+
+  interface ICollateralService <<interface>> {
+    +getPrice(collateralType)
+    +calculateValue(collateralType, collateralAmount)
+    +isSufficient(loanAmount, collateralType, collateralAmount)
+  }
+
+  class CollateralService {
+    -oracle: IPriceOracle
+    +getPrice(collateralType)
+    +calculateValue(collateralType, collateralAmount)
+    +isSufficient(loanAmount, collateralType, collateralAmount)
+  }
+
+  class LTVCalculatorService {
+    +{static} calculateLTV(loanAmount, collateralValue): LTVResult
+  }
+
+  ICollateralService <|.. CollateralService
+  CollateralService --> "1" IPriceOracle : DIP (oracle inyectado)
+}
+
+' =====================================================================
+'  Factory Method — préstamos (R01, reutilizado por HU-15)
+' =====================================================================
+package "Factory de Préstamos (Factory Method)" {
+
+  interface ILoanFactory <<interface>> {
+    +createFromOffer(offer, lenderId, borrowerId)
+    +createLoan(config)
+  }
+
+  class LoanFactory {
+    -factories: Object
+    +createFromOffer(offer, lenderId, borrowerId, rateType)
+    +createLoan(config)
+    +registerFactory(rateType, factory)
+    +getSupportedRateTypes(): string[]
+  }
+
+  class FixedRateLoanFactory {
+    +createFromOffer(offer, lenderId, borrowerId)
+    +createLoan(config)
+  }
+
+  class VariableRateLoanFactory {
+    -rateAdjustmentPeriod: int
+    +createFromOffer(offer, lenderId, borrowerId)
+    +createLoan(config)
+    +adjustRate(loan, newApy)
+  }
+
+  ILoanFactory <|.. LoanFactory
+  ILoanFactory <|.. FixedRateLoanFactory
+  ILoanFactory <|.. VariableRateLoanFactory
+  LoanFactory o--> "1" FixedRateLoanFactory : factories['fixed']
+  LoanFactory o--> "1" VariableRateLoanFactory : factories['variable']
+  FixedRateLoanFactory ..> Loan : crea
+  VariableRateLoanFactory ..> Loan : crea
+}
+
+' =====================================================================
+'  Procesador de pagos (DIP) — R01
+' =====================================================================
+package "Procesador de Pagos (DIP)" {
+
+  interface IPaymentProcessor <<interface>> {
+    +processPayment({loanId, amount, borrowerId, lenderId})
+    +recalculateLTV(remainingBalance, collateralAmount, collateralPrice)
+  }
+
+  class StandardPaymentProcessor {
+    +processPayment({loanId, amount, borrowerId, lenderId})
+    +recalculateLTV(remainingBalance, collateralAmount, collateralPrice)
+  }
+
+  IPaymentProcessor <|.. StandardPaymentProcessor
+  StandardPaymentProcessor ..> Loan : findByPk / update
+  StandardPaymentProcessor ..> Wallet : update saldos
+}
+
+' =====================================================================
+'  Monitoreo de Riesgo (Observer + Strategy) — R01, integra HU-09/12
+' =====================================================================
+package "Monitoreo de Riesgo (Observer + Strategy)" {
+
+  interface IRiskStrategy <<interface>> {
+    +evaluate(loanAmount, collateralValue)
+  }
+
+  class LTVRiskStrategy <<Strategy>> {
+    -thresholds: Object
+    +evaluate(loanAmount, collateralValue)
+  }
+
+  interface IRiskObserver <<interface>> {
+    +onRiskEvent(event)
+  }
+
+  class LogObserver <<Observer>> {
+    -eventLog: array
+    +onRiskEvent(event)
+    +getEventHistory(limit)
+    +getStatistics()
+    +getRecentAlerts(limit)
+  }
+
+  class NotificationObserver <<Observer>> {
+    -notificationService
+    -sentNotifications: array
+    +onRiskEvent(event)
+    +getNotificationHistory(limit)
+  }
+
+  class MonitorRiesgo <<Subject>> {
+    -riskStrategy: IRiskStrategy
+    -observers: IRiskObserver[]
+    -activeMonitorings: Map
+    +subscribe(observer)
+    +unsubscribe(observer)
+    +evaluateLoanRisk(loan, currentCollateralPrice)
+    +startMonitoring(loan, priceOracle, intervalMs)
+    +stopMonitoring(monitoringId)
+  }
+
+  class RiskMonitoringService {
+    -monitor: MonitorRiesgo
+    -notificationObserver: NotificationObserver
+    -logObserver: LogObserver
+    +evaluateLoanRisk(loan, collateralPrice)
+    +startMonitoring(loan, priceOracle, intervalMs)
+    +getRiskReport(loanId)
+  }
+
+  IRiskStrategy <|.. LTVRiskStrategy
+  IRiskObserver <|.. LogObserver
+  IRiskObserver <|.. NotificationObserver
+  MonitorRiesgo o--> "0..*" IRiskObserver : observers
+  MonitorRiesgo --> "1" IRiskStrategy : strategy (inyectada)
+  MonitorRiesgo ..> IPriceOracle : startMonitoring (precio)
+  RiskMonitoringService o--> "1" MonitorRiesgo
+  RiskMonitoringService o--> "1" LogObserver
+  RiskMonitoringService o--> "1" NotificationObserver
+}
+
+' =====================================================================
+'  HU-09 — Liquidación (State + Command)
+' =====================================================================
+package "Liquidación (State + Command) · HU-09" {
+
+  interface ILoanState <<interface>> {
+    +canLiquidate(): boolean
+    +liquidate(loan, context)
+    +name(): string
+  }
+
+  class ActiveState <<State>> {
+    +canLiquidate(): boolean
+    +liquidate(loan, context)
+    +name(): string
+  }
+
+  class LiquidatingState <<State>> {
+    +canLiquidate(): boolean
+    +liquidate(loan, context)
+    +name(): string
+  }
+
+  class LiquidatedState <<State>> {
+    +canLiquidate(): boolean
+    +liquidate(loan, context)
+    +name(): string
+  }
+
+  interface ICommand <<interface>> {
+    +execute(): Promise<Object>
+  }
+
+  class LiquidateCommand <<Command>> {
+    -loan: Loan
+    -liquidationService: LiquidationService
+    -context: Object
+    +execute(): Promise<Liquidation>
+  }
+
+  class LiquidationService {
+    -ledgerService: LedgerService
+    -notificationService: NotificationService
+    +liquidate(loan, ltv, reason)
+    +liquidateManual(loanId, actorRole)
+    -transition(loan, state)
+  }
+
+  ILoanState <|.. ActiveState
+  ILoanState <|.. LiquidatingState
+  ILoanState <|.. LiquidatedState
+  ICommand <|.. LiquidateCommand
+  LiquidateCommand o--> "1" LiquidationService : invoca
+  LiquidationService ..> ILoanState : transición de estado
+  LiquidationService ..> Loan : update(status=liquidated)
+  LiquidationService ..> Liquidation : crea
+}
+
+' =====================================================================
+'  HU-10 — Libro Mayor (Repository)
+' =====================================================================
+package "Libro Mayor (Repository) · HU-10" {
+
+  interface ILedgerRepository <<interface>> {
+    +append(entry)
+    +findByUser(userId, pagination)
+    +getStatement(userId)
+  }
+
+  class LedgerService <<Repository>> {
+    +record(userId, type, amount, refType, refId)
+    +getEntries(userId, page, size)
+    +getStatement(userId)
+    -computeBalanceAfter(userId, amount)
+  }
+
+  ILedgerRepository <|.. LedgerService
+  LedgerService ..> LedgerEntry : append-only insert
+}
+
+' =====================================================================
+'  HU-11 — Score crediticio (Strategy)
+' =====================================================================
+package "Score Crediticio (Strategy) · HU-11" {
+
+  interface ICreditScoringStrategy <<interface>> {
+    +score(history): CreditScoreResult
+  }
+
+  class PaymentHistoryScoringStrategy <<Strategy>> {
+    -weights: Object
+    -baseScore: int
+    +score(history): CreditScoreResult
+    -categorize(score): CreditScoreCategory
+  }
+
+  class CreditScoreService {
+    -strategy: ICreditScoringStrategy
+    +getScore(userId): CreditScoreResult
+    -buildHistory(userId)
+  }
+
+  ICreditScoringStrategy <|.. PaymentHistoryScoringStrategy
+  CreditScoreService o--> "1" ICreditScoringStrategy : strategy (DIP)
+  CreditScoreService ..> LedgerEntry : historial de pagos
+  CreditScoreService ..> Loan : moras / estado
+}
+
+' =====================================================================
+'  HU-12 — Notificaciones (Observer + Strategy de canal)
+' =====================================================================
+package "Notificaciones (Observer + Strategy de canal) · HU-12" {
+
+  interface INotificationChannel <<interface>> {
+    +send(notification): Promise
+  }
+
+  class InAppChannel <<Strategy>> {
+    +send(notification)
+  }
+
+  class EmailChannel <<Strategy>> {
+    +send(notification)
+  }
+
+  class NotificationService {
+    -channels: INotificationChannel[]
+    +onRiskEvent(event)
+    +notify(userId, type, title, message, channel)
+    +getForUser(userId, onlyUnread)
+    +markAsRead(id, userId)
+    +markAllAsRead(userId)
+  }
+
+  INotificationChannel <|.. InAppChannel
+  INotificationChannel <|.. EmailChannel
+  IRiskObserver <|.. NotificationService
+  NotificationService o--> "1..*" INotificationChannel : canales
+  NotificationService ..> Notification : persiste
+}
+
+' =====================================================================
+'  HU-14 — Observabilidad (Health Endpoint Monitoring)
+' =====================================================================
+package "Observabilidad (Health Endpoint Monitoring) · HU-14" {
+
+  class MetricsService {
+    +getHealth(): Object
+    +getReadiness(): Promise<Object>
+    +getMetrics(): Promise<Object>
+    -collectLoanCounts()
+  }
+
+  MetricsService ..> CachedPriceOracle : getStats (hitRate)
+  MetricsService ..> CircuitBreakerOracle : getState
+  MetricsService ..> rateLimiter : getStats
+  MetricsService ..> Loan : conteo por estado
+  MetricsService ..> Liquidation : conteo
+  MetricsService ..> Notification : conteo
+  MetricsService ..> DatabaseConnection : ping (readiness)
+}
+
+' =====================================================================
+'  HU-15 — Auto-match (Specification)
+' =====================================================================
+package "Auto-match por preferencias (Specification) · HU-15" {
+
+  interface ISpecification <<interface>> {
+    +isSatisfiedBy(candidate): boolean
+    +and(other): ISpecification
+  }
+
+  class AmountSpec <<Spec>> {
+    -maxAmount: decimal
+    +isSatisfiedBy(offer)
+  }
+  class ApySpec <<Spec>> {
+    -minApy: decimal
+    +isSatisfiedBy(offer)
+  }
+  class CollateralSpec <<Spec>> {
+    -collateralTypes: string[]
+    +isSatisfiedBy(offer)
+  }
+  class LtvSpec <<Spec>> {
+    -maxLtv: decimal
+    +isSatisfiedBy(offer)
+  }
+  class CreditScoreSpec <<Spec>> {
+    -minCreditScore: int
+    -creditScoreService: CreditScoreService
+    +isSatisfiedBy(offer)
+  }
+  class AndSpecification <<Spec>> {
+    -left: ISpecification
+    -right: ISpecification
+    +isSatisfiedBy(candidate)
+  }
+
+  class RecommendationService {
+    -creditScoreService: CreditScoreService
+    +buildSpecification(preference): ISpecification
+    +getRecommendations(lenderId): Offer[]
+  }
+
+  class MatchingService {
+    -recommendationService: RecommendationService
+    -loanFactory: ILoanFactory
+    +autoMatch(lenderId): Loan
+  }
+
+  ISpecification <|.. AmountSpec
+  ISpecification <|.. ApySpec
+  ISpecification <|.. CollateralSpec
+  ISpecification <|.. LtvSpec
+  ISpecification <|.. CreditScoreSpec
+  ISpecification <|.. AndSpecification
+  AndSpecification o--> "2" ISpecification : left/right
+  RecommendationService ..> ISpecification : compone specs
+  RecommendationService o--> "1" CreditScoreService
+  RecommendationService ..> LenderPreference : lee preferencias
+  RecommendationService ..> Offer : filtra solicitudes
+  MatchingService o--> "1" RecommendationService
+  MatchingService o--> "1" ILoanFactory : crea préstamo
+  CreditScoreSpec o--> "1" CreditScoreService
+}
+
+' =====================================================================
+'  Conector Web3 (DIP) — R01
+' =====================================================================
+package "Conector Web3 (DIP)" {
+
+  interface IWalletConnector <<interface>> {
+    +connect(walletAddress)
+    +isValidWallet(walletAddress)
+    +hasDuplicateSession(walletAddress)
+  }
+
+  class MockWalletConnectorImpl <<Adapter/Mock>> {
+    -activeSessions: Map
+    +connect(walletAddress)
+    +isValidWallet(walletAddress)
+    +hasDuplicateSession(walletAddress)
+    +disconnect(walletAddress)
+  }
+
+  class AuthService {
+    +issueToken(userId)
+    +register({name, email, password})
+    +login({email, password})
+  }
+
+  IWalletConnector <|.. MockWalletConnectorImpl
+}
+
+' =====================================================================
+'  DEPENDENCIAS Controlador -> Servicios / Middleware
+' =====================================================================
+authController --> IWalletConnector : DIP (connectWallet)
+authController ..> AuthService
+authController ..> User : updateRole (HU-13)
+
+loanController --> ICollateralService
+loanController --> ILoanFactory
+loanController --> IPaymentProcessor
+loanController ..> LiquidationService : liquidate (HU-09)
+loanController ..> Loan
+loanController ..> Liquidation
+
+marketplaceController --> IPriceOracle
+marketplaceController ..> RecommendationService : recommendations (HU-15)
+marketplaceController ..> MatchingService : auto-match (HU-15)
+
+ledgerController ..> LedgerService
+creditScoreController ..> CreditScoreService
+notificationController ..> NotificationService
+metricsController ..> MetricsService
+
+' Middleware aplica a controladores
+authMiddleware ..> User : carga req.user / valida role
+loanController ..> authMiddleware : authorize('admin') liquidate
+metricsController ..> authMiddleware : authorize('admin') metrics
+authController ..> authMiddleware : authorize('admin') role
+
+' Integración riesgo -> liquidación + notificación
+MonitorRiesgo ..> LiquidationService : crítico => liquidación automática (HU-09)
+MonitorRiesgo ..> NotificationService : evento de riesgo (HU-12)
+LiquidationService ..> LedgerService : asiento LIQUIDATION (HU-10)
+LiquidationService ..> NotificationService : avisa partes (HU-12)
+StandardPaymentProcessor ..> LedgerService : asiento PAYMENT (HU-10)
+
+@enduml

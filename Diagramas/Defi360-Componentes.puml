@@ -33,9 +33,7 @@ skinparam node {
     BorderColor #5D6D7E
 }
 
-title DeFi360 — Diagrama de Componentes
-
-left to right direction
+title DeFi360 — Diagrama de Componentes (arquitectura real de 3 capas · Release 01)
 
 ' =====================================
 ' ACTOR
@@ -44,140 +42,132 @@ left to right direction
 actor Usuario
 
 ' =====================================
-' FRONTEND
+' CAPA CLIENTE
 ' =====================================
 
 node "Cliente Web" {
+    component "Frontend Web (React SPA)" as Frontend <<React>>
+    note bottom of Frontend
+      Sin lógica de negocio:
+      consume la API REST.
+      Precios via PricesContext
+      (GET /marketplace/prices).
+      localStorage solo guarda JWT.
+    end note
+}
 
-    component "Frontend Web" as Frontend <<React>>
+interface "API REST /api (HTTP+JSON)" as REST
 
-    interface "IAuthUI" as IAuthUI
-    interface "ILoanUI" as ILoanUI
-    interface "IWalletUI" as IWalletUI
+' =====================================
+' CAPA BACKEND (Express)
+' =====================================
 
+node "Servidor Backend (Express · src/app.js)" {
+
+    package "Controllers (src/controllers)" {
+        component "authController\n/api/auth" as Auth <<controller>>
+        component "marketplaceController\n/api/marketplace" as Market <<controller>>
+        component "loanController\n/api/loans" as Loan <<controller>>
+        component "supportController\n/api/support" as Support <<controller>>
+    }
+
+    package "Middleware" {
+        component "authMiddleware (protect, JWT)" as Mw <<middleware>>
+    }
+
+    package "Services / Patrones (src/services)" {
+        component "AuthService (JWT + bcrypt)" as AuthSvc <<service>>
+        component "CollateralService\n(DIP sobre IPriceOracle)" as Collateral <<service>>
+        component "LTVCalculatorService" as LTV <<calculation>>
+        component "StandardPaymentProcessor\n(IPaymentProcessor)" as Pay <<service>>
+        component "priceOracle (Singleton)\nCachedPriceOracle(SimulatedOracleAdapter)" as Oracle <<singleton>>
+        component "MonitorRiesgo + RiskMonitoringService\n(scheduler setInterval)" as Risk <<monitor>>
+        component "LogObserver / NotificationObserver\n(Observer)" as Observers <<observer>>
+        component "LTVRiskStrategy (Strategy)" as Strategy <<strategy>>
+    }
+
+    package "Factories (src/factories)" {
+        component "LoanFactory\n(Fixed / Variable)" as Factory <<factory>>
+    }
+
+    note bottom of Oracle
+      TÁCTICA DE PERFORMANCE: caché con TTL.
+      CachedPriceOracle (Decorator) envuelve a
+      SimulatedOracleAdapter. HIT/MISS + stats.
+    end note
 }
 
 ' =====================================
-' BACKEND
+' EXTERNOS / SIMULADOS
 ' =====================================
 
-node "Servidor Backend" {
+component "SimulatedOracleAdapter\n(fuente de precios SIMULADA)" as SimOracle <<simulado>>
+note bottom of SimOracle
+  Decisión de alcance Release 01:
+  precios simulados deterministas.
+  NO es un oráculo blockchain real.
+end note
 
-    package "Servicios Core" {
+collections "MockWalletConnector\n(connect-wallet simulado)" as MockWallet <<simulado>>
 
-        component "AuthController" as Auth <<service>>
-        component "LoanController" as Loan <<service>>
-        component "LTVService" as LTV <<calculation>>
-        component "RiskMonitor" as Risk <<monitor>>
-        component "NotificationService" as Notify <<service>>
+database "PostgreSQL (DeFi360)\nvía Sequelize" as DB <<PostgreSQL>>
 
-    }
+component "DatabaseConnection (Singleton)\nsrc/config/database.js" as DBConn <<singleton>>
 
-    package "Gestión Financiera" {
+' =====================================
+' FUERA DE ALCANCE (no implementado)
+' =====================================
 
-        component "Gestión de Billetera" as WalletMng <<wallet>>
-        component "Marketplace DeFi" as Market <<marketplace>>
-        component "Motor de Emparejamiento" as Match <<matching>>
-
-    }
-
-    package "Zona Educativa" {
-
-        component "Simulador DeFi" as Simulator <<simulation>>
-        component "Contenido Educativo" as Edu <<education>>
-
-    }
-
+package "Fuera de alcance Release 01 / extensión futura" #EEEEEE {
+    component "Blockchain / Smart Contracts" as Smart <<futuro>>
+    component "Oráculo on-chain (Chainlink)" as ChainOracle <<futuro>>
 }
 
 ' =====================================
-' BLOCKCHAIN
-' =====================================
-
-node "Blockchain Layer" {
-
-    component "Smart Contracts" as Smart 
-}
-
-' =====================================
-' EXTERNOS
-' =====================================
-
-cloud "OracleService" as Oracle <<external>>
-
-collections "MockWallet" as MockWallet <<wallet>>
-
-database "DeFi360DB" as DB <<PostgreSQL>>
-
-' =====================================
-' INTERFACES
-' =====================================
-
-interface "IAuthService" as IAuth
-interface "ILoanService" as ILoan
-interface "IWalletService" as IWallet
-
-' =====================================
-' RELACIONES USUARIO
+' RELACIONES
 ' =====================================
 
 Usuario --> Frontend
+Frontend --> REST
+REST ..> Auth
+REST ..> Market
+REST ..> Loan
+REST ..> Support
 
-' =====================================
-' FRONTEND -> INTERFACES
-' =====================================
+' Middleware protege rutas
+Loan ..> Mw : protect (JWT)
+Market ..> Mw : protect (JWT)
+Support ..> Mw : protect (JWT)
+Auth ..> Mw : protect (profile)
 
-Frontend -- IAuthUI
-Frontend -- ILoanUI
-Frontend -- IWalletUI
+' Controladores -> servicios
+Auth ..> AuthSvc : register/login/issueToken
+Auth ..> MockWallet : connect-wallet (DIP IWalletConnector)
 
-IAuthUI ..> Auth
-ILoanUI ..> Loan
-IWalletUI ..> WalletMng
+Market ..> Oracle : getPrice / getPrices (enriquecimiento)
+Loan ..> Collateral : calculateValue (requestLoan/calculateLTV)
+Loan ..> LTV : calculateLTV
+Loan ..> Factory : matchLoan (createFromOffer)
+Loan ..> Pay : payLoan (processPayment)
+Loan ..> Oracle : simulate (getPrice)
 
-' =====================================
-' CONTROLADORES
-' =====================================
+Collateral ..> Oracle : DIP (IPriceOracle)
+Oracle --> SimOracle : delega en MISS / TTL vencido (Decorator)
 
-Auth -- IAuth
-Loan -- ILoan
-WalletMng -- IWallet
+Risk ..> Strategy : evaluate (Strategy inyectada)
+Risk ..> Observers : onRiskEvent (Observer)
+Risk ..> Oracle : getPrice (monitoreo periódico)
 
-' =====================================
-' DEPENDENCIAS
-' =====================================
+' Persistencia
+Auth --> DBConn
+Loan --> DBConn
+Market --> DBConn
+Support --> DBConn
+Pay --> DBConn
+DBConn --> DB : Sequelize (instancia única)
 
-Loan ..> LTV : calcularLTV()
-
-Loan ..> WalletMng : verificarColateral()
-
-Loan ..> Match : buscarOferta()
-
-Risk ..> Oracle : consultarPrecio()
-
-Risk ..> LTV : recalcular()
-
-Risk ..> Notify : generarAlerta()
-
-WalletMng ..> MockWallet : conectarWallet()
-
-WalletMng ..> Smart : bloquearColateral()
-
-Market ..> Match : emparejar()
-
-Simulator ..> Oracle : simularPrecios()
-
-' =====================================
-' BASE DE DATOS
-' =====================================
-
-Auth --> DB
-Loan --> DB
-WalletMng --> DB
-Risk --> DB
-Market --> DB
-Edu --> DB
-Simulator --> DB
-
+' Extensión futura (NO implementada)
+ChainOracle ..> SimOracle : sustituiría (mismo IPriceOracle)
+Smart ..> MockWallet : sustituiría (custodia real)
 
 @enduml
