@@ -9,5 +9,5 @@ class InAppChannel extends INotificationChannel {
     return { channel: 'in_app', delivered: true, userId: notification.userId };
   }
 }
-
+// Acá se modifica dentro de la app
 module.exports = InAppChannel;
