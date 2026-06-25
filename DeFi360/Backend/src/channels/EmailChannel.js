@@ -23,5 +23,5 @@ class EmailChannel extends INotificationChannel {
     return { channel: 'email', delivered: true, simulated: true };
   }
 }
-
+// acá se simula la notificación del email
 module.exports = EmailChannel;
