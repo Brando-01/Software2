@@ -1,0 +1,71 @@
+name: CI
+
+# Pipeline mínimo y realista para DeFi360.
+# - Backend: instala con npm ci, corre Jest (unit tests con mocks, sin Postgres) y publica cobertura.
+# - Frontend: instala con npm ci y compila con Vite (npm run build).
+# No requiere servicios externos: los tests del backend son unitarios con mocks.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  backend-tests:
+    name: Backend - Jest + cobertura
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: DeFi360/Backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: DeFi360/Backend/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      - name: Run tests with coverage (Jest)
+        run: npm run test:coverage
+
+      - name: Print coverage summary
+        if: always()
+        run: cat coverage/lcov-report/index.html >/dev/null 2>&1 || true
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: DeFi360/Backend/coverage
+          if-no-files-found: ignore
+
+  frontend-build:
+    name: Frontend - build (Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: DeFi360/frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: DeFi360/frontend/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      - name: Build
+        run: npm run build
