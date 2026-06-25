@@ -1,13 +1,14 @@
 const IRiskStrategy = require('../interfaces/IRiskStrategy');
+const RISK_THRESHOLDS = require('../services/riskThresholds');
 
 class LTVRiskStrategy extends IRiskStrategy {
 
     constructor(thresholds = {}) {
         super();
         this.thresholds = {
-            medium: thresholds.medium ?? 50,
-            high: thresholds.high ?? 70,
-            critical: thresholds.critical ?? 80
+            medium: thresholds.medium ?? RISK_THRESHOLDS.MEDIUM,
+            high: thresholds.high ?? RISK_THRESHOLDS.HIGH,
+            critical: thresholds.critical ?? RISK_THRESHOLDS.CRITICAL
         };
     }
 
@@ -21,11 +22,11 @@ class LTVRiskStrategy extends IRiskStrategy {
         const { medium, high, critical } = this.thresholds;
 
         let riskLevel = 'low';
-        if (ltv > critical) riskLevel = 'critical';
-        else if (ltv > high) riskLevel = 'high';
-        else if (ltv > medium) riskLevel = 'medium';
+        if (ltv >= critical) riskLevel = 'critical';
+        else if (ltv >= high) riskLevel = 'high';
+        else if (ltv >= medium) riskLevel = 'medium';
 
-        const isHealthy = ltv <= critical;
+        const isHealthy = ltv < high;
         const message = isHealthy ? 'LTV aceptable.' : 'LTV alto, riesgo de liquidación.';
 
         return { ratio, riskLevel, isHealthy, message };

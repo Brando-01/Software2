@@ -1,10 +1,7 @@
+const RISK_THRESHOLDS = require('./riskThresholds');
 
 class LTVCalculatorService {
-  /** 
-   * @param {number} loanAmount
-   * @param {number} collateralValue 
-   * @returns {Object} LTVResult 
-   */
+
   static calculateLTV(loanAmount, collateralValue) {
     if (!collateralValue || collateralValue <= 0) {
       throw new Error("El valor del colateral debe ser mayor a 0");
@@ -15,15 +12,15 @@ class LTVCalculatorService {
     let isHealthy = true;
     let message = 'LTV saludable';
 
-    if (ratio >= 95) {
+    if (ratio >= RISK_THRESHOLDS.CRITICAL) {
       riskLevel = 'critical';
       isHealthy = false;
       message = 'ALERTA: riesgo inminente de liquidación';
-    } else if (ratio >= 90) {
+    } else if (ratio >= RISK_THRESHOLDS.HIGH) {
       riskLevel = 'high';
       isHealthy = false;
       message = 'PRECAUCIÓN: LTV cerca del límite de liquidación';
-    } else if (ratio >= 75) {
+    } else if (ratio >= RISK_THRESHOLDS.MEDIUM) {
       riskLevel = 'medium';
     }
 

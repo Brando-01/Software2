@@ -1,25 +1,15 @@
 const ICollateralService = require('../interfaces/ICollateralService');
-
-const DEFAULT_PRICES = {
-    ETH: 3000,
-    BTC: 60000,
-    USDC: 1,
-    USDT: 1
-};
+const priceOracle = require('./priceOracle');
 
 class CollateralService extends ICollateralService {
 
-    constructor(priceMap = DEFAULT_PRICES) {
+    constructor(oracle = priceOracle) {
         super();
-        this.priceMap = priceMap;
+        this.oracle = oracle;
     }
 
     async getPrice(collateralType) {
-        const price = this.priceMap[collateralType?.toUpperCase()];
-        if (price === undefined) {
-            throw new Error(`Tipo de colateral no soportado: ${collateralType}`);
-        }
-        return price;
+        return this.oracle.getPrice(collateralType);
     }
 
     async calculateValue(collateralType, collateralAmount) {
@@ -34,4 +24,3 @@ class CollateralService extends ICollateralService {
 }
 
 module.exports = CollateralService;
-
