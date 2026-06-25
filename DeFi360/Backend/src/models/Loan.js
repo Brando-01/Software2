@@ -80,6 +80,12 @@ const Loan = sequelize.define('Loan', {
     type: DataTypes.ENUM('active', 'paid', 'defaulted', 'liquidated'),
     defaultValue: 'active'
   },
+  liquidationDate: {
+
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'liquidation_date'
+  },
   startDate: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
