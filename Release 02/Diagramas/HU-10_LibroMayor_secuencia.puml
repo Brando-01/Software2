@@ -1,5 +1,5 @@
 @startuml HU10_LibroMayor_secuencia
-title HU-10 — Libro mayor y estado de cuenta\nRepository + append-only (Release 02 · DeFi360)
+title HU-10 — Libro mayor y estado de cuenta\nRepository + append-only
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8

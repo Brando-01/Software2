@@ -1,5 +1,5 @@
 @startuml HU12_Notificaciones_secuencia
-title HU-12 — Notificaciones persistentes multicanal\nObserver + Strategy de canal (Release 02 · DeFi360)
+title HU-12 — Notificaciones persistentes multicanal\nObserver + Strategy de canal
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8

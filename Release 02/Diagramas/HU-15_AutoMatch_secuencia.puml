@@ -1,5 +1,5 @@
 @startuml HU15_AutoMatch_secuencia
-title HU-15 — Auto-match por preferencias del prestamista\nSpecification + Factory (Release 02 · DeFi360)
+title HU-15 — Auto-match por preferencias del prestamista\nSpecification + Factory
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8

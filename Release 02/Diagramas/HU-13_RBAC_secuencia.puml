@@ -1,5 +1,5 @@
 @startuml HU13_RBAC_secuencia
-title HU-13 — RBAC: roles y autorización\nAuthorization middleware (Chain of Responsibility) (Release 02 · DeFi360)
+title HU-13 — RBAC: roles y autorización\nAuthorization middleware (Chain of Responsibility)
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8

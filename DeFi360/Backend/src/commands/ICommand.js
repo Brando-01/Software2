@@ -1,6 +1,6 @@
 class ICommand {
   async execute() {
-    throw new Error('ICommand.execute() debe ser implementado');
+    throw new Error('ICommand.execute() tiene que ser implementado');
   }
 }
 

@@ -1,5 +1,7 @@
 const ILoanState = require('./ILoanState');
 
+// Aqui tambien aplicamos la interfaz para el segundo estado LIQUIDATING
+
 class LiquidatingState extends ILoanState {
   get name() {
     return 'LIQUIDATING';

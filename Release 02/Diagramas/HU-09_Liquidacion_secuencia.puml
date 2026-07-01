@@ -1,5 +1,5 @@
 @startuml HU09_Liquidacion_secuencia
-title HU-09 — Liquidación automática de colateral\nState + Command (Release 02 · DeFi360)
+title HU-09 — Liquidación automática de colateral\nState + Command
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8

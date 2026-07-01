@@ -1,5 +1,5 @@
 @startuml HU11_ScoreCrediticio_secuencia
-title HU-11 — Score crediticio del prestatario\nStrategy (Release 02 · DeFi360)
+title HU-11 — Score crediticio del prestatario\nStrategy
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8

@@ -16,7 +16,7 @@ skinparam package {
   FontColor #1A252F
 }
 
-title DeFi360 — Diagrama de Clases de Diseño (Release 02, dirigido por ESPEC_R02)
+title DeFi360 — Diagrama de Clases de Diseño
 
 ' =====================================================================
 '  ENUMERACIONES (R01 + cambios R02)

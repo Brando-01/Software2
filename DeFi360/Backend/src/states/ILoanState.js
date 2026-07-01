@@ -1,13 +1,13 @@
 class ILoanState {
   get name() {
-    throw new Error('ILoanState.name debe ser implementado');
+    throw new Error('ILoanState.name debe ser implementado'); // Aca fijamos la interfaz con sus respectivos metodos
   }
 
-    canLiquidate() {
+  canLiquidate() {
     throw new Error('ILoanState.canLiquidate() debe ser implementado');
   }
 
-    next() {
+  next() {
     throw new Error('ILoanState.next() debe ser implementado');
   }
 }

@@ -1,5 +1,5 @@
 @startuml HU14_Observabilidad_secuencia
-title HU-14 — Dashboard de observabilidad\nHealth Endpoint Monitoring (Release 02 · DeFi360)
+title HU-14 — Dashboard de observabilidad\nHealth Endpoint Monitoring
 
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8
