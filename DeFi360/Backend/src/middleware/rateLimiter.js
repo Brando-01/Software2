@@ -1,14 +1,23 @@
-
-
 const buckets = new Map();
 const stats = { totalRequests: 0, throttled: 0, windowMs: 60000, max: 100 };
 
-function _clientKey(req) {
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of buckets.entries()) {
+    if (now >= bucket.resetAt) {
+      buckets.delete(key);
+    }
+  }
+}, 60000).unref(); 
 
+function _clientKey(req) {
+  const forwarded = req.headers?.['x-forwarded-for'];
+  const forwardedIp = forwarded ? forwarded.split(',')[0].trim() : null;
+  
   return (
+    forwardedIp ||
     req.ip ||
-    (req.headers && req.headers['x-forwarded-for']) ||
-    (req.connection && req.connection.remoteAddress) ||
+    req.socket?.remoteAddress ||
     'unknown'
   );
 }
@@ -16,6 +25,7 @@ function _clientKey(req) {
 function rateLimiter(options = {}) {
   const windowMs = options.windowMs ?? 60000;
   const max = options.max ?? 100;
+  
   stats.windowMs = windowMs;
   stats.max = max;
 
@@ -24,6 +34,7 @@ function rateLimiter(options = {}) {
     const now = Date.now();
 
     let bucket = buckets.get(key);
+    
     if (!bucket || now >= bucket.resetAt) {
       bucket = { count: 0, resetAt: now + windowMs };
       buckets.set(key, bucket);
@@ -40,6 +51,7 @@ function rateLimiter(options = {}) {
       stats.throttled++;
       const retryAfter = Math.ceil((bucket.resetAt - now) / 1000);
       res.set('Retry-After', String(retryAfter));
+      
       return res.status(429).json({
         message: 'Demasiadas solicitudes. Intenta más tarde.',
         retryAfter
