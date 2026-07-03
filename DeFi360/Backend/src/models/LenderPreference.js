@@ -44,7 +44,7 @@ const LenderPreference = sequelize.define('LenderPreference', {
   autoMatch: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
-    defaultValue: false,
+    defaultValue: false, 
     field: 'auto_match'
   }
 }, {
