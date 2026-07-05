@@ -1,24 +1,28 @@
-const jwt = require('jsonwebtoken');
 const { User, Wallet } = require('../models');
 const MockWalletConnectorImpl = require('../services/MockWalletConnectorImpl');
+const authService = require('../services/AuthService');
 
-// Instancia por defecto del conector de wallet
 const defaultWalletConnector = new MockWalletConnectorImpl();
 
-// Generar token JWT
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE
-  });
-};
+const buildSession = (user, wallet, token, extra = {}) => ({
+  success: true,
+  token,
+  user: {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    walletAddress: user.walletAddress,
+    role: user.role,
+    wallet: wallet && {
+      totalBalance: wallet.totalBalance,
+      availableBalance: wallet.availableBalance,
+      blockedBalance: wallet.blockedBalance,
+      totalEarned: wallet.totalEarned
+    }
+  },
+  ...extra
+});
 
-/**
- * Conectar wallet (autenticación Web3)
- * SOLID: DIP - El controlador depende de la abstracción IWalletConnector
- * no de la implementación concreta (MockWalletConnectorImpl)
- * 
- * @param {IWalletConnector} walletConnector - Abstracción inyectada (mock para tests, real para producción)
- */
 const connectWallet = (walletConnector = defaultWalletConnector) => async (req, res) => {
   try {
     const { walletAddress } = req.body;
@@ -27,7 +31,6 @@ const connectWallet = (walletConnector = defaultWalletConnector) => async (req, 
       return res.status(400).json({ message: 'Dirección de wallet requerida' });
     }
 
-    // Usar la abstracción inyectada para validar la wallet
     try {
       await walletConnector.connect(walletAddress);
     } catch (error) {
@@ -38,74 +41,101 @@ const connectWallet = (walletConnector = defaultWalletConnector) => async (req, 
     let isNewUser = false;
 
     if (!user) {
-      // Crear nuevo usuario
-      user = await User.create({
-        walletAddress,
-        lastLogin: new Date()
-      });
-      
-      // Crear wallet para el usuario
+      user = await User.create({ walletAddress, lastLogin: new Date() });
       await Wallet.create({
         userId: user.id,
-        totalBalance: 5000, // Bonus simulado para nuevos usuarios
+        totalBalance: 5000,
         availableBalance: 5000,
         blockedBalance: 0,
         totalEarned: 0
       });
-      
       isNewUser = true;
     } else {
-      // Actualizar último login
       await user.update({ lastLogin: new Date() });
     }
 
-    const token = generateToken(user.id);
-    
     const wallet = await Wallet.findOne({ where: { userId: user.id } });
+    const token = authService.issueToken(user.id);
 
-    res.status(200).json({
-      success: true,
-      isNewUser,
-      token,
-      user: {
-        id: user.id,
-        walletAddress: user.walletAddress,
-        role: user.role,
-        wallet: {
-          totalBalance: wallet.totalBalance,
-          availableBalance: wallet.availableBalance,
-          blockedBalance: wallet.blockedBalance,
-          totalEarned: wallet.totalEarned
-        }
-      }
-    });
+    res.status(200).json(buildSession(user, wallet, token, { isNewUser }));
   } catch (error) {
-    console.error(error);
+    console.error('[connectWallet]', error.message);
     res.status(500).json({ message: 'Error al conectar wallet', error: error.message });
   }
 };
 
-// @desc    Obtener perfil del usuario
-// @route   GET /api/auth/profile
+const register = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const user = await authService.register({ name, email, password });
+    const wallet = await Wallet.findOne({ where: { userId: user.id } });
+    const token = authService.issueToken(user.id);
+
+    res.status(201).json(buildSession(user, wallet, token, { isNewUser: true }));
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await authService.login({ email, password });
+    const wallet = await Wallet.findOne({ where: { userId: user.id } });
+    const token = authService.issueToken(user.id);
+
+    res.status(200).json(buildSession(user, wallet, token));
+  } catch (error) {
+    res.status(401).json({ message: error.message });
+  }
+};
+
 const getProfile = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['createdAt', 'updatedAt'] }
+      attributes: { exclude: ['createdAt', 'updatedAt', 'passwordHash'] }
     });
-    
     const wallet = await Wallet.findOne({ where: { userId: req.user.id } });
 
-    res.json({
-      user,
-      wallet
-    });
+    res.json({ user, wallet });
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener perfil' });
   }
 };
 
-module.exports = { 
+const VALID_ROLES = ['borrower', 'lender', 'admin'];
+const updateRole = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    const { role } = req.body;
+
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({
+        message: `Rol inválido. Permitidos: ${VALID_ROLES.join(', ')}`
+      });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    await user.update({ role });
+    res.json({
+      success: true,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+    });
+  } catch (error) {
+    console.error('[updateRole]', error.message);
+    res.status(500).json({ message: 'Error al actualizar el rol' });
+  }
+};
+
+module.exports = {
   connectWallet: connectWallet(),
-  connectWalletFactory: connectWallet,
-  getProfile 
+  register,
+  login,
+  getProfile,
+  updateRole,
+  _factories: { connectWallet }
 };

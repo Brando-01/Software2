@@ -1,5 +1,5 @@
 @startuml HU-03_Visualizar_Marketplace
-title HU-03 — Visualizar Marketplace\nDeFi360 · Sprint 1 · Release 01
+title HU-03 — Visualizar Marketplace (Componentes)\nDeFi360 · Sprint 1 · Release 01
 
 skinparam componentStyle rectangle
 skinparam backgroundColor #FAFAFA
@@ -25,67 +25,56 @@ skinparam arrow {
   FontSize 10
 }
 
-' ─── FRONTEND ──────────────────────────────────────────────────
-node "Frontend (React)" {
-  [MarketplacePage.jsx] as MktPage
-  [OfertaCard.jsx] as OfertaCard
-  [FilterBar.jsx] as FilterBar
-  
+' ─── FRONTEND ───────────────────────────────────────────────────
+node "Frontend (React SPA)" {
+  [main.jsx — Marketplace] as MktPage
+  [PricesContext] as PricesCtx
 }
 
-' ─── INTERFAZ ORACLE (DIP + OCP) ───────────────────────────────
+' ─── CONTROLADOR ────────────────────────────────────────────────
+node "Backend — Controllers" {
+  [marketplaceController\n(getOffers / getPrices / getCacheStats)] as MktCtrl
+}
+
+' ─── ABSTRACCIÓN ORACLE (DIP) ───────────────────────────────────
 interface "IPriceOracle" as IOracle
 
+' ─── DECORATOR: CACHÉ TTL (táctica de performance) ──────────────
+node "Backend — Performance" {
+  [priceOracle «Singleton»\nCachedPriceOracle «Decorator TTL»] as CacheOracle
+}
 
-' ─── ADAPTER ───────────────────────────────────────────────────
+' ─── ADAPTER (fuente simulada) ──────────────────────────────────
 node "Backend — Adapters" {
   [SimulatedOracleAdapter] as SimOracle
-  [ChainlinkOracleAdapter] as ChainOracle
-  
 }
 
-' ─── SERVICIO DE CONSULTA ──────────────────────────────────────
-node "Backend — Services" {
-  [OfertaQueryService] as OQuery
-  
-}
-
-' ─── CONTROLADOR ───────────────────────────────────────────────
-node "Backend — Controllers" {
-  [MarketplaceController] as MktCtrl
-  
-}
-
-' ─── ENTIDAD / MODELO ──────────────────────────────────────────
+' ─── MODELO ─────────────────────────────────────────────────────
 node "Backend — Domain Model" {
-  [OfertaLending] as OfertaModel
-  
+  [Offer (Sequelize)] as OfferModel
 }
 
-' ─── BASE DE DATOS ─────────────────────────────────────────────
 database "PostgreSQL" as PG {
-  [tabla: OFERTA_LENDING] as TblOferta
+  [tabla: offers] as TblOffers
 }
 
-' ─── FUENTE EXTERNA ────────────────────────────────────────────
-[OracleService\n(externo)] as ExtOracle
+' ─── RELACIONES ─────────────────────────────────────────────────
+MktPage     --> PricesCtx   : usa precios cacheados
+PricesCtx   --> MktCtrl     : GET /api/marketplace/prices
+MktPage     --> MktCtrl     : GET /api/marketplace/offers
 
-' ─── RELACIONES ────────────────────────────────────────────────
-MktPage       --> FilterBar         : usa
-MktPage       --> OfertaCard        : renderiza lista
+MktCtrl     ..> IOracle     : «depends on» (DIP)
+CacheOracle ..|> IOracle    : «implements» (Decorator transparente)
+SimOracle   ..|> IOracle    : «implements» (Adapter)
+CacheOracle --> SimOracle   : delega en MISS / TTL vencido
 
-MktPage       ..> IOracle           : «depends on»\n(props inyectadas)
-SimOracle     ..|> IOracle          : «implements»
-ChainOracle   ..|> IOracle          : «implements»
-SimOracle     --> ExtOracle         : invoca fuente externa
-ChainOracle   --> ExtOracle         : invoca fuente externa
+MktCtrl     --> OfferModel  : Offer.findAll(where, include User)
+OfferModel  ..> TblOffers   : SELECT con filtros
 
-MktPage       --> MktCtrl           : GET /marketplace/ofertas
-
-MktCtrl       ..> IOracle           : «depends on»
-MktCtrl       --> OQuery            : delega filtrado
-OQuery        --> OfertaModel       : opera sobre
-OQuery        --> TblOferta         : SELECT con filtros
-OfertaModel   ..> TblOferta         : mapeado
+note bottom of SimOracle
+  Decisión de alcance: fuente de precios SIMULADA y determinista
+  (volatility=0). Un ChainlinkOracleAdapter real implementaría
+  la misma IPriceOracle sin tocar el controlador (OCP) — futuro.
+end note
 
 @enduml

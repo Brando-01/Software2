@@ -1,5 +1,5 @@
 @startuml HU-04_Publicar_Solicitud_Prestamo
-title HU-04 — Publicar Solicitud de Préstamo\nDeFi360 · Sprint 1 · Release 01
+title HU-04 — Publicar Solicitud de Préstamo (Componentes)\nDeFi360 · Sprint 1 · Release 01
 
 skinparam componentStyle rectangle
 skinparam backgroundColor #FAFAFA
@@ -25,85 +25,75 @@ skinparam arrow {
   FontSize 10
 }
 
-' ─── FRONTEND ──────────────────────────────────────────────────
-node "Frontend (React)" {
-  [LoanRequestForm.jsx] as LoanForm
-  
+' ─── FRONTEND ───────────────────────────────────────────────────
+node "Frontend (React SPA)" {
+  [main.jsx — Solicitud / LTV] as LoanForm
 }
 
-' ─── CONTROLADOR ───────────────────────────────────────────────
+' ─── CONTROLADOR ────────────────────────────────────────────────
 node "Backend — Controllers" {
-  [LoanController] as LoanCtrl
-  
+  [loanController\n(requestLoan / calculateLTV / matchLoan)] as LoanCtrl
 }
 
-' ─── INTERFACES (DIP) ──────────────────────────────────────────
+' ─── INTERFACES (DIP) ───────────────────────────────────────────
+interface "IPriceOracle" as IOracle
+interface "ICollateralService" as IColat
 interface "ILoanFactory" as ILoanFact
-interface "IColateralService" as IColat
-interface "ILTVCalculator" as ILTV
 
+' ─── SERVICIOS ──────────────────────────────────────────────────
+node "Backend — Services" {
+  [CollateralService] as ColSvc
+  [LTVCalculatorService] as LTVSvc
+  [priceOracle «Singleton»\n(Cached + Simulated)] as Oracle
+}
 
-
-
-' ─── IMPLEMENTACIONES FACTORY ──────────────────────────────────
+' ─── FACTORIES (Factory Method) ─────────────────────────────────
 node "Backend — Factories" {
+  [LoanFactory] as LoanFact
   [FixedRateLoanFactory] as FixedFact
   [VariableRateLoanFactory] as VarFact
-  
 }
 
-' ─── SERVICIO COLATERAL ────────────────────────────────────────
-node "Backend — Services" {
-  [ColateralLockService] as ColSvc
-  [LTVCalculatorService] as LTVSvc
-  
-}
-
-' ─── MODELO / ENTIDAD ──────────────────────────────────────────
+' ─── MODELO ─────────────────────────────────────────────────────
 node "Backend — Domain Model" {
-  [Prestamo] as PrestamoModel
-  [LTVResult] as LTVRes
-  
+  [Offer] as OfferModel
+  [Loan] as LoanModel
 }
 
-' ─── INFRAESTRUCTURA ───────────────────────────────────────────
-node "Backend — Infrastructure" {
-  [WalletManager] as WalletMgr
-  [DatabaseConnection\n«Singleton»] as DBConn
-}
-
-' ─── BASE DE DATOS ─────────────────────────────────────────────
 database "PostgreSQL" as PG {
-  [tabla: PRESTAMO] as TblPrestamo
-  [tabla: COLATERAL] as TblColateral
+  [tabla: offers] as TblOffers
+  [tabla: loans] as TblLoans
 }
 
-' ─── PRUEBAS ───────────────────────────────────────────────────
-node "Tests (Jest / JUnit)" {
-  [LTVCalculatorService.test] as LTVTest
-  
+' ─── PRUEBAS ────────────────────────────────────────────────────
+node "Tests (Jest)" {
+  [CollateralService.test.js] as ColTest
+  [simulateController.test.js] as SimTest
 }
 
-' ─── RELACIONES ────────────────────────────────────────────────
-LoanForm      --> LoanCtrl          : POST /loans/solicitar
+' ─── RELACIONES ─────────────────────────────────────────────────
+LoanForm   --> LoanCtrl   : POST /api/loans/request · /calculate-ltv · /match/{id}
 
-LoanCtrl      ..> ILoanFact         : «depends on»
-LoanCtrl      ..> IColat            : «depends on»
-LoanCtrl      ..> ILTV              : «depends on»
+LoanCtrl   ..> IColat     : «depends on» (requestLoan/calculateLTV)
+LoanCtrl   ..> ILoanFact  : «depends on» (matchLoan)
+LoanCtrl   ..> LTVSvc     : calculateLTV (static, SRP)
 
-FixedFact     ..|> ILoanFact        : «implements»
-VarFact       ..|> ILoanFact        : «implements»
-ColSvc        ..|> IColat           : «implements»
-LTVSvc        ..|> ILTV             : «implements»
+ColSvc     ..|> IColat    : «implements»
+ColSvc     ..> IOracle    : «depends on» (DIP)
+Oracle     ..|> IOracle   : «implements» (Cached+Simulated)
 
-ILoanFact     --> PrestamoModel     : crea
-ILTV          --> LTVRes            : retorna
-ColSvc        --> WalletMgr         : delega bloqueo físico
-LoanCtrl      --> DBConn            : guarda préstamo
+LoanFact   ..|> ILoanFact : «implements»
+FixedFact  ..|> ILoanFact : «implements»
+VarFact    ..|> ILoanFact : «implements»
+LoanFact   --> FixedFact  : delega (rateType fixed)
+LoanFact   --> VarFact    : delega (rateType variable)
 
-DBConn        --> TblPrestamo       : INSERT
-DBConn        --> TblColateral      : UPDATE (bloqueo)
+LoanCtrl   --> OfferModel : Offer.create (requestLoan)
+LoanFact   --> LoanModel  : Loan.create (Factory Method)
+OfferModel ..> TblOffers  : INSERT
+LoanModel  ..> TblLoans   : INSERT
 
-LTVTest       --> LTVSvc            : prueba unitaria
+ColTest    ..> ColSvc     : prueba DIP (oráculo mock)
+SimTest    --> LoanCtrl   : prueba /simulate
 
 @enduml

@@ -1,0 +1,64 @@
+@startuml HU11_ScoreCrediticio_secuencia
+title HU-11 — Score crediticio del prestatario\nStrategy
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #2E75B6
+skinparam sequenceParticipantBackgroundColor #EBF3FB
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+
+actor       "Prestamista"                      as Lender
+boundary    "Frontend (React)"                 as UI
+control     "creditScoreController"            as CC
+participant "authMiddleware (protect)"         as MW
+participant "CreditScoreService"               as CSS
+participant "ICreditScoringStrategy"           as ICS
+participant "PaymentHistoryScoringStrategy\n<<Strategy>>" as PHS
+database    "PostgreSQL\n(ledger_entries, loans)" as DB
+
+autonumber
+
+note over CSS, ICS
+  Cálculo on-demand. CreditScoreService depende de ICreditScoringStrategy (DIP).
+  La estrategia usa pesos/umbrales configurables (OCP): categorías
+  poor<500, fair<650, good<750, excellent. Base neutro 650 (fair) sin historial.
+end note
+
+Lender -> UI : Ver score del prestatario
+UI -> CC : GET /api/users/{id}/credit-score (JWT)
+CC -> MW : protect
+MW --> CC : req.user
+
+CC -> CSS : getScore(userId)
+activate CSS
+CSS -> DB : LedgerEntry.findAll({ userId, type:'PAYMENT' })
+DB --> CSS : pagos
+CSS -> DB : Loan.findAll({ borrowerId: userId })
+DB --> CSS : préstamos (estado: paid / defaulted)
+CSS -> CSS : buildHistory(): { onTime, late, defaults }
+
+CSS -> ICS : score(history)
+ICS -> PHS : score(history)
+activate PHS
+alt sin historial
+    PHS --> CSS : { score: 650, category: 'fair' }
+else con historial
+    PHS -> PHS : aplica pesos (pagos a tiempo +, moras -)
+    PHS -> PHS : categorize(score)
+    PHS --> CSS : { score, category }
+end
+deactivate PHS
+
+CSS --> CC : { userId, score, category }
+deactivate CSS
+CC --> UI : 200 { score, category }
+UI --> Lender : Score y categoría (enriquece ofertas/recomendaciones)
+
+note over Lender, DB
+  El score alimenta CreditScoreSpec en HU-15 (auto-match).
+  QA: CreditScoreService.test.js (buen pagador >=750 excellent,
+  moroso <500 poor, sin historial 650 fair, complejidad ciclomática >4).
+end note
+
+@enduml

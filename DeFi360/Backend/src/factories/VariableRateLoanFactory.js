@@ -1,15 +1,10 @@
-/**
- * VariableRateLoanFactory: Factory para crear préstamos con tasa variable
- * Implementa patrón Factory Method
- * SOLID: OCP - Permite extensión sin modificar LoanController
- */
 const ILoanFactory = require('../interfaces/ILoanFactory');
 const { Loan } = require('../models');
 
 class VariableRateLoanFactory extends ILoanFactory {
     constructor(rateAdjustmentPeriod = 30) {
         super();
-        this.rateAdjustmentPeriod = rateAdjustmentPeriod; // días para reajuste de tasa
+        this.rateAdjustmentPeriod = rateAdjustmentPeriod;
     }
 
     async createFromOffer(offer, lenderId, borrowerId) {
@@ -21,24 +16,22 @@ class VariableRateLoanFactory extends ILoanFactory {
             Date.now() + offer.duration * 24 * 60 * 60 * 1000
         );
 
-        const ltv = offer.collateralAmount 
-            ? ((offer.amount / (offer.collateralAmount * 3000)) * 100).toFixed(2) 
+        const ltv = offer.collateralAmount
+            ? ((offer.amount / (offer.collateralAmount * 3000)) * 100).toFixed(2)
             : null;
 
-        // Calcular fecha de próximo reajuste de tasa
         const nextRateAdjustmentDate = new Date(
             Date.now() + this.rateAdjustmentPeriod * 24 * 60 * 60 * 1000
         );
 
-        // Crear préstamo con tasa variable
         const loan = await Loan.create({
             lenderId,
             borrowerId,
             offerId: offer.id,
             amount: offer.amount,
             apy: offer.apy,
-            baseApy: offer.apy, // Guardar APY base para cálculos
-            rateType: 'variable', // Tasa variable
+            baseApy: offer.apy,
+            rateType: 'variable',
             rateAdjustmentPeriod: this.rateAdjustmentPeriod,
             nextRateAdjustmentDate,
             duration: offer.duration,
@@ -51,16 +44,13 @@ class VariableRateLoanFactory extends ILoanFactory {
         return loan;
     }
 
-    /**
-     * Método adicional para crear préstamo con parámetros directos
-     */
     async createLoan(config) {
-        const { 
-            lenderId, 
-            borrowerId, 
-            amount, 
-            apy, 
-            duration, 
+        const {
+            lenderId,
+            borrowerId,
+            amount,
+            apy,
+            duration,
             collateralAmount,
             offerId = null,
             rateAdjustmentPeriod = this.rateAdjustmentPeriod
@@ -74,7 +64,7 @@ class VariableRateLoanFactory extends ILoanFactory {
             Date.now() + duration * 24 * 60 * 60 * 1000
         );
 
-        const ltv = collateralAmount 
+        const ltv = collateralAmount
             ? ((amount / (collateralAmount * 3000)) * 100).toFixed(2)
             : null;
 
@@ -102,13 +92,9 @@ class VariableRateLoanFactory extends ILoanFactory {
         return loan;
     }
 
-    /**
-     * Ajusta la tasa de un préstamo variable según el mercado
-     * (Podría basarse en un oracle de tasas)
-     */
     async adjustRate(loan, newApy) {
         const adjustment = ((newApy - loan.apy) / loan.apy * 100).toFixed(2);
-        
+
         return {
             oldApy: loan.apy,
             newApy,

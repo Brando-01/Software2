@@ -1,0 +1,62 @@
+@startuml HU10_LibroMayor_secuencia
+title HU-10 — Libro mayor y estado de cuenta\nRepository + append-only
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #2E75B6
+skinparam sequenceParticipantBackgroundColor #EBF3FB
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+
+actor       "Usuario"                          as User
+boundary    "Frontend (React)"                 as UI
+control     "ledgerController"                 as LC
+participant "authMiddleware (protect)"         as MW
+participant "LedgerService <<Repository>>"     as LED
+database    "PostgreSQL\n(ledger_entries)"     as DB
+
+autonumber
+
+note over LC, LED
+  El libro mayor es append-only: solo INSERT. Cada movimiento de dinero
+  (DISBURSEMENT, PAYMENT, LIQUIDATION, LOCK, RELEASE) genera 1 asiento con
+  su balanceAfter. Productores: Factory (desembolso), PaymentProcessor (pago),
+  LiquidationService (liquidación). Aquí se consultan.
+end note
+
+== Mis asientos (paginado) ==
+User -> UI : Ver libro mayor
+UI -> LC : GET /api/ledger?page=1&size=20 (JWT)
+LC -> MW : protect
+MW --> LC : req.user
+LC -> LED : getEntries(req.user.id, page, size)
+activate LED
+LED -> DB : LedgerEntry.findAndCountAll({ where: userId,\n order: created_at DESC, limit, offset })
+note right of DB
+  Índice (user_id, created_at)
+  acelera la paginación.
+end note
+DB --> LED : { rows, count }
+LED --> LC : { entries, total, page }
+deactivate LED
+LC --> UI : 200 { entries, pagination }
+
+== Estado de cuenta consolidado ==
+UI -> LC : GET /api/ledger/statement (JWT)
+LC -> LED : getStatement(req.user.id)
+activate LED
+LED -> DB : SUM(amount) GROUP BY type  (DISBURSEMENT/PAYMENT/LIQUIDATION)
+DB --> LED : totales por tipo
+LED -> LED : balance = ultimo balanceAfter
+LED --> LC : { totalPrestado, totalPagado, totalLiquidado, saldo }
+deactivate LED
+LC --> UI : 200 { statement }
+UI --> User : Totales por tipo y saldo resultante
+
+note over User, DB
+  Append-only: no hay endpoint de UPDATE/DELETE de asientos.
+  QA: LedgerService.test.js (asiento por pago, statement agregado,
+  inmutabilidad). Escenario de calidad 5 (auditabilidad).
+end note
+
+@enduml

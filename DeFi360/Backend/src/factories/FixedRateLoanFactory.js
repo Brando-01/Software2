@@ -1,8 +1,3 @@
-/**
- * FixedRateLoanFactory: Factory para crear préstamos con tasa fija
- * Implementa patrón Factory Method
- * SOLID: OCP - Añadir nuevos tipos de préstamos sin modificar LoanController
- */
 const ILoanFactory = require('../interfaces/ILoanFactory');
 const { Loan } = require('../models');
 
@@ -16,18 +11,17 @@ class FixedRateLoanFactory extends ILoanFactory {
             Date.now() + offer.duration * 24 * 60 * 60 * 1000
         );
 
-        const ltv = offer.collateralAmount 
-            ? ((offer.amount / (offer.collateralAmount * 3000)) * 100).toFixed(2) 
+        const ltv = offer.collateralAmount
+            ? ((offer.amount / (offer.collateralAmount * 3000)) * 100).toFixed(2)
             : null;
 
-        // Crear préstamo con tasa fija
         const loan = await Loan.create({
             lenderId,
             borrowerId,
             offerId: offer.id,
             amount: offer.amount,
             apy: offer.apy,
-            rateType: 'fixed', // Tasa fija
+            rateType: 'fixed',
             duration: offer.duration,
             ltv,
             remainingBalance: offer.amount,
@@ -38,18 +32,15 @@ class FixedRateLoanFactory extends ILoanFactory {
         return loan;
     }
 
-    /**
-     * Método adicional para crear préstamo con parámetros directos (sin offer)
-     */
     async createLoan(config) {
-        const { 
-            lenderId, 
-            borrowerId, 
-            amount, 
-            apy, 
-            duration, 
+        const {
+            lenderId,
+            borrowerId,
+            amount,
+            apy,
+            duration,
             collateralAmount,
-            offerId = null 
+            offerId = null
         } = config;
 
         if (!lenderId || !borrowerId || !amount || !apy || !duration) {
@@ -60,7 +51,7 @@ class FixedRateLoanFactory extends ILoanFactory {
             Date.now() + duration * 24 * 60 * 60 * 1000
         );
 
-        const ltv = collateralAmount 
+        const ltv = collateralAmount
             ? ((amount / (collateralAmount * 3000)) * 100).toFixed(2)
             : null;
 

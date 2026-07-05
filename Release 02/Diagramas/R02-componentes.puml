@@ -1,0 +1,187 @@
+@startuml DeFi360 R02 - Diagrama de Componentes
+skinparam componentStyle uml2
+skinparam linetype ortho
+skinparam shadowing false
+skinparam component {
+    BackgroundColor #F8FAFB
+    BorderColor #2C3E50
+    FontColor #1B2631
+}
+skinparam interface {
+    BackgroundColor #FFFFFF
+    BorderColor #2C3E50
+}
+skinparam database {
+    BackgroundColor #FFF8E7
+    BorderColor #B9770E
+}
+skinparam node {
+    BackgroundColor #F4F6F7
+    BorderColor #5D6D7E
+}
+
+title DeFi360 — Diagrama de Componentes (arquitectura 3 capas · Release 02)
+
+actor Usuario
+
+' =====================================================================
+'  CAPA CLIENTE
+' =====================================================================
+node "Cliente Web (futuro · Claude Design)" {
+    component "Frontend Web (React SPA)" as Frontend <<React>>
+    note bottom of Frontend
+      R02: el frontend se construye luego.
+      Consume la misma API REST: bandeja de
+      notificaciones, libro mayor, score,
+      panel de observabilidad, preferencias.
+    end note
+}
+
+interface "API REST /api (HTTP+JSON)" as REST
+
+' =====================================================================
+'  CAPA BACKEND (Express)
+' =====================================================================
+node "Servidor Backend (Express · src/app.js)" {
+
+    package "Controllers (src/controllers)" {
+        component "authController\n/api/auth" as Auth <<controller>>
+        component "marketplaceController\n/api/marketplace" as Market <<controller>>
+        component "loanController\n/api/loans" as Loan <<controller>>
+        component "supportController\n/api/support" as Support <<controller>>
+        component "ledgerController\n/api/ledger" as Ledger <<controller·R02>>
+        component "creditScoreController\n/api/users/:id/credit-score" as Credit <<controller·R02>>
+        component "notificationController\n/api/notifications" as Notif <<controller·R02>>
+        component "metricsController\n/api/health · /ready · /metrics" as Metrics <<controller·R02>>
+    }
+
+    package "Middleware" {
+        component "authMiddleware\nprotect + authorize(...roles)\n(Chain of Responsibility)" as Mw <<middleware>>
+        component "rateLimiter\n(>100 req/min => 429)" as RL <<middleware·R02>>
+    }
+
+    package "Services / Patrones (src/services)" {
+        component "AuthService (JWT + bcrypt)" as AuthSvc <<service>>
+        component "CollateralService (DIP)" as Collateral <<service>>
+        component "LTVCalculatorService" as LTV <<calculation>>
+        component "StandardPaymentProcessor\n(IPaymentProcessor)" as Pay <<service>>
+        component "priceOracle (Singleton)\nCircuitBreaker(Cache(Adapter))" as Oracle <<singleton>>
+        component "MonitorRiesgo + RiskMonitoringService\n(scheduler setInterval)" as Risk <<monitor>>
+        component "LogObserver / NotificationObserver\n(Observer)" as Observers <<observer>>
+        component "LTVRiskStrategy (Strategy)" as Strategy <<strategy>>
+        component "LiquidationService\n(State + LiquidateCommand)" as Liq <<service·R02>>
+        component "LedgerService\n(Repository, append-only)" as LedgerSvc <<service·R02>>
+        component "CreditScoreService\n(Strategy: PaymentHistory)" as CreditSvc <<service·R02>>
+        component "NotificationService\n(Observer + canal InApp/Email)" as NotifSvc <<service·R02>>
+        component "RecommendationService + MatchingService\n(Specification)" as Reco <<service·R02>>
+        component "MetricsService\n(Health Endpoint Monitoring)" as MetricsSvc <<service·R02>>
+    }
+
+    package "Factories (src/factories)" {
+        component "LoanFactory (Fixed / Variable)" as Factory <<factory>>
+    }
+}
+
+' =====================================================================
+'  EXTERNOS / SIMULADOS
+' =====================================================================
+component "SimulatedOracleAdapter\n(precios SIMULADOS)" as SimOracle <<simulado>>
+collections "MockWalletConnector\n(connect-wallet simulado)" as MockWallet <<simulado>>
+database "PostgreSQL (DeFi360)\nvía Sequelize" as DB <<PostgreSQL>>
+component "DatabaseConnection (Singleton)\nsrc/config/database.js" as DBConn <<singleton>>
+
+' =====================================================================
+'  NOTAS DE TÁCTICAS / PATRONES CLOUD
+' =====================================================================
+note bottom of Oracle
+  R02 — RESILIENCIA (patrón cloud):
+  CircuitBreakerOracle( CachedPriceOracle(
+  SimulatedOracleAdapter ) ), todos IPriceOracle.
+  CLOSED->OPEN->HALF_OPEN + retry().
+end note
+note right of RL
+  R02 — SEGURIDAD/DISPONIBILIDAD:
+  Rate Limiting/Throttling.
+end note
+note right of Metrics
+  R02 — OBSERVABILIDAD (patrón cloud):
+  Health Endpoint Monitoring
+  (/health liveness, /ready readiness, /metrics).
+end note
+
+' =====================================================================
+'  RELACIONES
+' =====================================================================
+Usuario --> Frontend
+Frontend --> REST
+REST ..> Auth
+REST ..> Market
+REST ..> Loan
+REST ..> Support
+REST ..> Ledger
+REST ..> Credit
+REST ..> Notif
+REST ..> Metrics
+
+' Middleware: rate limit (entrada) + RBAC
+REST ..> RL : throttling global
+Loan ..> Mw : protect + authorize('admin') (liquidate)
+Market ..> Mw : protect
+Support ..> Mw : protect
+Auth ..> Mw : protect + authorize('admin') (role)
+Ledger ..> Mw : protect
+Credit ..> Mw : protect
+Notif ..> Mw : protect
+Metrics ..> Mw : protect + authorize('admin') (/metrics)
+
+' Controladores -> servicios
+Auth ..> AuthSvc
+Auth ..> MockWallet : DIP IWalletConnector
+Market ..> Oracle : getPrice/getPrices
+Market ..> Reco : recommendations / auto-match
+Loan ..> Collateral
+Loan ..> LTV
+Loan ..> Factory : matchLoan
+Loan ..> Pay : payLoan
+Loan ..> Oracle : simulate
+Loan ..> Liq : liquidate (HU-09)
+Ledger ..> LedgerSvc
+Credit ..> CreditSvc
+Notif ..> NotifSvc
+Metrics ..> MetricsSvc
+
+' Servicios entre sí
+Collateral ..> Oracle : DIP (IPriceOracle)
+Oracle --> SimOracle : delega (cache MISS / breaker)
+Risk ..> Strategy : evaluate
+Risk ..> Observers : onRiskEvent
+Risk ..> Oracle : getPrice (monitoreo)
+Risk ..> Liq : crítico => liquidación automática
+Risk ..> NotifSvc : evento de riesgo => notificación
+Liq ..> LedgerSvc : asiento LIQUIDATION
+Liq ..> NotifSvc : avisa partes
+Pay ..> LedgerSvc : asiento PAYMENT
+Factory ..> LedgerSvc : asiento DISBURSEMENT (al crear préstamo)
+Reco ..> CreditSvc : CreditScoreSpec
+Reco ..> Factory : auto-match crea préstamo
+CreditSvc ..> LedgerSvc : historial de pagos
+NotifSvc ..> Observers : registrado como observer de riesgo
+
+' Observabilidad lee estado de patrones
+MetricsSvc ..> Oracle : getStats / getState (cache + breaker)
+MetricsSvc ..> RL : getStats
+MetricsSvc ..> DBConn : ping (readiness)
+
+' Persistencia
+Auth --> DBConn
+Loan --> DBConn
+Market --> DBConn
+Support --> DBConn
+Pay --> DBConn
+Liq --> DBConn
+LedgerSvc --> DBConn
+NotifSvc --> DBConn
+Reco --> DBConn
+DBConn --> DB : Sequelize (instancia única)
+
+@enduml

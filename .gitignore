@@ -1,0 +1,24 @@
+# Herramientas de asistencia / continuidad (no se versionan)
+.claude/
+CLAUDE.md
+
+# Generadores de documentación
+/_img/
+
+# Documentación de releases (al repo solo van código y diagramas)
+/Release 01/
+/Release 02/Reportes/
+/Release 02/Documentos/
+/Release 02/Guiones/
+/Release 02/_generadores/
+/Release 02/Rubrica_Release02.md
+
+# Node / entorno
+node_modules/
+.env
+*.log
+coverage/
+
+# Trazabilidad (documentación de apoyo, no se versiona)
+Diagramas/TRAZABILIDAD_DIAGRAMAS.md
+/Release 02/Diagramas/TRAZABILIDAD_R02.md

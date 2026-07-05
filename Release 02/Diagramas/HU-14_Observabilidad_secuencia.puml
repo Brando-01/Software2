@@ -1,0 +1,74 @@
+@startuml HU14_Observabilidad_secuencia
+title HU-14 — Dashboard de observabilidad\nHealth Endpoint Monitoring
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderColor #2E75B6
+skinparam sequenceParticipantBackgroundColor #EBF3FB
+skinparam noteBorderColor #F0A500
+skinparam noteBackgroundColor #FFF8E1
+
+actor       "Admin / SM"                       as Admin
+boundary    "Frontend (React)"                 as UI
+control     "metricsController"                as MC
+participant "protect + authorize('admin')"     as MW
+participant "MetricsService"                   as MS
+participant "priceOracle\nCircuitBreaker + Cache" as ORA
+participant "rateLimiter"                       as RL
+participant "DatabaseConnection (Singleton)"    as DBC
+database    "PostgreSQL\n(loans, liquidations,\nnotifications)" as DB
+
+autonumber
+
+note over MC, MS
+  Health Endpoint Monitoring (patrón cloud):
+  /health = liveness (sin deps), /ready = readiness (DB + oráculo),
+  /metrics = agregado (protegido por RBAC admin).
+end note
+
+== Liveness ==
+Admin -> UI : Panel de salud
+UI -> MC : GET /api/health
+MC -> MS : getHealth()
+MS --> MC : { status:'ok', uptime, timestamp }
+MC --> UI : 200 (sin verificar dependencias)
+
+== Readiness ==
+UI -> MC : GET /api/ready
+MC -> MS : getReadiness()
+activate MS
+MS -> DBC : sequelize.authenticate() (ping)
+DBC -> DB : SELECT 1
+DB --> DBC : OK
+DBC --> MS : db: 'up'
+MS -> ORA : getState() (circuit breaker)
+ORA --> MS : { state:'CLOSED' }
+MS --> MC : { db:'up', oracle:'CLOSED' }
+deactivate MS
+MC --> UI : 200 / 503 según dependencias
+
+== Métricas (admin) ==
+UI -> MW : GET /api/metrics (JWT admin)
+MW -> MC : authorize('admin') -> next()
+MC -> MS : getMetrics()
+activate MS
+MS -> ORA : getStats() (cache hitRate)
+ORA --> MS : { hits, misses, hitRate }
+MS -> ORA : getState() (breaker)
+ORA --> MS : { state, failureCount }
+MS -> RL : getStats()
+RL --> MS : { throttled, windowMs }
+MS -> DB : COUNT loans GROUP BY status
+DB --> MS : { active, paid, defaulted, liquidated }
+MS -> DB : COUNT notifications / liquidations
+DB --> MS : conteos
+MS --> MC : { cache, breaker, rateLimit,\n loansByStatus, notifications, liquidations }
+deactivate MS
+MC --> UI : 200 (<100 ms)  (escenario de calidad 6)
+
+note over Admin, DB
+  /metrics requiere rol admin (HU-13). QA: MetricsService.test.js
+  (health vivo, readiness deps, métricas agregadas).
+end note
+
+@enduml
