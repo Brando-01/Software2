@@ -1,28 +1,66 @@
 const CreditScoreService = require('../services/CreditScoreService');
 
-const  defaultCreditScoreService = new CreditScoreService();
+const defaultCreditScoreService = new CreditScoreService();
 
+/**
+
+ * @param {CreditScoreService} creditScoreService 
+ * @returns {Function} 
+ */
 const getCreditScore = (creditScoreService = defaultCreditScoreService) => async (req, res) => {
   try {
-    const userId = parseInt(req.params.id, 10);
-    if (Number.isNaN(userId)) {
+    if (!req.params.id) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Se requiere el ID del usuario' 
+      });
+    }
 
-      return res.status(400).json({ message: 'id de usuario inválido' });
+    const userId = parseInt(req.params.id, 10);
+    if (Number.isNaN(userId) || userId <= 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'ID de usuario inválido' 
+      });
     }
 
     const result = await creditScoreService.getScore(userId);
-    res.json({ success: true, ...result });
+    
+    res.json({ 
+      success: true, 
+      ...result 
+    });
+    
   } catch (error) {
-    console.error('[getCreditScore]', error.message);
-     res.status(500).json({ message: 'Error al calcular el score crediticio' });
-  
+    console.error('[getCreditScore] Error:', {
+      message: error.message,
+      stack: error.stack,
+      userId: req.params.id
+    });
+
+    if (error.message === 'userId is required') {
+      return res.status(400).json({ 
+        success: false,
+        message: 'ID de usuario requerido' 
+      });
     }
+
+    res.status(500).json({ 
+      success: false,
+      message: 'Error al calcular el score crediticio' 
+    });
+  }
 };
 
 module.exports = {
   getCreditScore: getCreditScore(),
-  _factories: { getCreditScore }
+  
+  createCreditScoreHandler: getCreditScore,
+  
+  defaultCreditScoreService,
+  
 
-
-
+  _factories: { 
+    getCreditScore 
+  }
 };

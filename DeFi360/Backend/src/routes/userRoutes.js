@@ -5,8 +5,17 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-router.get('/:id/credit-score', protect, getCreditScore);
+router.get(
+  '/:id/credit-score', 
+  protect, 
+  getCreditScore
+);
 
-router.patch('/:id/role', protect, authorize('admin'), updateRole);
+router.patch(
+  '/:id/role', 
+  protect, 
+  authorize('admin'), 
+  updateRole
+);
 
 module.exports = router;

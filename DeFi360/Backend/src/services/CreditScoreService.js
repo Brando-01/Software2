@@ -8,7 +8,12 @@ class CreditScoreService {
     this.loanModel = models.Loan || Loan;
   }
 
-    async buildHistory(userId) {
+  async buildHistory(userId) {
+    // Validar userId
+    if (!userId && userId !== 0) {
+      throw new Error('userId is required');
+    }
+
     const payments = await this.ledgerModel.findAll({
       where: { userId, type: 'PAYMENT' }
     });
@@ -17,8 +22,9 @@ class CreditScoreService {
       where: { borrowerId: userId }
     });
 
-     let late = 0;
+    let late = 0;
     let defaults = 0;
+    
     for (const loan of loans) {
       if (loan.status === 'defaulted') defaults++;
       else if (loan.status === 'liquidated') late++;
@@ -31,10 +37,24 @@ class CreditScoreService {
     };
   }
 
-    async getScore(userId) {
+  async getScore(userId) {
+    
+    if (!userId && userId !== 0) {
+      throw new Error('userId is required');
+    }
+
     const history = await this.buildHistory(userId);
     const { score, category } = this.strategy.score(history);
-    return { userId: parseInt(userId, 10), score, category, history };
+    
+    // Manejar userId de forma segura
+    const parsedUserId = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    
+    return { 
+      userId: isNaN(parsedUserId) ? userId : parsedUserId, 
+      score, 
+      category, 
+      history 
+    };
   }
 }
 
