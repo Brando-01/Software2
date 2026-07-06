@@ -4,4 +4,5 @@ class ICreditScoringStrategy {
   }
  }
 
-module.exports = ICreditScoringStrategy;
+
+ module.exports = ICreditScoringStrategy;
