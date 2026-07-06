@@ -13,8 +13,6 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
 
 
 
-describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
-
     describe('MonitorRiesgo - Gestión de Observers', () => {
         let monitor;
         let mockObserver;
@@ -77,10 +75,8 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
             monitor.subscribe(mockObserver);
         });
 
-        it('✅ Debería disparar RISK_ALERT_HIGH cuando LTV >= 90%', async () => {
-            const loanMock = {
         it('Debería disparar RISK_ALERT_HIGH cuando LTV >= 90%', async () => {
-            const loanMock = { 
+            const loanMock = {
                 id: 101,
                 borrowerId: 'user1',
                 lenderId: 'user2',
@@ -90,7 +86,6 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
             };
 
             await monitor.evaluateLoanRisk(loanMock, 3000);
-            await monitor.evaluateLoanRisk(loanMock, 3000); 
 
             const alerts = mockObserver.events.filter(e => e.type === 'RISK_ALERT_HIGH');
             assert.strictEqual(alerts.length, 1, 'Debe haber 1 alerta de RIESGO_ALTO');
@@ -98,10 +93,8 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
             assert.strictEqual(alerts[0].severity, 'HIGH');
         });
 
-        it('✅ Debería disparar RISK_ALERT_CRITICAL cuando LTV >= 95%', async () => {
-            const loanMock = {
         it('Debería disparar RISK_ALERT_CRITICAL cuando LTV >= 95%', async () => {
-            const loanMock = { 
+            const loanMock = {
                 id: 102,
                 borrowerId: 'user1',
                 lenderId: 'user2',
@@ -112,17 +105,14 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
 
             await monitor.evaluateLoanRisk(loanMock, 3000);
 
-            await monitor.evaluateLoanRisk(loanMock, 3000); 
             const alerts = mockObserver.events.filter(e => e.type === 'RISK_ALERT_CRITICAL');
             assert.strictEqual(alerts.length, 1, 'Debe haber 1 alerta CRÍTICA');
             assert.strictEqual(alerts[0].ltv, 95, 'LTV debe ser 95%');
             assert.strictEqual(alerts[0].severity, 'CRITICAL');
         });
 
-        it('✅ NO debería disparar alertas cuando LTV < 90%', async () => {
-            const loanMock = {
         it('NO debería disparar alertas cuando LTV < 90%', async () => {
-            const loanMock = { 
+            const loanMock = {
                 id: 103,
                 borrowerId: 'user1',
                 lenderId: 'user2',
@@ -132,7 +122,6 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
             };
 
             await monitor.evaluateLoanRisk(loanMock, 3000);
-            await monitor.evaluateLoanRisk(loanMock, 3000); 
 
             const alerts = mockObserver.events.filter(e =>
                 e.type === 'RISK_ALERT_HIGH' || e.type === 'RISK_ALERT_CRITICAL'
@@ -312,7 +301,6 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
 
 
 
-    
     describe('Criterios de Aceptación Gherkin - HU-08', () => {
         let service;
 
@@ -336,8 +324,6 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
             await service.evaluateLoanRisk(loan, 3000);
 
 
-            await service.evaluateLoanRisk(loan, 3000);
-
             const auditLog = service.getAuditLog(800);
             const alerts = auditLog.filter(e => e.type === 'RISK_ALERT_HIGH');
             assert.strictEqual(alerts.length, 1, 'Debe disparar RIESGO_ALTO');
@@ -357,8 +343,6 @@ describe('T-14 / HU-08: Patrón Observer - Monitoreo de Riesgos', () => {
 
             await service.evaluateLoanRisk(loan, 3000);
 
-
-            await service.evaluateLoanRisk(loan, 3000);
 
             const auditLog = service.getAuditLog(801);
             const alerts = auditLog.filter(e => e.type === 'RISK_ALERT_CRITICAL');
