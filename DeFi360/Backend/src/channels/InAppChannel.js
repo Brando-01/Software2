@@ -1,5 +1,5 @@
 const INotificationChannel = require('../interfaces/INotificationChannel');
-
+//usando principios de clases
 class InAppChannel extends INotificationChannel {
   get name() {
     return 'in_app';
@@ -10,4 +10,5 @@ class InAppChannel extends INotificationChannel {
   }
 }
 // Acá se modifica dentro de la app
+//Se exporta todos los modulos para el InAppChannel
 module.exports = InAppChannel;
