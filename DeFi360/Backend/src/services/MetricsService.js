@@ -1,14 +1,17 @@
-const { Loan, Notification, Liquidation } = require('../models');
+const { Loan, Notification, Liquidation, LedgerEntry } = require('../models');
 const { sequelize } = require('../config/database');
 const priceOracle = require('./priceOracle');
 const { getStats: getRateLimitStats } = require('../middleware/rateLimiter');
+
+const LOAN_STATUSES = ['active', 'paid', 'defaulted', 'liquidated'];
 
 class MetricsService {
   constructor(deps = {}) {
     this.models = {
       Loan: deps.Loan || Loan,
       Notification: deps.Notification || Notification,
-      Liquidation: deps.Liquidation || Liquidation
+      Liquidation: deps.Liquidation || Liquidation,
+      LedgerEntry: deps.LedgerEntry || LedgerEntry
     };
     this.sequelize = deps.sequelize || sequelize;
     this.priceOracle = deps.priceOracle || priceOracle;
@@ -16,7 +19,7 @@ class MetricsService {
     this.startTime = deps.startTime || Date.now();
   }
 
-    getHealth() {
+  getHealth() {
     return {
       status: 'ok',
       uptime: Math.floor((Date.now() - this.startTime) / 1000),
@@ -24,7 +27,7 @@ class MetricsService {
     };
   }
 
-    async getReadiness() {
+  async getReadiness() {
     let db = 'down';
     try {
       await this.sequelize.authenticate();
@@ -44,7 +47,9 @@ class MetricsService {
     };
   }
 
-    async getMetrics() {
+  async getMetrics() {
+    const startedAt = Date.now();
+
     const cache = typeof this.priceOracle.getStats === 'function'
       ? this.priceOracle.getStats()
       : { hits: 0, misses: 0, hitRate: 0 };
@@ -55,28 +60,68 @@ class MetricsService {
 
     const rateLimit = this.getRateLimitStats();
 
-    const loansByStatus = await this._countLoansByStatus();
-    const notifications = await this.models.Notification.count();
-    const liquidations = await this.models.Liquidation.count();
+    const [loansByStatus, notifications, unreadNotifications, liquidations, ledger] =
+      await Promise.all([
+        this._countLoansByStatus(),
+        this.models.Notification.count(),
+        this.models.Notification.count({ where: { read: false } }),
+        this.models.Liquidation.count(),
+        this._ledgerVolume()
+      ]);
+
+    const totalLoans = LOAN_STATUSES.reduce((sum, s) => sum + (loansByStatus[s] || 0), 0);
+    const liquidationRate = totalLoans === 0
+      ? 0
+      : parseFloat((loansByStatus.liquidated / totalLoans).toFixed(4));
 
     return {
       cache,
       breaker,
       rateLimit,
       loansByStatus,
+      totalLoans,
+      liquidationRate,
       notifications,
+      unreadNotifications,
       liquidations,
+      ledger,
+      generatedInMs: Date.now() - startedAt,
       timestamp: new Date().toISOString()
     };
   }
 
-    async _countLoansByStatus() {
-    const statuses = ['active', 'paid', 'defaulted', 'liquidated'];
-    const result = {};
-    for (const status of statuses) {
-      result[status] = await this.models.Loan.count({ where: { status } });
-    }
-    return result;
+  async _countLoansByStatus() {
+    const counts = await Promise.all(
+      LOAN_STATUSES.map((status) => this.models.Loan.count({ where: { status } }))
+    );
+    return LOAN_STATUSES.reduce((acc, status, i) => {
+      acc[status] = counts[i];
+      return acc;
+    }, {});
+  }
+
+  async _ledgerVolume() {
+    const sumByType = async (type) => {
+      try {
+        const total = await this.models.LedgerEntry.sum('amount', { where: { type } });
+        return parseFloat(total || 0);
+      } catch (error) {
+        return 0;
+      }
+    };
+
+    const [disbursed, repaid, liquidated] = await Promise.all([
+      sumByType('DISBURSEMENT'),
+      sumByType('PAYMENT'),
+      sumByType('LIQUIDATION')
+    ]);
+
+    return {
+      disbursed,
+      repaid,
+      liquidated,
+      netOutstanding: parseFloat((disbursed - repaid - liquidated).toFixed(2))
+    };
   }
 }
 
