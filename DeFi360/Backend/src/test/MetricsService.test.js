@@ -3,8 +3,13 @@ const MetricsService = require('../services/MetricsService');
 function makeDeps({ dbOk = true, breakerState = 'CLOSED' } = {}) {
   return {
     Loan: { async count({ where }) { return ({ active: 3, paid: 2, defaulted: 1, liquidated: 1 })[where.status] || 0; } },
-    Notification: { async count() { return 5; } },
+    Notification: { async count(opts = {}) { return opts.where && opts.where.read === false ? 2 : 5; } },
     Liquidation: { async count() { return 1; } },
+    LedgerEntry: {
+      async sum(field, { where }) {
+        return ({ DISBURSEMENT: 10000, PAYMENT: 4000, LIQUIDATION: 1500 })[where.type] || 0;
+      }
+    },
     sequelize: { async authenticate() { if (!dbOk) throw new Error('db down'); } },
     priceOracle: {
       getStats: () => ({ hits: 9, misses: 1, hitRate: 0.9 }),
@@ -54,5 +59,38 @@ describe('MetricsService (HU-14)', () => {
     expect(metrics.loansByStatus.liquidated).toBe(1);
     expect(metrics.notifications).toBe(5);
     expect(metrics.liquidations).toBe(1);
+  });
+
+  test('getMetrics deriva totalLoans, liquidationRate y notificaciones no leídas', async () => {
+    const service = new MetricsService(makeDeps());
+    const metrics = await service.getMetrics();
+    expect(metrics.totalLoans).toBe(7);
+    expect(metrics.liquidationRate).toBeCloseTo(1 / 7, 4);
+    expect(metrics.unreadNotifications).toBe(2);
+  });
+
+  test('getMetrics agrega el volumen del libro mayor y su saldo neto', async () => {
+    const service = new MetricsService(makeDeps());
+    const metrics = await service.getMetrics();
+    expect(metrics.ledger.disbursed).toBe(10000);
+    expect(metrics.ledger.repaid).toBe(4000);
+    expect(metrics.ledger.liquidated).toBe(1500);
+    expect(metrics.ledger.netOutstanding).toBe(4500);
+  });
+
+  test('getMetrics reporta su propia latencia (autoobservabilidad)', async () => {
+    const service = new MetricsService(makeDeps());
+    const metrics = await service.getMetrics();
+    expect(typeof metrics.generatedInMs).toBe('number');
+    expect(metrics.generatedInMs).toBeGreaterThanOrEqual(0);
+  });
+
+  test('getMetrics tolera un libro mayor sin datos (netOutstanding 0)', async () => {
+    const deps = makeDeps();
+    deps.LedgerEntry = { async sum() { return null; } };
+    const service = new MetricsService(deps);
+    const metrics = await service.getMetrics();
+    expect(metrics.ledger.disbursed).toBe(0);
+    expect(metrics.ledger.netOutstanding).toBe(0);
   });
 });
