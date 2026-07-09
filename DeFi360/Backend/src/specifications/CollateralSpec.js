@@ -5,7 +5,7 @@ class CollateralSpec extends ISpecification {
     super();
 
     this.collateralTypes = Array.isArray(collateralTypes)
-      ? collateralTypes.map((t) => String(t).toUpperCase())
+      ? collateralTypes.map((t) => String(t).toUpperCase()) 
       : null;
   }
 

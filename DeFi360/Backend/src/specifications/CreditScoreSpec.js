@@ -11,7 +11,7 @@ class CreditScoreSpec extends ISpecification {
     if (this.minCreditScore == null) return true;
 
     let score = offer.creditScore;
-    if (score == null && this.creditScoreService) {
+    if (score == null && this.creditScoreService) { 
       const borrowerId = offer.userId;
       const result = await this.creditScoreService.getScore(borrowerId);
       score = result.score;
