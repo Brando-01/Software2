@@ -3,7 +3,7 @@ const ISpecification = require('./ISpecification');
 class ApySpec extends ISpecification {
   constructor(minApy) {
     super();
-    this.minApy = minApy;
+    this.minApy = minApy; 
   }
 
   async isSatisfiedBy(offer) {

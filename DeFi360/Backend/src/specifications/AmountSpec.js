@@ -3,7 +3,7 @@ const ISpecification = require('./ISpecification');
 class AmountSpec extends ISpecification {
   constructor(maxAmount) {
     super();
-    this.maxAmount = maxAmount;
+    this.maxAmount = maxAmount; 
   }
 
   async isSatisfiedBy(offer) {
