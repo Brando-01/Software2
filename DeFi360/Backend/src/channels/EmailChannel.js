@@ -1,5 +1,5 @@
 const INotificationChannel = require('../interfaces/INotificationChannel');
-
+//Aplicamos lo aprendido en clase
 class EmailChannel extends INotificationChannel {
   constructor() {
     super();
@@ -24,4 +24,5 @@ class EmailChannel extends INotificationChannel {
   }
 }
 // acá se simula la notificación del email
+//Tendría que darte una notificación tipo alerta
 module.exports = EmailChannel;

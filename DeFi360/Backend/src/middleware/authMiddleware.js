@@ -32,7 +32,6 @@ const authorize = (...roles) => (req, res, next) => {
   }
 
   if (!roles.includes(req.user.role)) {
-
     console.warn(
       `[RBAC] 403 — userId=${req.user.id} role='${req.user.role}' ` +
       `intentó acceder a ${req.method} ${req.originalUrl}; requiere [${roles.join(', ')}]`
