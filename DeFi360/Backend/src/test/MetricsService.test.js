@@ -49,6 +49,13 @@ describe('MetricsService (HU-14)', () => {
     expect(readiness.ready).toBe(false);
   });
 
+  test('getReadiness ready=true si el breaker está HALF_OPEN (probando recuperación, no caído)', async () => {
+    const service = new MetricsService(makeDeps({ dbOk: true, breakerState: 'HALF_OPEN' }));
+    const readiness = await service.getReadiness();
+    expect(readiness.oracle).toBe('HALF_OPEN');
+    expect(readiness.ready).toBe(true);
+  });
+
   test('getMetrics agrega caché, breaker, rate-limit, préstamos por estado y conteos', async () => {
     const service = new MetricsService(makeDeps());
     const metrics = await service.getMetrics();
