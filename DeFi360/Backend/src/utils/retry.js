@@ -1,3 +1,4 @@
+// Retry utility function to handle transient errors in asynchronous operations.
 async function retry(fn, options = {}) {
   const {
     retries = 2,
