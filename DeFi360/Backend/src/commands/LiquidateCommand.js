@@ -1,6 +1,6 @@
 const ICommand = require('./ICommand');
 
-// Clase que representa el comando de liquidación de un préstamo. Implementa la interfaz ICommand y encapsula la lógica para ejecutar la liquidación de un préstamo específico utilizando un servicio proporcionado.
+// Clase que representa el comando de liquidación de un préstamo.
 
 class LiquidateCommand extends ICommand {
   constructor(loan, service, context = {}) {
