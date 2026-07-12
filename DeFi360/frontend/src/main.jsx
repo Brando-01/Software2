@@ -86,10 +86,25 @@ function normLoan(l){
     collateralAmount: num(l.collateralAmount != null ? l.collateralAmount : off.collateralAmount),
     startDate: l.startDate || l.start_date,
     endDate: l.endDate || l.end_date,
+    liquidationDate: l.liquidationDate || l.liquidation_date,
     nextRateAdjustmentDate: l.nextRateAdjustmentDate || l.next_rate_adjustment_date,
     createdAt: l.createdAt || l.created_at };
 }
+function normLedgerEntry(e){
+  return { ...e, amount:num(e.amount), balanceAfter:num(e.balanceAfter),
+    createdAt: e.createdAt || e.created_at };
+}
+function normLiquidation(x){
+  if(!x) return x;
+  return { ...x, ltvAtLiquidation:num(x.ltvAtLiquidation), collateralSeized:num(x.collateralSeized),
+    amountRecovered:num(x.amountRecovered), createdAt:x.createdAt || x.created_at };
+}
+function normScore(d){
+  return { userId:d.userId, score:num(d.score), category:d.category,
+    history:{ onTime:num(d.history?.onTime)||0, late:num(d.history?.late)||0, defaults:num(d.history?.defaults)||0 } };
+}
 
+let _lastNetToast = 0;
 async function request(path, { method='GET', body } = {}){
   const headers = { 'Content-Type':'application/json' };
   const token = localStorage.getItem(TOKEN_KEY);
@@ -99,11 +114,19 @@ async function request(path, { method='GET', body } = {}){
   try{
     res = await fetch(API_BASE + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
   }catch(e){
+    const now = Date.now();
+    if(now - _lastNetToast > 4000){ _lastNetToast = now; toast({ kind:'err', title:'Sin conexión con el servidor', sub:'¿El backend está corriendo en :3000?' }); }
     throw apiErr('No se pudo contactar al servidor. ¿El backend está corriendo en :3000?');
   }
   let data = null;
   try{ data = await res.json(); }catch(e){}
-  if(!res.ok){ const err = apiErr(data?.message || ('Error '+res.status)); err.details = data?.details; err.status = res.status; throw err; }
+  if(!res.ok){
+    const err = apiErr(data?.message || ('Error '+res.status)); err.details = data?.details; err.status = res.status;
+    if(res.status===401 && localStorage.getItem(TOKEN_KEY)){ window.dispatchEvent(new CustomEvent('app-unauthorized')); }
+    else if(res.status===403){ toast({ kind:'err', title:'No tienes permisos', sub:'Tu rol no permite esta acción' }); }
+    else if(res.status===429){ toast({ kind:'err', title:'Demasiadas solicitudes', sub:'Espera un momento e inténtalo de nuevo' }); }
+    throw err;
+  }
   return data;
 }
 function apiErr(message){ const e=new Error(message); e.isApiError=true; return e; }
@@ -145,6 +168,40 @@ const API = {
 
   async createTicket(body){ return request('/support/tickets',{ method:'POST', body }); },
   async getTickets(){ return request('/support/tickets'); },
+
+  // ---- R02: credit score (HU-11) ----
+  async getCreditScore(userId){ return normScore(await request(`/users/${userId}/credit-score`)); },
+
+  // ---- R02: ledger / statement (HU-10) ----
+  async getLedger(query={}){
+    const qs = new URLSearchParams(query).toString();
+    const d = await request('/ledger' + (qs?`?${qs}`:''));
+    return { ...d, entries:(d.entries||[]).map(normLedgerEntry) };
+  },
+  async getStatement(){ return request('/ledger/statement'); },
+
+  // ---- R02: notifications (HU-12) ----
+  async getNotifications(unread){ return request('/notifications' + (unread?'?unread=true':'')); },
+  async markNotifRead(id){ return request(`/notifications/${id}/read`,{ method:'PATCH' }); },
+  async markAllNotifsRead(){ return request('/notifications/read-all',{ method:'PATCH' }); },
+
+  // ---- R02: investment preferences + auto-match (HU-15) ----
+  async getPreferences(){ return request('/preferences'); },
+  async savePreferences(body){ return request('/preferences',{ method:'POST', body }); },
+  async getRecommendations(){
+    const d = await request('/marketplace/recommendations');
+    return { ...d, recommendations:(d.recommendations||[]).map(normOffer) };
+  },
+  async autoMatch(){ return request('/marketplace/auto-match',{ method:'POST' }); },
+
+  // ---- R02: observability (HU-14) ----
+  async getMetrics(){ return request('/metrics'); },
+  async getReady(){ return request('/ready'); },
+  async getHealth(){ return request('/health'); },
+
+  // ---- R02: liquidation lifecycle (HU-09) ----
+  async getLiquidation(loanId){ const d=await request(`/loans/${loanId}/liquidation`); d.liquidation=normLiquidation(d.liquidation); return d; },
+  async liquidate(loanId){ return request(`/loans/${loanId}/liquidate`,{ method:'POST' }); },
 };
 
 function Icon({ name, size, fill=0, wght=400, className='', style }){
@@ -355,6 +412,72 @@ function useAsync(fn, deps=[]){
   return { ...state, reload:run };
 }
 
+/* ============================== R02 shared bits ============================== */
+const SCORE_CAT_COLOR = { poor:'var(--risk-critical)', fair:'var(--risk-medium)', good:'#7bd88f', excellent:'var(--risk-low)' };
+const SCORE_CAT_LABEL = { poor:'Pobre', fair:'Regular', good:'Bueno', excellent:'Excelente' };
+const scoreDeg = (s) => ((Math.max(300, Math.min(850, Number(s)||300)) - 300) / 550) * 360;
+const scoreRing = (deg, color) => `conic-gradient(${color} ${deg}deg, var(--surface-3) ${deg}deg)`;
+
+function ScoreGauge({ score, category, size=118 }){
+  const color = SCORE_CAT_COLOR[category] || 'var(--text)';
+  return (
+    <div className="ring" style={{ width:size, height:size, background:scoreRing(scoreDeg(score), color) }}>
+      <div className="ring-in">
+        <div className="num display" style={{ fontSize:Math.round(size*0.26), color }}>{score ?? '—'}</div>
+        <div className="up" style={{ fontSize:9 }}>300–850</div>
+      </div>
+    </div>
+  );
+}
+function ScoreChip({ score, category, sm }){
+  if(score==null) return null;
+  const color = SCORE_CAT_COLOR[category] || 'var(--text)';
+  return (
+    <span className="badge" style={{ height:sm?20:22,
+      color, background:`color-mix(in oklab, ${color} 13%, transparent)`, borderColor:`color-mix(in oklab, ${color} 28%, transparent)` }}>
+      <Icon name="military_tech" size={13} /><b className="num">{score}</b> {SCORE_CAT_LABEL[category] || category}
+    </span>
+  );
+}
+
+const _scoreCache = new Map();
+function useCreditScore(userId, enabled=true){
+  const [data,setData]=useState(()=> userId!=null && _scoreCache.has(userId) ? _scoreCache.get(userId) : null);
+  useEffect(()=>{
+    if(!enabled || userId==null) return;
+    if(_scoreCache.has(userId)){ setData(_scoreCache.get(userId)); return; }
+    let alive=true;
+    API.getCreditScore(userId)
+      .then(d=>{ const v={ score:d.score, category:d.category, history:d.history }; _scoreCache.set(userId, v); if(alive) setData(v); })
+      .catch(()=>{});
+    return ()=>{ alive=false; };
+  },[userId,enabled]);
+  return data;
+}
+
+const LEDGER_STYLE = {
+  DISBURSEMENT:['payments','var(--accent-2)'],
+  PAYMENT:['check_circle','var(--risk-low)'],
+  LIQUIDATION:['gavel','var(--risk-critical)'],
+  LOCK:['lock','var(--risk-medium)'],
+  RELEASE:['lock_open','var(--text-dim)'],
+};
+function ledgerStyle(type){ return LEDGER_STYLE[type] || ['receipt_long','var(--text-dim)']; }
+
+function notifStyle(type=''){
+  const t=String(type||'').toLowerCase();
+  if(t.includes('liquidat')) return ['gavel','var(--risk-critical)'];
+  if(t.includes('risk')||t.includes('warn')||t.includes('alert')) return ['warning','var(--risk-high)'];
+  if(t.includes('pay')||t.includes('repa')) return ['check_circle','var(--risk-low)'];
+  if(t.includes('match')||t.includes('fund')||t.includes('loan')||t.includes('offer')) return ['bolt','var(--accent-2)'];
+  if(t.includes('welcome')||t.includes('deposit')||t.includes('bonus')) return ['savings','var(--accent-2)'];
+  return ['notifications','var(--text-dim)'];
+}
+function fmtDateTime(iso){
+  if(!iso) return '—';
+  return new Date(iso).toLocaleString('es-ES',{ day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+}
+
 function Login({ onAuth }){
   const { prices } = usePrices();
   const [mode,setMode]=useState('login');
@@ -469,14 +592,16 @@ function Login({ onAuth }){
   );
 }
 
-function LoanCard({ loan, role, onPay }){
+function LoanCard({ loan, role, onPay, canLiquidate, onLiquidate }){
   const { prices } = usePrices();
+  const [liqDetail,setLiqDetail]=useState(null);
   const risk=evalRisk(loan.ltv);
   const paid=loan.amount-loan.remainingBalance;
   const paidPct=loan.amount>0 ? (paid/loan.amount)*100 : 0;
   const counter = role==='borrower' ? loan.Lender : loan.Borrower;
   const collPrice = prices[loan.collateralType];
   const collValue = loan.collateralAmount && collPrice ? loan.collateralAmount*collPrice : null;
+  const isLiquidated = loan.status==='liquidated';
   return (
     <Card className="lcard rise">
       <div className="between">
@@ -533,12 +658,49 @@ function LoanCard({ loan, role, onPay }){
         </div>
       )}
 
+      {isLiquidated && (
+        <div className="col gap-10" style={{borderTop:'1px solid var(--border)',paddingTop:14}}>
+          <div className="up" style={{color:'var(--risk-critical)'}}>Timeline de liquidación</div>
+          <div className="tl col">
+            <div className="tl-item done"><div style={{fontSize:12.5,fontWeight:600}}>Préstamo originado</div><div className="faint" style={{fontSize:11.5}}>{fmtDate(loan.startDate)} · {usd0(loan.amount)}</div></div>
+            <div className="tl-item crit"><div style={{fontSize:12.5,fontWeight:600,color:'var(--risk-critical)'}}>LTV cruzó 95% (critical)</div><div className="faint" style={{fontSize:11.5}}>Oráculo marcó {Number(loan.ltv).toFixed(1)}% · isHealthy false</div></div>
+            <div className="tl-item crit"><div style={{fontSize:12.5,fontWeight:600}}>Colateral liquidado</div><div className="faint" style={{fontSize:11.5}}>{fmtDate(loan.liquidationDate)} · {loan.collateralAmount} {loan.collateralType} incautados</div></div>
+            <div className="tl-item done"><div style={{fontSize:12.5,fontWeight:600}}>Asentado en libro mayor</div><div className="faint" style={{fontSize:11.5}}>Ambas partes notificadas</div></div>
+          </div>
+          <Button variant="ghost" size="sm" icon="visibility" onClick={async()=>{
+            try{ const d=await API.getLiquidation(loan.id); setLiqDetail(d.liquidation||{}); }
+            catch(e){ toast({ kind:'err', title:'No se pudo cargar el detalle', sub:e.message }); }
+          }}>Ver detalle de liquidación</Button>
+        </div>
+      )}
+
       {role==='borrower' && loan.status==='active' && (
         <div className="row gap-10">
           <Button variant="primary" size="sm" icon="payments" onClick={()=>onPay(loan)} className="grow">Pagar cuota</Button>
           {(risk.riskLevel==='high'||risk.riskLevel==='critical') &&
             <Button variant="soft" size="sm" icon="add" onClick={()=>onPay(loan)}>Subir colateral</Button>}
         </div>
+      )}
+
+      {canLiquidate && loan.status==='active' && (
+        <Button variant="danger" size="sm" icon="gavel" onClick={()=>onLiquidate(loan)} className="btn-block">Liquidar manualmente (admin)</Button>
+      )}
+
+      {liqDetail && (
+        <Modal open onClose={()=>setLiqDetail(null)} title={`Liquidación · préstamo #${loan.id}`} icon="gavel" maxWidth={440}
+          footer={<Button variant="ghost" onClick={()=>setLiqDetail(null)}>Cerrar</Button>}>
+          <div className="col gap-10">
+            {[['LTV a la liquidación', liqDetail.ltvAtLiquidation!=null?Number(liqDetail.ltvAtLiquidation).toFixed(2)+'%':'—'],
+              ['Colateral incautado', liqDetail.collateralSeized!=null?`${liqDetail.collateralSeized} ${loan.collateralType}`:'—'],
+              ['Monto recuperado', liqDetail.amountRecovered!=null?usd(liqDetail.amountRecovered):'—'],
+              ['Motivo', liqDetail.reason||'—'],
+              ['Fecha', fmtDateTime(liqDetail.createdAt)]].map(([l,v])=>(
+              <div className="between tile" key={l} style={{padding:'10px 13px'}}>
+                <span className="dim" style={{fontSize:13}}>{l}</span><b className="num">{v}</b>
+              </div>
+            ))}
+          </div>
+        </Modal>
       )}
     </Card>
   );
@@ -595,6 +757,10 @@ function Dashboard({ session, refreshSession }){
   const loans=useAsync(()=>API.getMyLoans(),[]);
   const [tab,setTab]=useState('borrower');
   const [payLoan,setPayLoan]=useState(null);
+  const [liqTarget,setLiqTarget]=useState(null);
+  const [busyLiq,setBusyLiq]=useState(false);
+  const score=useCreditScore(session.id, session.id!=null);
+  const isAdmin=session.role==='admin';
   const w=session.wallet||{};
 
   const asBorrower=loans.data?.asBorrower||[];
@@ -606,6 +772,15 @@ function Dashboard({ session, refreshSession }){
 
   const list = tab==='borrower'?asBorrower:asLender;
   const afterPay=()=>{ setPayLoan(null); loans.reload(); refreshSession(); };
+  const doLiquidate=async()=>{
+    setBusyLiq(true);
+    try{
+      await API.liquidate(liqTarget.id);
+      toast({ kind:'ok', title:`Préstamo #${liqTarget.id} liquidado`, sub:'Asentado en el libro mayor' });
+      setLiqTarget(null); loans.reload(); refreshSession();
+    }catch(e){ toast({ kind:'err', title:'No se pudo liquidar', sub:e.message }); }
+    setBusyLiq(false);
+  };
 
   return (
     <div className="page">
@@ -645,11 +820,26 @@ function Dashboard({ session, refreshSession }){
              : list.length===0 ? <Empty icon="account_balance_wallet" title="Aún no tienes préstamos aquí">
                   {tab==='borrower'?'Solicita un préstamo desde el Marketplace.':'Financia una solicitud para empezar a ganar APY.'}
                 </Empty>
-             : <div className="grid g-2">{list.map(l=><LoanCard key={l.id} loan={l} role={tab} onPay={setPayLoan} />)}</div>}
+             : <div className="grid g-2">{list.map(l=><LoanCard key={l.id} loan={l} role={tab} onPay={setPayLoan} canLiquidate={isAdmin} onLiquidate={setLiqTarget} />)}</div>}
           </div>
         </Card>
 
         <div className="col gap-18">
+          <Card pad className="col gap-14">
+            <div className="between"><h3 style={{fontSize:14}}>Mi score crediticio</h3><Icon name="verified_user" className="faint" /></div>
+            <div className="row gap-16" style={{alignItems:'center'}}>
+              {score ? <ScoreGauge score={score.score} category={score.category} /> : <Skeleton h={118} w={118} r={999} />}
+              <div className="col gap-10">
+                {score && <ScoreChip score={score.score} category={score.category} />}
+                <div className="col gap-6" style={{fontSize:12}}>
+                  <div className="between gap-14"><span className="dim">A tiempo</span><b className="num delta-up">{score?.history.onTime ?? '—'}</b></div>
+                  <div className="between gap-14"><span className="dim">Con retraso</span><b className="num" style={{color:'var(--risk-medium)'}}>{score?.history.late ?? '—'}</b></div>
+                  <div className="between gap-14"><span className="dim">Impagos</span><b className="num">{score?.history.defaults ?? '—'}</b></div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
           <Card pad className="col gap-14">
             <div className="between"><h3 style={{fontSize:14}}>Resumen de cartera</h3><Icon name="donut_small" className="faint" /></div>
             <div className="col gap-10">
@@ -689,14 +879,25 @@ function Dashboard({ session, refreshSession }){
       </div>
 
       {payLoan && <PayModal loan={payLoan} onClose={()=>setPayLoan(null)} onDone={afterPay} />}
+      {liqTarget && (
+        <Modal open onClose={()=>setLiqTarget(null)} title={`Liquidar préstamo #${liqTarget.id}`} icon="gavel" maxWidth={440}
+          footer={<><Button variant="ghost" onClick={()=>setLiqTarget(null)}>Cancelar</Button><Button variant="danger" icon="gavel" loading={busyLiq} onClick={doLiquidate}>Confirmar liquidación</Button></>}>
+          <p className="dim" style={{fontSize:14,lineHeight:1.6}}>
+            Acción de administrador: se incautará el colateral ({liqTarget.collateralAmount} {liqTarget.collateralType}) para cubrir la deuda de {usd0(liqTarget.amount)},
+            el préstamo pasará a estado <b style={{color:'var(--risk-critical)'}}>liquidated</b> y se asentará en el libro mayor. Es irreversible.
+          </p>
+        </Modal>
+      )}
     </div>
   );
 }
 
-function OfferCard({ offer, onMatch, onCancel, navigate }){
+function OfferCard({ offer, onMatch, onCancel, navigate, viewerRole }){
   const mine=offer.userId===currentUserId();
   const risk=offer.ltv!=null?evalRisk(offer.ltv):null;
   const isBorrow=offer.type==='borrow';
+  const showScore = isBorrow && !mine && (viewerRole==='lender' || viewerRole==='admin');
+  const score=useCreditScore(offer.userId ?? offer.User?.id, showScore);
   return (
     <Card className="lcard rise">
       <div className="between">
@@ -711,6 +912,13 @@ function OfferCard({ offer, onMatch, onCancel, navigate }){
         </div>
         {mine && <Badge><Icon name="person" size={13} />Tuya</Badge>}
       </div>
+
+      {showScore && score && (
+        <div className="between tile" style={{padding:'9px 12px'}}>
+          <span className="dim" style={{fontSize:12}}>Score del solicitante</span>
+          <ScoreChip score={score.score} category={score.category} />
+        </div>
+      )}
 
       <div className="grid g-3" style={{gap:10}}>
         <div className="tile" style={{padding:'10px 12px'}}>
@@ -818,7 +1026,66 @@ function CacheStatsChip({ refreshKey }){
   );
 }
 
-function Marketplace({ navigate, refreshSession }){
+function RecoCard({ offer, viewerRole, onMatch }){
+  const score=useCreditScore(offer.userId ?? offer.User?.id, true);
+  const risk=offer.ltv!=null?evalRisk(offer.ltv):null;
+  return (
+    <div className="tile col gap-12" style={{borderColor:'var(--accent-line)'}}>
+      <div className="between">
+        <div className="row gap-10">
+          <Coin sym={offer.collateralType||'USDC'} size={32} />
+          <div className="col">
+            <b className="num" style={{fontSize:16}}>{usd0(offer.amount)}</b>
+            <span className="faint" style={{fontSize:11.5}}>{offer.duration}d · {offer.User?.name || shortAddr(offer.User?.walletAddress)}</span>
+          </div>
+        </div>
+        {risk && <RiskBadge level={risk.riskLevel} ltv={offer.ltv} showLtv sm />}
+      </div>
+      <div className="between" style={{fontSize:12.5}}><span className="dim">APY</span><b className="num" style={{color:'var(--accent-2)'}}>{pct(offer.apy)}</b></div>
+      {score && <div className="between" style={{fontSize:12.5}}><span className="dim">Score deudor</span><ScoreChip score={score.score} category={score.category} sm /></div>}
+      <Button variant="soft" size="sm" icon="bolt" className="btn-block" onClick={()=>onMatch(offer)}>Financiar</Button>
+    </div>
+  );
+}
+
+function Recommendations({ viewerRole, onMatch, refresh }){
+  const recos=useAsync(()=>API.getRecommendations(),[]);
+  const [confirm,setConfirm]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const items=recos.data?.recommendations||[];
+  const doAuto=async()=>{
+    setBusy(true);
+    try{
+      const res=await API.autoMatch();
+      toast({ kind:'ok', title:'Auto-match completado', sub:res.message || (res.loan?`Préstamo #${res.loan.id} creado`:'Emparejado') });
+      setConfirm(false); recos.reload(); refresh && refresh();
+    }catch(e){ toast({ kind:'err', title:'Auto-match no disponible', sub:e.message }); }
+    setBusy(false);
+  };
+  if(recos.loading) return <Card style={{marginBottom:18}}><div className="card-pad"><Skeleton h={120} r={12} /></div></Card>;
+  if(!items.length) return null;
+  return (
+    <Card style={{marginBottom:18,borderColor:'var(--accent-line)',background:'radial-gradient(500px 200px at 90% -40%, var(--accent-soft), transparent 60%)'}}>
+      <div className="card-head">
+        <div className="row gap-10"><Icon name="auto_awesome" style={{color:'var(--accent-2)'}} /><h3>Recomendadas para ti</h3><Badge>{items.length}</Badge></div>
+        <Button variant="primary" size="sm" icon="bolt" onClick={()=>setConfirm(true)}>Auto-match</Button>
+      </div>
+      <div className="card-pad grid g-3">
+        {items.map(o=><RecoCard key={o.id} offer={o} viewerRole={viewerRole} onMatch={onMatch} />)}
+      </div>
+      {confirm && (
+        <Modal open onClose={()=>setConfirm(false)} title="Confirmar auto-match" icon="bolt" maxWidth={440}
+          footer={<><Button variant="ghost" onClick={()=>setConfirm(false)}>Cancelar</Button><Button variant="primary" icon="bolt" loading={busy} onClick={doAuto}>Ejecutar auto-match</Button></>}>
+          <p className="dim" style={{fontSize:14,lineHeight:1.6}}>
+            El motor buscará la mejor solicitud compatible con tus <b style={{color:'var(--text)'}}>preferencias de inversión</b> y la financiará automáticamente, creando un préstamo. ¿Continuar?
+          </p>
+        </Modal>
+      )}
+    </Card>
+  );
+}
+
+function Marketplace({ navigate, refreshSession, session }){
   const [type,setType]=useState('all');
   const [sort,setSort]=useState('recent');
   const [minApy,setMinApy]=useState(0);
@@ -826,6 +1093,8 @@ function Marketplace({ navigate, refreshSession }){
   const [match,setMatch]=useState(null);
   const [cancel,setCancel]=useState(null);
   const [busyCancel,setBusyCancel]=useState(false);
+  const role=session?.role;
+  const canRecommend = role==='lender' || role==='admin';
 
   let list=(offers.data?.offers||[]).filter(o=>o.apy>=minApy);
   list=[...list].sort((a,b)=>{
@@ -863,6 +1132,8 @@ function Marketplace({ navigate, refreshSession }){
         </div>
       </div>
 
+      {canRecommend && <Recommendations viewerRole={role} onMatch={setMatch} refresh={()=>{ offers.reload(); refreshSession(); }} />}
+
       <div className="between wrap" style={{marginBottom:18,gap:12}}>
         <Seg value={type} onChange={setType} options={[
           { value:'all', label:`Todos · ${counts.all}` },
@@ -889,7 +1160,7 @@ function Marketplace({ navigate, refreshSession }){
         ? <div className="grid g-3">{[0,1,2,3,4,5].map(i=><Skeleton key={i} h={280} r={18} />)}</div>
         : list.length===0
           ? <Card pad><Empty icon="storefront" title="No hay ofertas con estos filtros">Ajusta el tipo o el APY mínimo.</Empty></Card>
-          : <div className="grid g-3">{list.map(o=><OfferCard key={o.id} offer={o} navigate={navigate} onMatch={setMatch} onCancel={setCancel} />)}</div>}
+          : <div className="grid g-3">{list.map(o=><OfferCard key={o.id} offer={o} navigate={navigate} onMatch={setMatch} onCancel={setCancel} viewerRole={role} />)}</div>}
 
       {match && <MatchModal offer={match} onClose={()=>setMatch(null)} onDone={afterMatch} />}
       {cancel && (
@@ -1318,26 +1589,409 @@ function Support(){
   );
 }
 
-const NAV=[
-  { id:'dashboard',   label:'Dashboard',  icon:'space_dashboard', title:'Dashboard', sub:'Resumen de tu wallet y préstamos' },
-  { id:'marketplace', label:'Marketplace', icon:'storefront',     title:'Marketplace', sub:'Ofertas y solicitudes P2P' },
-  { id:'borrow',      label:'Pedir préstamo', icon:'request_quote', title:'Solicitar préstamo', sub:'Análisis de LTV en vivo' },
-  { id:'lend',        label:'Ofrecer fondos', icon:'trending_up',  title:'Ofrecer fondos', sub:'Publica capital y gana APY' },
-  { id:'simulator',   label:'Simulador',   icon:'calculate',       title:'Simulador', sub:'Escenarios locales lend / borrow' },
-  { id:'education',   label:'Aprende',     icon:'school',          title:'Zona educativa', sub:'DeFi, LTV, APY y riesgos' },
-  { id:'support',     label:'Soporte',     icon:'support_agent',   title:'Soporte', sub:'Tickets y preguntas frecuentes' },
+/* ============================== Mi actividad (HU-10) ============================== */
+// Campos reales de GET /ledger/statement: userId, totalDisbursed, totalPaid,
+// totalLiquidated, totalReleased, totalLocked, balance, entryCount.
+const STMT_FIELDS = [
+  { key:'totalDisbursed', label:'Desembolsado', icon:'south_west',                color:'var(--accent-2)' },
+  { key:'totalPaid',      label:'Pagado',       icon:'check',                     color:'var(--risk-low)' },
+  { key:'totalLiquidated',label:'Liquidado',    icon:'gavel',                     color:'var(--risk-critical)' },
+  { key:'balance',        label:'Saldo',        icon:'account_balance_wallet',    color:'var(--text)' },
 ];
+const STMT_EXCLUDE = new Set(['userId','entryCount']);
+
+function Activity(){
+  const [page,setPage]=useState(1);
+  const limit=15;
+  const ledger=useAsync(()=>API.getLedger({ page, limit }),[page]);
+  const statement=useAsync(()=>API.getStatement(),[]);
+
+  const entries=ledger.data?.entries||[];
+  const pg=ledger.data?.pagination||{};
+  const totalPages=pg.totalPages||1;
+
+  const stmt=statement.data?.statement||{};
+  const explicit=STMT_FIELDS.filter(f=> stmt[f.key]!=null && !isNaN(+stmt[f.key]))
+    .map(f=>({ key:f.key, label:f.label, value:+stmt[f.key], icon:f.icon, color:f.color }));
+  const stmtCards = explicit.length
+    ? explicit
+    : Object.entries(stmt)
+        .filter(([k,v])=> !STMT_EXCLUDE.has(k) && v!=null && !isNaN(+v))
+        .slice(0,4)
+        .map(([k,v])=>({ key:k, label:k.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase()), value:+v, icon:'analytics', color:'var(--text)' }));
+
+  return (
+    <div className="page">
+      <div className="grid g-4" style={{marginBottom:18}}>
+        {statement.loading
+          ? [0,1,2,3].map(i=><Skeleton key={i} h={92} r={16} />)
+          : stmtCards.length
+            ? stmtCards.map(c=>(
+                <Card key={c.key} className="kpi rise">
+                  <div className="k-top"><span className="k-lab">{c.label}</span><span className="k-ic" style={{color:c.color}}><Icon name={c.icon} /></span></div>
+                  <div className="k-val num" style={{color:c.color,fontSize:24}}>{usd0(c.value)}</div>
+                </Card>
+              ))
+            : <Card pad><span className="faint" style={{fontSize:13}}>Estado de cuenta no disponible.</span></Card>}
+      </div>
+
+      <Card>
+        <div className="card-head">
+          <h3>Libro mayor</h3>
+          <span className="faint" style={{fontSize:12}}>GET /ledger · asientos contables inmutables</span>
+        </div>
+        <div style={{overflowX:'auto'}}>
+          <table className="table">
+            <thead><tr><th>Tipo</th><th>Referencia</th><th>Fecha</th><th style={{textAlign:'right'}}>Monto</th><th style={{textAlign:'right'}}>Saldo resultante</th></tr></thead>
+            <tbody>
+              {ledger.loading
+                ? [0,1,2,3,4].map(i=><tr key={i}><td colSpan={5}><Skeleton h={20} /></td></tr>)
+                : entries.length===0
+                  ? <tr><td colSpan={5}><Empty icon="receipt_long" title="Sin movimientos todavía">Tus asientos aparecerán aquí.</Empty></td></tr>
+                  : entries.map(e=>{
+                      const [icon,color]=ledgerStyle(e.type);
+                      const positive=(e.amount||0)>=0;
+                      return (
+                        <tr key={e.id}>
+                          <td><span className="row gap-10"><span className="notif-ic" style={{width:30,height:30,color}}><Icon name={icon} size={17} /></span><b style={{fontSize:12.5}}>{e.type}</b></span></td>
+                          <td className="mono faint" style={{fontSize:12.5}}>{e.refType} #{e.refId}</td>
+                          <td className="mono dim" style={{fontSize:12.5}}>{fmtDateTime(e.createdAt)}</td>
+                          <td className="num" style={{textAlign:'right',fontWeight:650,color:positive?'var(--risk-low)':'var(--text)'}}>{positive?'+':'−'}{usd(Math.abs(e.amount||0))}</td>
+                          <td className="num dim" style={{textAlign:'right'}}>{usd(e.balanceAfter)}</td>
+                        </tr>
+                      );
+                    })}
+            </tbody>
+          </table>
+        </div>
+        {totalPages>1 && (
+          <div className="between" style={{padding:'14px 22px',borderTop:'1px solid var(--border)'}}>
+            <span className="faint" style={{fontSize:12.5}}>Página {pg.page||page} de {totalPages} · {pg.total||entries.length} asientos</span>
+            <div className="row gap-8">
+              <Button variant="ghost" size="sm" icon="chevron_left" disabled={page<=1} onClick={()=>setPage(p=>Math.max(1,p-1))}>Anterior</Button>
+              <Button variant="ghost" size="sm" iconEnd="chevron_right" disabled={page>=totalPages} onClick={()=>setPage(p=>Math.min(totalPages,p+1))}>Siguiente</Button>
+            </div>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+/* ============================== Preferencias (HU-15) ============================== */
+const DEFAULT_PREFS = { maxAmount:5000, minApy:6, collateralTypes:['ETH','BTC'], maxLtv:80, minCreditScore:650, autoMatch:true };
+function Switch({ on, onClick, label }){
+  return <button className={'switch '+(on?'on':'')} onClick={onClick} aria-label={label} type="button"><span className="knob"></span></button>;
+}
+function Preferences({ navigate }){
+  const [prefs,setPrefs]=useState(DEFAULT_PREFS);
+  const [loading,setLoading]=useState(true);
+  const [busy,setBusy]=useState(false);
+  useEffect(()=>{
+    let alive=true;
+    API.getPreferences()
+      .then(d=>{ if(alive && d?.preference){ const p=d.preference;
+        setPrefs({ maxAmount:num(p.maxAmount)??DEFAULT_PREFS.maxAmount, minApy:num(p.minApy)??DEFAULT_PREFS.minApy,
+          collateralTypes:Array.isArray(p.collateralTypes)?p.collateralTypes:DEFAULT_PREFS.collateralTypes,
+          maxLtv:num(p.maxLtv)??DEFAULT_PREFS.maxLtv, minCreditScore:num(p.minCreditScore)??DEFAULT_PREFS.minCreditScore,
+          autoMatch:!!p.autoMatch }); } })
+      .catch(()=>{})
+      .finally(()=>{ if(alive) setLoading(false); });
+    return ()=>{ alive=false; };
+  },[]);
+  const set=(k,v)=>setPrefs(p=>({ ...p, [k]:v }));
+  const togColl=(c)=>setPrefs(p=>({ ...p, collateralTypes:p.collateralTypes.includes(c)?p.collateralTypes.filter(x=>x!==c):[...p.collateralTypes,c] }));
+  const save=async()=>{
+    setBusy(true);
+    try{
+      await API.savePreferences({
+        maxAmount:+prefs.maxAmount, minApy:+prefs.minApy, collateralTypes:prefs.collateralTypes,
+        maxLtv:+prefs.maxLtv, minCreditScore:+prefs.minCreditScore, autoMatch:!!prefs.autoMatch });
+      toast({ kind:'ok', title:'Preferencias guardadas', sub:'Se usarán para recomendarte solicitudes' });
+    }catch(e){ toast({ kind:'err', title:'No se pudo guardar', sub:e.message }); }
+    setBusy(false);
+  };
+  if(loading) return <div className="page page-narrow"><Card pad><Skeleton h={280} r={16} /></Card></div>;
+  return (
+    <div className="page page-narrow">
+      <div className="grid" style={{gridTemplateColumns:'1.15fr .85fr',alignItems:'start',gap:20}}>
+        <Card pad className="col gap-18">
+          <div className="col gap-6"><h3>Preferencias de inversión</h3><span className="faint" style={{fontSize:13}}>Definimos tus criterios para recomendarte solicitudes y activar el auto-match.</span></div>
+          <div className="grid g-2" style={{gap:14}}>
+            <Field label="Monto máximo por préstamo (USD)">
+              <Input type="number" min="0" icon="attach_money" value={prefs.maxAmount} onChange={e=>set('maxAmount',e.target.value)} />
+            </Field>
+            <Field label="Score crediticio mínimo">
+              <Input type="number" min="300" max="850" icon="military_tech" value={prefs.minCreditScore} onChange={e=>set('minCreditScore',e.target.value)} />
+            </Field>
+          </div>
+          <Field label={`APY mínimo: ${pct(prefs.minApy)}`}>
+            <input className="range" type="range" min={1} max={12} step={0.1} value={prefs.minApy} onChange={e=>set('minApy',+e.target.value)} />
+          </Field>
+          <Field label={`LTV máximo aceptado: ${prefs.maxLtv}%`}>
+            <input className="range" type="range" min={50} max={95} step={1} value={prefs.maxLtv} onChange={e=>set('maxLtv',+e.target.value)} />
+            <div className="between faint" style={{fontSize:11}}><span>Conservador 50%</span><span>Agresivo 95%</span></div>
+          </Field>
+          <Field label="Tipos de colateral aceptados">
+            <div className="row gap-8 wrap">
+              {COINS.map(c=>(
+                <button key={c} type="button" className={'btn btn-sm '+(prefs.collateralTypes.includes(c)?'btn-soft':'')}
+                  style={{borderRadius:'var(--r-pill)'}} onClick={()=>togColl(c)}>{c}</button>
+              ))}
+            </div>
+          </Field>
+        </Card>
+
+        <Card pad className="col gap-16" style={{position:'sticky',top:90}}>
+          <div className="between tile">
+            <div className="col gap-2"><b style={{fontSize:14}}>Auto-match</b><span className="faint" style={{fontSize:12}}>Emparejar automáticamente solicitudes compatibles.</span></div>
+            <Switch on={prefs.autoMatch} onClick={()=>set('autoMatch',!prefs.autoMatch)} label="autoMatch" />
+          </div>
+          <div className="callout"><Icon name="auto_awesome" /><span>Con estos criterios, el motor busca solicitudes con LTV ≤ {prefs.maxLtv}% y score ≥ {prefs.minCreditScore}.</span></div>
+          <div className="col gap-8">
+            {[['Monto máximo',usd0(prefs.maxAmount)],['APY mínimo',pct(prefs.minApy)],['LTV máximo',prefs.maxLtv+'%'],['Score mínimo',prefs.minCreditScore],['Colaterales',prefs.collateralTypes.join(', ')||'—']].map(([l,v])=>(
+              <div className="between" key={l} style={{fontSize:13}}><span className="dim">{l}</span><b className="num">{v}</b></div>
+            ))}
+          </div>
+          <Button variant="primary" size="lg" icon="save" className="btn-block" loading={busy} onClick={save}>Guardar preferencias</Button>
+          <Button variant="ghost" size="sm" icon="storefront" onClick={()=>navigate('marketplace')}>Ver recomendaciones</Button>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== Sistema / observabilidad (HU-14) ============================== */
+const SEM_CLASS = { CLOSED:'on-green', HALF_OPEN:'on-amber', OPEN:'on-red' };
+function System(){
+  const [m,setM]=useState(null);
+  const [ready,setReady]=useState(null);
+  const [health,setHealth]=useState(null);
+  const [err,setErr]=useState(null);
+
+  const load=useCallback(async()=>{
+    try{
+      const [mm,rr,hh]=await Promise.allSettled([API.getMetrics(), API.getReady(), API.getHealth()]);
+      if(mm.status==='fulfilled') setM(mm.value.metrics||mm.value); else setErr(mm.reason);
+      if(rr.status==='fulfilled') setReady(rr.value);
+      if(hh.status==='fulfilled') setHealth(hh.value);
+    }catch(e){ setErr(e); }
+  },[]);
+
+  useEffect(()=>{
+    load();
+    const t=setInterval(()=>{ if(!document.hidden) load(); }, 10000);
+    return ()=>clearInterval(t);
+  },[load]);
+
+  if(!m){
+    return <div className="page">{err
+      ? <Card pad><Empty icon="lock" title="Métricas no disponibles">{err.status===403?'Necesitas rol admin para ver la observabilidad.':err.message}</Empty></Card>
+      : <div className="grid g-4">{[0,1,2,3].map(i=><Skeleton key={i} h={92} r={16} />)}</div>}</div>;
+  }
+
+  const cache=m.cache||{}, breaker=m.breaker||{}, rl=m.rateLimit||{}, lbs=m.loansByStatus||{}, lg=m.ledger||{};
+  const hitRate=num(cache.hitRate)||0;
+  const oracle=ready?.oracle || breaker.state || 'CLOSED';
+  const lbsMax=Math.max(lbs.active||0,lbs.paid||0,lbs.defaulted||0,lbs.liquidated||0,1);
+  const loanBars=[
+    ['active',lbs.active||0,'var(--accent-2)'],['paid',lbs.paid||0,'var(--risk-low)'],
+    ['defaulted',lbs.defaulted||0,'var(--risk-high)'],['liquidated',lbs.liquidated||0,'var(--risk-critical)'],
+  ];
+  const volumes=[
+    ['Desembolsado',lg.disbursed,'var(--accent-2)'],['Pagado',lg.repaid,'var(--risk-low)'],
+    ['Liquidado',lg.liquidated,'var(--risk-critical)'],['Saldo neto',lg.netOutstanding,'var(--text)'],
+  ];
+
+  return (
+    <div className="page">
+      <div className="grid g-4" style={{marginBottom:18}}>
+        <Card className="kpi rise" style={{borderColor:health?.status==='ok'?'color-mix(in oklab,var(--risk-low) 26%,transparent)':'var(--border)'}}>
+          <div className="k-top"><span className="k-lab">Salud del servicio</span><span className={'sem-dot '+(health?.status==='ok'?'on-green':'on-red')}></span></div>
+          <div className="k-val" style={{fontSize:22,color:health?.status==='ok'?'var(--risk-low)':'var(--risk-critical)'}}>health: {health?.status||'—'}</div>
+          <div className="k-sub">uptime <b className="num" style={{color:'var(--text-dim)',marginLeft:4}}>{health?.uptime!=null?Math.round(health.uptime)+'s':'—'}</b></div>
+        </Card>
+        <Card className="kpi rise">
+          <div className="k-top"><span className="k-lab">Readiness</span><Icon name="database" style={{color:ready?.db==='up'?'var(--risk-low)':'var(--risk-critical)'}} /></div>
+          <div className="k-val" style={{fontSize:22}}>db·{ready?.db||'—'}</div>
+          <div className="k-sub">oracle · <b style={{color:oracle==='CLOSED'?'var(--risk-low)':oracle==='OPEN'?'var(--risk-critical)':'var(--risk-medium)',marginLeft:4}}>{oracle}</b></div>
+        </Card>
+        <Card className="kpi rise">
+          <div className="k-top"><span className="k-lab">Tasa de liquidación</span><Icon name="gavel" style={{color:'var(--risk-critical)'}} /></div>
+          <div className="k-val num" style={{color:'var(--risk-critical)'}}>{((num(m.liquidationRate)||0)*100).toFixed(2)}%</div>
+          <div className="k-sub">de {m.totalLoans||0} préstamos totales</div>
+        </Card>
+        <Card className="kpi rise">
+          <div className="k-top"><span className="k-lab">Notificaciones</span><Icon name="notifications" /></div>
+          <div className="k-val num">{m.notifications||0}</div>
+          <div className="k-sub"><b className="delta-down">{m.unreadNotifications||0}</b> sin leer</div>
+        </Card>
+      </div>
+
+      <div className="grid" style={{gridTemplateColumns:'1fr 1fr 1fr',alignItems:'start'}}>
+        <Card pad className="col gap-14" style={{alignItems:'center'}}>
+          <div className="between" style={{width:'100%'}}><h3 style={{fontSize:14}}>Caché de precios</h3><Icon name="bolt" className="faint" /></div>
+          <div className="ring" style={{width:130,height:130,background:scoreRing(hitRate*360,'var(--accent)')}}>
+            <div className="ring-in"><div className="num display" style={{fontSize:26,color:'var(--accent-2)'}}>{(hitRate*100).toFixed(1)}%</div><div className="up" style={{fontSize:9}}>hit rate</div></div>
+          </div>
+          <div className="row gap-14" style={{fontSize:12}}><span className="dim">HIT <b className="num" style={{color:'var(--risk-low)'}}>{cache.hits||0}</b></span><span className="dim">MISS <b className="num">{cache.misses||0}</b></span></div>
+        </Card>
+
+        <Card pad className="col gap-14">
+          <div className="between"><h3 style={{fontSize:14}}>Circuit breaker</h3><Icon name="shield" className="faint" /></div>
+          <div className="row gap-16" style={{alignItems:'center',padding:'6px 0'}}>
+            <div className="semaphore">
+              <div className="row gap-8"><span className={'sem-dot '+(breaker.state==='OPEN'?'on-red':'')}></span><span className="faint" style={{fontSize:11.5}}>OPEN</span></div>
+              <div className="row gap-8"><span className={'sem-dot '+(breaker.state==='HALF_OPEN'?'on-amber':'')}></span><span className="faint" style={{fontSize:11.5}}>HALF_OPEN</span></div>
+              <div className="row gap-8"><span className={'sem-dot '+(breaker.state==='CLOSED'?'on-green':'')}></span><span className="faint" style={{fontSize:11.5}}>CLOSED</span></div>
+            </div>
+            <div className="col gap-4">
+              <div className="display num" style={{fontSize:20,color:breaker.state==='CLOSED'?'var(--risk-low)':breaker.state==='OPEN'?'var(--risk-critical)':'var(--risk-medium)'}}>{breaker.state||'—'}</div>
+              <span className="faint" style={{fontSize:12}}>failureCount <b className="num">{breaker.failureCount||0}</b></span>
+            </div>
+          </div>
+          <div className="faint" style={{fontSize:11.5,lineHeight:1.5}}>Protege al sistema si el oráculo de precios falla repetidamente.</div>
+        </Card>
+
+        <Card pad className="col gap-12">
+          <div className="between"><h3 style={{fontSize:14}}>Rate limiting</h3><Icon name="speed" className="faint" /></div>
+          <div className="col gap-8">
+            <div className="between" style={{fontSize:13}}><span className="dim">Requests totales</span><b className="num">{(rl.totalRequests||0).toLocaleString('en-US')}</b></div>
+            <div className="between" style={{fontSize:13}}><span className="dim">Throttled (429)</span><b className="num" style={{color:'var(--risk-medium)'}}>{rl.throttled||0}</b></div>
+            <div className="between" style={{fontSize:13}}><span className="dim">Límite / ventana</span><b className="num">{rl.max||'—'} / {rl.windowMs?Math.round(rl.windowMs/1000)+'s':'60s'}</b></div>
+          </div>
+          <span className="chip" style={{alignSelf:'flex-start'}}><Icon name="bolt" size={14} style={{color:'var(--accent-2)'}} />métricas generadas en <b>{m.generatedInMs}ms</b></span>
+        </Card>
+      </div>
+
+      <div className="grid" style={{gridTemplateColumns:'1fr 1fr',marginTop:18,alignItems:'start'}}>
+        <Card pad className="col gap-14">
+          <h3 style={{fontSize:14}}>Préstamos por estado</h3>
+          <div className="col gap-12">
+            {loanBars.map(([label,n,color])=>(
+              <div className="col gap-6" key={label}>
+                <div className="between" style={{fontSize:12.5}}><span className="dim" style={{textTransform:'capitalize'}}>{label}</span><b className="num">{n}</b></div>
+                <div className="acc-bar" style={{height:8}}><i style={{width:(n/lbsMax*100)+'%',background:color}}></i></div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card pad className="col gap-14">
+          <h3 style={{fontSize:14}}>Volumen del libro mayor</h3>
+          <div className="grid g-2" style={{gap:12}}>
+            {volumes.map(([label,v,color])=>(
+              <div className="tile col gap-4" key={label}><span className="up">{label}</span><b className="num" style={{fontSize:19,color}}>{usd0(v||0)}</b></div>
+            ))}
+          </div>
+          <span className="faint mono" style={{fontSize:11}}>actualizado {fmtDateTime(m.timestamp)} · auto-refresh 10s</span>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== Notificaciones (HU-12) ============================== */
+function NotificationCenter(){
+  const [open,setOpen]=useState(false);
+  const [unread,setUnread]=useState(0);
+  const [list,setList]=useState(null);
+  const [loading,setLoading]=useState(false);
+
+  const loadUnread=useCallback(async()=>{
+    try{ const d=await API.getNotifications(true); setUnread(d.count ?? (d.notifications||[]).length); }catch(e){}
+  },[]);
+  useEffect(()=>{
+    loadUnread();
+    const t=setInterval(()=>{ if(!document.hidden) loadUnread(); }, 30000);
+    return ()=>clearInterval(t);
+  },[loadUnread]);
+
+  const loadAll=async()=>{
+    setLoading(true);
+    try{ const d=await API.getNotifications(); const items=d.notifications||[]; setList(items); setUnread(items.filter(n=>!n.read).length); }
+    catch(e){}
+    setLoading(false);
+  };
+  const toggle=()=>{ const n=!open; setOpen(n); if(n) loadAll(); };
+  const markOne=async(n)=>{
+    if(n.read) return;
+    try{ await API.markNotifRead(n.id); setList(l=>l.map(x=>x.id===n.id?{...x,read:true}:x)); setUnread(u=>Math.max(0,u-1)); }catch(e){}
+  };
+  const markAll=async()=>{
+    try{ await API.markAllNotifsRead(); setList(l=>l?l.map(x=>({...x,read:true})):l); setUnread(0); toast({ kind:'ok', title:'Todas marcadas como leídas' }); }catch(e){}
+  };
+
+  return (
+    <>
+      <button className="iconbtn" onClick={toggle} aria-label="Notificaciones" type="button">
+        <Icon name="notifications" />
+        {unread>0 && <span className="notif-dot">{unread>99?'99+':unread}</span>}
+      </button>
+      {open && (
+        <>
+          <div className="drawer-scrim" onClick={()=>setOpen(false)} />
+          <div className="drawer">
+            <div className="between" style={{padding:20,borderBottom:'1px solid var(--border)'}}>
+              <div className="row gap-10"><Icon name="notifications" /><h3 style={{fontSize:16}}>Notificaciones</h3><Badge>{unread} sin leer</Badge></div>
+              <div className="row gap-8">
+                <Button variant="ghost" size="sm" onClick={markAll}>Marcar todas</Button>
+                <Button variant="ghost" size="sm" icon="close" onClick={()=>setOpen(false)} />
+              </div>
+            </div>
+            <div className="col" style={{overflowY:'auto'}}>
+              {loading
+                ? <div className="col gap-2" style={{padding:16}}>{[0,1,2,3].map(i=><Skeleton key={i} h={64} r={10} />)}</div>
+                : !list || list.length===0
+                  ? <Empty icon="notifications_off" title="Sin notificaciones">Aquí verás alertas de riesgo, pagos y liquidaciones.</Empty>
+                  : list.map(n=>{
+                      const [icon,color]=notifStyle(n.type);
+                      return (
+                        <div key={n.id} className={'notif '+(n.read?'':'unread')} onClick={()=>markOne(n)}>
+                          <span className="notif-ic" style={{color}}><Icon name={icon} size={19} /></span>
+                          <div className="col gap-4" style={{minWidth:0}}>
+                            <b style={{fontSize:13.5}}>{n.title}</b>
+                            <span className="dim" style={{fontSize:12.5,lineHeight:1.5}}>{n.message}</span>
+                            <span className="faint mono" style={{fontSize:11}}>{fmtDateTime(n.createdAt)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+const ALL_ROLES=['borrower','lender','admin'];
+const NAV=[
+  { id:'dashboard',   label:'Dashboard',  icon:'space_dashboard', title:'Dashboard', sub:'Resumen de tu wallet y préstamos', roles:ALL_ROLES },
+  { id:'marketplace', label:'Marketplace', icon:'storefront',     title:'Marketplace', sub:'Ofertas y solicitudes P2P', roles:ALL_ROLES },
+  { id:'borrow',      label:'Pedir préstamo', icon:'request_quote', title:'Solicitar préstamo', sub:'Análisis de LTV en vivo', roles:['borrower','admin'] },
+  { id:'lend',        label:'Ofrecer fondos', icon:'trending_up',  title:'Ofrecer fondos', sub:'Publica capital y gana APY', roles:['lender','admin'] },
+  { id:'preferences', label:'Preferencias', icon:'tune',          title:'Preferencias de inversión', sub:'Criterios + auto-match', roles:['lender','admin'] },
+  { id:'activity',    label:'Mi actividad', icon:'receipt_long',  title:'Mi actividad', sub:'Libro mayor y estado de cuenta', roles:ALL_ROLES },
+  { id:'simulator',   label:'Simulador',   icon:'calculate',       title:'Simulador', sub:'Escenarios locales lend / borrow', roles:ALL_ROLES },
+  { id:'system',      label:'Sistema',     icon:'monitoring',      title:'Sistema', sub:'Observabilidad · solo admin', roles:['admin'] },
+  { id:'education',   label:'Aprende',     icon:'school',          title:'Zona educativa', sub:'DeFi, LTV, APY y riesgos', roles:ALL_ROLES },
+  { id:'support',     label:'Soporte',     icon:'support_agent',   title:'Soporte', sub:'Tickets y preguntas frecuentes', roles:ALL_ROLES },
+];
+const navForRole=(role)=>NAV.filter(n=>!n.roles || n.roles.includes(role||'borrower'));
 
 function Sidebar({ view, navigate, open, session, onLogout }){
+  const items=navForRole(session.role);
+  const roleLabel={ borrower:'Deudor', lender:'Prestamista', admin:'Admin' }[session.role] || 'Deudor';
   return (
     <aside className={'sidebar '+(open?'open':'')}>
       <div className="brand">
         <Logo /><b>DeFi360</b><Badge style={{height:18,padding:'0 7px',fontSize:10}}>sim</Badge>
       </div>
       <div className="nav-group col gap-2">
-        {NAV.map(n=>(
+        {items.map(n=>(
           <div key={n.id} className={'nav-item '+(view===n.id?'on':'')} onClick={()=>navigate(n.id)}>
             <Icon name={n.icon} fill={view===n.id?1:0} />{n.label}
+            {n.id==='system' && <span className="badge" style={{marginLeft:'auto',height:18,padding:'0 7px',fontSize:9.5}}>{roleLabel}</span>}
           </div>
         ))}
       </div>
@@ -1368,6 +2022,7 @@ function Topbar({ meta, session, onMenu, navigate }){
         <span className="crumb">{meta.sub}</span>
       </div>
       <div className="row gap-12" style={{marginLeft:'auto'}}>
+        <NotificationCenter />
         <div className="wallet-chip" onClick={()=>navigate('dashboard')} style={{cursor:'pointer'}}>
           <Icon name="account_balance_wallet" className="dim" />
           <div className="bal"><small>Disponible</small><b className="num">{usd(w.availableBalance)}</b></div>
@@ -1395,21 +2050,30 @@ function App(){
   const onLogout=()=>{ clearSession(); setSession(null); setView('dashboard'); toast({ kind:'info', title:'Sesión cerrada' }); };
 
   useEffect(()=>{ if(hasSession()) refreshSession(); },[refreshSession]);
+  useEffect(()=>{
+    const h=()=>{ clearSession(); setSession(null); setView('dashboard'); toast({ kind:'err', title:'Sesión expirada', sub:'Vuelve a iniciar sesión' }); };
+    window.addEventListener('app-unauthorized',h); return ()=>window.removeEventListener('app-unauthorized',h);
+  },[]);
 
   if(!session){
     return <><Login onAuth={onAuth} /><ToastHost /></>;
   }
 
-  const meta=NAV.find(n=>n.id===view)||NAV[0];
+  const allowed=navForRole(session.role);
+  const meta=allowed.find(n=>n.id===view) || NAV.find(n=>n.id===view) || NAV[0];
   const screens={
     dashboard:   <Dashboard session={session} refreshSession={refreshSession} />,
-    marketplace: <Marketplace navigate={navigate} refreshSession={refreshSession} />,
+    marketplace: <Marketplace navigate={navigate} refreshSession={refreshSession} session={session} />,
     borrow:      <Borrow navigate={navigate} refreshSession={refreshSession} />,
     lend:        <Lend navigate={navigate} session={session} refreshSession={refreshSession} />,
+    preferences: <Preferences navigate={navigate} />,
+    activity:    <Activity />,
+    system:      <System />,
     simulator:   <Simulator />,
     education:   <Education />,
     support:     <Support />,
   };
+  const current = allowed.some(n=>n.id===view) ? view : 'dashboard';
 
   return (
     <div className="app">
@@ -1417,7 +2081,7 @@ function App(){
       {menu && <div className="scrim only-mobile" style={{zIndex:18}} onClick={()=>setMenu(false)} />}
       <div className="main">
         <Topbar meta={meta} session={session} onMenu={()=>setMenu(true)} navigate={navigate} />
-        <div key={view} className="fade-in">{screens[view]}</div>
+        <div key={current} className="fade-in">{screens[current]}</div>
       </div>
       <ToastHost />
     </div>
