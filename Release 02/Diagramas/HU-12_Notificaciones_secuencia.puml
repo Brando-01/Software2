@@ -1,6 +1,6 @@
 @startuml HU12_Notificaciones_secuencia
 title HU-12 — Notificaciones persistentes multicanal\nObserver + Strategy de canal
-//base de diagrama
+'base de diagrama
 skinparam sequenceArrowThickness 2
 skinparam roundcorner 8
 skinparam sequenceParticipantBorderColor #2E75B6
