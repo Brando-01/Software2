@@ -1,5 +1,7 @@
 const LiquidationService = require('../services/LiquidationService');
 
+// funciones del helper para crear préstamos y dependencias simuladas
+
 function makeLoan(overrides = {}) {
   return {
     id: 1, status: 'active', ltv: 96,
@@ -9,6 +11,8 @@ function makeLoan(overrides = {}) {
     ...overrides
   };
 }
+
+// Función para crear dependencias simuladas para el servicio de liquidación
 
 function makeDeps(loan) {
   const liquidations = [];
@@ -25,6 +29,8 @@ function makeDeps(loan) {
     priceOracle: { async getPrice() { return 3000; } }
   };
 }
+
+// Pruebas unitarias para el patrón de estado y el servicio de liquidación
 
 describe('Liquidación de préstamo (Caja Negra · HU-09 · >4 campos de entrada)', () => {
 

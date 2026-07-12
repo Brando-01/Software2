@@ -3,6 +3,8 @@ const ActiveState = require('../states/ActiveState');
 const LiquidatedState = require('../states/LiquidatedState');
 const LiquidateCommand = require('../commands/LiquidateCommand');
 
+// funciones del helper para crear préstamos y dependencias simuladas
+
 function makeLoan(overrides = {}) {
   return {
     id: 1,
@@ -17,6 +19,8 @@ function makeLoan(overrides = {}) {
     ...overrides
   };
 }
+
+// Función para crear dependencias simuladas para el servicio de liquidación
 
 function makeDeps(loan) {
   const liquidations = [];
@@ -35,6 +39,8 @@ function makeDeps(loan) {
   };
 }
 
+// Pruebas unitarias para el patrón de estado y el servicio de liquidación
+
 describe('State pattern del préstamo', () => {
   test('ActiveState permite liquidar y avanza a LIQUIDATING; LiquidatedState es terminal', () => {
     const active = new ActiveState();
@@ -46,6 +52,8 @@ describe('State pattern del préstamo', () => {
     expect(liquidated.next().name).toBe('LIQUIDATED');
   });
 });
+
+// Pruebas unitarias para el servicio de liquidación
 
 describe('LiquidationService (HU-09 · State + Command)', () => {
   test('liquidateAutomatic liquida un préstamo activo y registra todo', async () => {

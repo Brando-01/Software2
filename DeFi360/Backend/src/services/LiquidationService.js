@@ -20,7 +20,7 @@ class LiquidationService {
     this.priceOracle = deps.priceOracle || priceOracle;
   }
 
-    _stateFromStatus(status) {
+  _stateFromStatus(status) {
     switch (status) {
       case 'active': return new ActiveState();
       case 'liquidating': return new LiquidatingState();
@@ -29,7 +29,7 @@ class LiquidationService {
     }
   }
 
-    async liquidateManual(loanId, context = {}) {
+  async liquidateManual(loanId, context = {}) {
     const loan = await this.models.Loan.findByPk(loanId, {
       include: [{ model: this.models.Offer }]
     });
@@ -41,11 +41,11 @@ class LiquidationService {
     return this._dispatch(loan, { ...context, reason: context.reason || 'manual_admin' });
   }
 
-    async liquidateAutomatic(loan, context = {}) {
+  async liquidateAutomatic(loan, context = {}) {
     return this._dispatch(loan, { ...context, reason: context.reason || 'auto_critical_ltv' });
   }
 
-    async _dispatch(loan, context) {
+  async _dispatch(loan, context) {
     const state = this._stateFromStatus(loan.status);
     if (!state.canLiquidate()) {
       const err = new Error(`Préstamo no liquidable (estado ${state.name})`);
@@ -56,7 +56,7 @@ class LiquidationService {
     return command.execute();
   }
 
-    async performLiquidation(loan, context = {}) {
+  async performLiquidation(loan, context = {}) {
 
     let state = new ActiveState();
     state = state.next();
@@ -81,6 +81,8 @@ class LiquidationService {
     });
 
     await this._settleWallets(loan, amountRecovered);
+
+    // Aqui se aplicaron los asientos del ledger
 
     const ledgerEntries = [];
     ledgerEntries.push(
@@ -113,7 +115,7 @@ class LiquidationService {
     };
   }
 
-    async _settleWallets(loan, amountRecovered) {
+  async _settleWallets(loan, amountRecovered) {
     try {
       const lenderWallet = await this.models.Wallet.findOne({ where: { userId: loan.lenderId } });
       if (lenderWallet) {
@@ -123,11 +125,11 @@ class LiquidationService {
         });
       }
     } catch (error) {
-      console.warn('[LiquidationService] No se pudieron ajustar wallets:', error.message);
+      console.warn('LiquidationService. No se pudieron ajustar wallets:', error.message);
     }
   }
 
-    async getLiquidation(loanId) {
+  async getLiquidation(loanId) {
     return this.models.Liquidation.findOne({ where: { loanId } });
   }
 }

@@ -14,6 +14,8 @@ router.get('/my-loans', protect, getUserLoans);
 router.post('/match/:id', protect, matchLoan);
 router.post('/:id/pay', protect, payLoan);
 
+// Se implementas las rutas para la liquidación de préstamos con su proteccion respectiva
+
 router.post('/:id/liquidate', protect, authorize('admin'), liquidate);
 router.get('/:id/liquidation', protect, getLiquidation);
 
