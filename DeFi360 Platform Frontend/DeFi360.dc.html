@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet" />
+<style>
+:root{
+  --font:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --r-xs:7px;--r-sm:10px;--r:13px;--r-lg:18px;--r-xl:24px;--r-pill:999px;
+  --bg:#090b10;
+  --bg-grad:radial-gradient(1200px 700px at 18% -8%, #10141d 0%, #090b10 55%);
+  --surface:#12151d;--surface-2:#181c26;--surface-3:#20252f;
+  --border:rgba(255,255,255,.075);--border-2:rgba(255,255,255,.13);
+  --text:#e8ebf2;--text-dim:#98a1b2;--text-faint:#626b7c;
+  --accent:#16d8c6;--accent-2:#5cece0;--accent-fg:#04140f;
+  --accent-soft:color-mix(in oklab, var(--accent) 15%, transparent);
+  --accent-line:color-mix(in oklab, var(--accent) 38%, transparent);
+  --glow:color-mix(in oklab, var(--accent) 45%, transparent);
+  --risk-low:#36d07f;--risk-medium:#f1c44d;--risk-high:#ff9447;--risk-critical:#ff5567;
+  --shadow-1:0 1px 0 rgba(255,255,255,.03) inset,0 1px 2px rgba(0,0,0,.4);
+  --shadow-2:0 18px 50px -24px rgba(0,0,0,.85),0 2px 8px rgba(0,0,0,.4);
+  --shadow-pop:0 24px 70px -28px rgba(0,0,0,.9);
+  --sidebar-w:250px;--topbar-h:66px;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{margin:0;font-family:var(--font);background:var(--bg);background-attachment:fixed;color:var(--text);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-size:15px;line-height:1.5;}
+body::before{content:"";position:fixed;inset:0;background:var(--bg-grad);z-index:-1;}
+::selection{background:var(--accent-soft);}
+::-webkit-scrollbar{width:11px;height:11px;}
+::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:99px;border:3px solid transparent;background-clip:content-box;}
+a{color:var(--accent-2);text-decoration:none;} a:hover{text-decoration:underline;}
+h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:-.02em;line-height:1.12;}
+p{margin:0;}
+button{font-family:inherit;}
+.mono{font-family:var(--mono);font-feature-settings:"tnum" 1,"zero" 1;}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;}
+.display{font-weight:700;letter-spacing:-.03em;}
+.dim{color:var(--text-dim);} .faint{color:var(--text-faint);}
+.up{text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:600;color:var(--text-faint);}
+.ms{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;line-height:1;letter-spacing:normal;text-transform:none;display:inline-flex;white-space:nowrap;direction:ltr;font-feature-settings:'liga';-webkit-font-smoothing:antialiased;user-select:none;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;font-size:20px;}
+.ms-fill{font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 24;}
+.btn{--bh:42px;height:var(--bh);display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:0 18px;border-radius:var(--r-sm);font-size:14px;font-weight:600;border:1px solid transparent;cursor:pointer;white-space:nowrap;color:var(--text);background:var(--surface-2);border-color:var(--border);transition:.16s ease;letter-spacing:-.01em;}
+.btn .ms{font-size:18px;}
+.btn:hover{background:var(--surface-3);border-color:var(--border-2);}
+.btn:active{transform:translateY(1px);}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+.btn-primary{background:linear-gradient(180deg,var(--accent-2),var(--accent));color:var(--accent-fg);border-color:transparent;box-shadow:0 8px 24px -10px var(--glow),var(--shadow-1);}
+.btn-primary:hover{filter:brightness(1.06);}
+.btn-soft{background:var(--accent-soft);color:var(--accent-2);border-color:var(--accent-line);}
+.btn-soft:hover{background:color-mix(in oklab,var(--accent) 24%,transparent);}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text-dim);}
+.btn-ghost:hover{background:var(--surface-2);color:var(--text);border-color:var(--border);}
+.btn-danger{background:color-mix(in oklab,var(--risk-critical) 16%,transparent);color:#ff8d99;border-color:color-mix(in oklab,var(--risk-critical) 32%,transparent);}
+.btn-danger:hover{background:color-mix(in oklab,var(--risk-critical) 26%,transparent);}
+.btn-sm{--bh:34px;padding:0 13px;font-size:13px;border-radius:var(--r-xs);}
+.btn-lg{--bh:50px;padding:0 24px;font-size:15px;}
+.btn-block{width:100%;} .btn-icon{width:var(--bh);padding:0;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-2);}
+.card-pad{padding:22px;}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--border);}
+.card-head h3{font-size:15px;}
+.hairline{height:1px;background:var(--border);border:0;margin:0;}
+.tile{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);padding:16px;}
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:var(--r-pill);font-size:11.5px;font-weight:650;letter-spacing:.01em;background:var(--surface-3);color:var(--text-dim);border:1px solid var(--border);}
+.badge .dot{width:6px;height:6px;border-radius:99px;background:currentColor;}
+.risk{border:1px solid transparent;} .risk .ms{font-size:14px;}
+.risk-low{color:var(--risk-low);background:color-mix(in oklab,var(--risk-low) 14%,transparent);border-color:color-mix(in oklab,var(--risk-low) 30%,transparent);}
+.risk-medium{color:var(--risk-medium);background:color-mix(in oklab,var(--risk-medium) 14%,transparent);border-color:color-mix(in oklab,var(--risk-medium) 30%,transparent);}
+.risk-high{color:var(--risk-high);background:color-mix(in oklab,var(--risk-high) 15%,transparent);border-color:color-mix(in oklab,var(--risk-high) 32%,transparent);}
+.risk-critical{color:var(--risk-critical);background:color-mix(in oklab,var(--risk-critical) 16%,transparent);border-color:color-mix(in oklab,var(--risk-critical) 34%,transparent);}
+.tag{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:var(--r-xs);font-size:11px;font-weight:600;background:var(--surface-3);color:var(--text-dim);}
+.tag .ms{font-size:13px;}
+.tag-lend{color:var(--risk-low);background:color-mix(in oklab,var(--risk-low) 13%,transparent);}
+.tag-borrow{color:var(--accent-2);background:var(--accent-soft);}
+.status{font-size:11px;height:22px;}
+.status-active{color:var(--accent-2);} .status-matched,.status-paid{color:var(--risk-low);}
+.status-cancelled{color:var(--text-faint);} .status-liquidated,.status-defaulted{color:var(--risk-critical);}
+.field{display:flex;flex-direction:column;gap:7px;}
+.label{font-size:12.5px;font-weight:600;color:var(--text-dim);letter-spacing:-.01em;}
+.input,.select,.textarea{width:100%;height:46px;padding:0 14px;background:var(--surface-2);color:var(--text);border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:14.5px;transition:.15s;outline:none;}
+.textarea{height:auto;padding:12px 14px;min-height:96px;resize:vertical;line-height:1.55;}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--accent-line);box-shadow:0 0 0 3px var(--accent-soft);background:var(--surface);}
+.input::placeholder,.textarea::placeholder{color:var(--text-faint);}
+.input-group{position:relative;display:flex;align-items:center;}
+.input-group .input{padding-left:40px;}
+.input-group > .ms{position:absolute;left:13px;color:var(--text-faint);font-size:19px;pointer-events:none;}
+.input-suffix{position:absolute;right:14px;color:var(--text-faint);font-size:13px;font-weight:600;}
+select.select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--text-faint) 50%),linear-gradient(135deg,var(--text-faint) 50%,transparent 50%);background-position:calc(100% - 18px) 19px,calc(100% - 13px) 19px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px;cursor:pointer;}
+.seg{display:inline-flex;padding:4px;gap:4px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);}
+.seg button{height:32px;padding:0 14px;border:0;background:transparent;color:var(--text-dim);font-weight:600;font-size:13px;border-radius:var(--r-xs);cursor:pointer;transition:.14s;display:inline-flex;align-items:center;gap:7px;}
+.seg button .ms{font-size:16px;}
+.seg button:hover{color:var(--text);}
+.seg button.on{background:var(--surface-3);color:var(--text);box-shadow:var(--shadow-1);}
+.seg button.on.lend{color:var(--risk-low);} .seg button.on.borrow{color:var(--accent-2);}
+.range{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:99px;background:var(--surface-3);outline:none;}
+.range::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:99px;background:var(--accent);border:3px solid var(--bg);box-shadow:0 0 0 1px var(--accent);cursor:pointer;}
+.range::-moz-range-thumb{width:14px;height:14px;border-radius:99px;background:var(--accent);border:3px solid var(--bg);cursor:pointer;}
+.app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;min-height:100vh;}
+.sidebar{position:sticky;top:0;height:100vh;border-right:1px solid var(--border);background:color-mix(in oklab,var(--surface) 60%,transparent);backdrop-filter:blur(8px);display:flex;flex-direction:column;padding:18px 14px;gap:6px;z-index:20;}
+.brand{display:flex;align-items:center;gap:11px;padding:8px 10px 16px;}
+.logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(150deg,var(--accent-2),var(--accent));display:grid;place-items:center;color:var(--accent-fg);box-shadow:0 8px 22px -10px var(--glow);flex:none;}
+.logo .ms{font-size:21px;}
+.brand b{font-size:16.5px;letter-spacing:-.02em;}
+.nav-item{display:flex;align-items:center;gap:12px;height:42px;padding:0 12px;border-radius:var(--r-sm);color:var(--text-dim);font-weight:550;font-size:14px;cursor:pointer;transition:.14s;position:relative;}
+.nav-item .ms{font-size:21px;}
+.nav-item:hover{background:var(--surface-2);color:var(--text);}
+.nav-item.on{background:var(--accent-soft);color:var(--text);}
+.nav-item.on::before{content:"";position:absolute;left:-14px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--accent);}
+.nav-item.on .ms{color:var(--accent-2);}
+.nav-sec{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);font-weight:700;padding:14px 12px 6px;}
+.sidebar-foot{margin-top:auto;}
+.main{min-width:0;display:flex;flex-direction:column;}
+.topbar{position:sticky;top:0;height:var(--topbar-h);display:flex;align-items:center;gap:16px;padding:0 30px;border-bottom:1px solid var(--border);background:color-mix(in oklab,var(--bg) 80%,transparent);backdrop-filter:blur(10px);z-index:15;}
+.topbar h2{font-size:18px;} .topbar .crumb{color:var(--text-faint);font-size:13px;}
+.iconbtn{position:relative;width:42px;height:42px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);display:grid;place-items:center;cursor:pointer;transition:.15s;}
+.iconbtn:hover{color:var(--text);border-color:var(--border-2);background:var(--surface-3);}
+.notif-dot{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--risk-critical);color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;border:2px solid var(--bg);}
+.wallet-chip{display:flex;align-items:center;gap:11px;height:42px;padding:0 6px 0 14px;border:1px solid var(--border);border-radius:var(--r-pill);background:var(--surface-2);cursor:pointer;}
+.wallet-chip .bal{display:flex;flex-direction:column;line-height:1.15;}
+.wallet-chip .bal small{font-size:10.5px;color:var(--text-faint);}
+.wallet-chip .bal b{font-size:14px;}
+.avatar{width:30px;height:30px;border-radius:99px;background:conic-gradient(from 140deg,var(--accent),var(--accent-2),var(--risk-low),var(--accent));display:grid;place-items:center;font-size:12px;font-weight:700;color:#0b0e14;flex:none;}
+.page{padding:30px;max-width:1300px;width:100%;margin:0 auto;}
+.page-narrow{max-width:940px;}
+.grid{display:grid;gap:18px;}
+.g-2{grid-template-columns:repeat(2,1fr);} .g-3{grid-template-columns:repeat(3,1fr);} .g-4{grid-template-columns:repeat(4,1fr);}
+.row{display:flex;align-items:center;gap:12px;} .between{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.col{display:flex;flex-direction:column;} .wrap{flex-wrap:wrap;} .grow{flex:1;}
+.gap-4{gap:4px;}.gap-6{gap:6px;}.gap-8{gap:8px;}.gap-10{gap:10px;}.gap-14{gap:14px;}.gap-16{gap:16px;}.gap-18{gap:18px;}.gap-24{gap:24px;}
+.kpi{padding:18px 20px;display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden;}
+.kpi .k-top{display:flex;align-items:center;justify-content:space-between;}
+.kpi .k-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--surface-3);color:var(--text-dim);}
+.kpi .k-ic .ms{font-size:19px;}
+.kpi.accent .k-ic{background:var(--accent-soft);color:var(--accent-2);}
+.kpi .k-val{font-size:27px;font-weight:700;letter-spacing:-.03em;}
+.kpi .k-lab{font-size:12.5px;color:var(--text-dim);}
+.kpi .k-sub{font-size:12px;color:var(--text-faint);display:flex;align-items:center;gap:5px;}
+.delta-up{color:var(--risk-low);} .delta-down{color:var(--risk-critical);}
+.meter{height:9px;border-radius:99px;background:var(--surface-3);overflow:hidden;position:relative;}
+.meter > i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;transition:width .5s cubic-bezier(.2,.7,.2,1),background .3s;}
+.meter-ticks{position:relative;height:14px;margin-top:4px;}
+.meter-ticks span{position:absolute;top:0;width:1px;height:6px;background:var(--border-2);}
+.meter-ticks span b{position:absolute;top:7px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--text-faint);font-weight:600;white-space:nowrap;}
+.table{width:100%;border-collapse:collapse;}
+.table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-faint);font-weight:600;padding:10px 16px;border-bottom:1px solid var(--border);}
+.table td{padding:13px 16px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:middle;}
+.table tr:last-child td{border-bottom:0;}
+.table tbody tr{transition:.12s;} .table tbody tr:hover{background:var(--surface-2);}
+.lcard{padding:18px;display:flex;flex-direction:column;gap:16px;transition:.16s;}
+.lcard:hover{border-color:var(--border-2);transform:translateY(-2px);box-shadow:var(--shadow-pop);}
+.coin{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-weight:700;font-size:12px;letter-spacing:-.02em;color:#0b0e14;flex:none;}
+.coin.ETH{background:linear-gradient(150deg,#8ea2ff,#5b76e8);} .coin.BTC{background:linear-gradient(150deg,#ffb86b,#f7931a);}
+.coin.USDC{background:linear-gradient(150deg,#52a8ff,#2775ca);color:#fff;} .coin.USDT{background:linear-gradient(150deg,#43d9a3,#26a17b);color:#fff;}
+.coin.DAI{background:linear-gradient(150deg,#ffd86b,#f5ac37);} .coin.LINK{background:linear-gradient(150deg,#5fa0ff,#2a5ada);color:#fff;}
+.coin.AAVE{background:linear-gradient(150deg,#c39bff,#9b6cff);color:#fff;} .coin.UNI{background:linear-gradient(150deg,#ff8fc7,#ff2d9b);color:#fff;}
+.spark{display:flex;align-items:flex-end;gap:3px;height:34px;}
+.spark i{flex:1;background:var(--accent-line);border-radius:2px 2px 0 0;min-height:3px;}
+.spark.pos i{background:color-mix(in oklab,var(--risk-low) 55%,transparent);}
+.scrim{position:fixed;inset:0;background:rgba(4,6,10,.66);backdrop-filter:blur(5px);display:grid;place-items:center;z-index:80;padding:24px;animation:fade .18s ease;}
+.modal{width:100%;max-width:480px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r-xl);box-shadow:var(--shadow-pop);animation:pop .22s cubic-bezier(.2,.8,.2,1);overflow:hidden;}
+.modal-head{padding:22px 24px 0;} .modal-body{padding:18px 24px 24px;}
+.modal-foot{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:var(--surface-2);}
+@keyframes fade{from{opacity:0;}} @keyframes pop{from{transform:translateY(12px) scale(.97);}}
+.divider-text{display:flex;align-items:center;gap:14px;color:var(--text-faint);font-size:12px;font-weight:600;}
+.divider-text::before,.divider-text::after{content:"";height:1px;background:var(--border);flex:1;}
+.addr{font-family:var(--mono);font-size:12.5px;color:var(--text-dim);display:inline-flex;align-items:center;gap:6px;}
+.addr .ms{font-size:14px;}
+.empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:48px 20px;text-align:center;color:var(--text-faint);}
+.empty .ms{font-size:42px;opacity:.5;}
+.callout{display:flex;gap:12px;padding:14px 16px;border-radius:var(--r);background:var(--accent-soft);border:1px solid var(--accent-line);font-size:13px;line-height:1.5;}
+.callout .ms{color:var(--accent-2);font-size:20px;flex:none;}
+.callout.warn{background:color-mix(in oklab,var(--risk-high) 12%,transparent);border-color:color-mix(in oklab,var(--risk-high) 30%,transparent);}
+.callout.warn .ms{color:var(--risk-high);}
+.callout.danger{background:color-mix(in oklab,var(--risk-critical) 13%,transparent);border-color:color-mix(in oklab,var(--risk-critical) 32%,transparent);}
+.callout.danger .ms{color:var(--risk-critical);}
+.acc-bar{height:6px;border-radius:99px;background:var(--surface-3);overflow:hidden;}
+.acc-bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:99px;transition:width .5s;}
+.fade-in{animation:softin .3s ease;} .rise{animation:rise .42s cubic-bezier(.2,.8,.2,1);}
+@keyframes softin{from{opacity:0;transform:translateY(4px);}} @keyframes rise{from{opacity:0;transform:translateY(9px);}}
+.spin{animation:spin 1s linear infinite;} @keyframes spin{to{transform:rotate(360deg);}}
+.ring{position:relative;border-radius:50%;display:grid;place-items:center;}
+.ring::before{content:"";position:absolute;inset:12px;border-radius:50%;background:var(--surface);}
+.ring .ring-in{position:relative;text-align:center;}
+.semaphore{display:flex;flex-direction:column;gap:8px;}
+.sem-dot{width:14px;height:14px;border-radius:99px;background:var(--surface-3);border:1px solid var(--border);}
+.sem-dot.on-green{background:var(--risk-low);box-shadow:0 0 12px var(--risk-low);}
+.sem-dot.on-amber{background:var(--risk-medium);box-shadow:0 0 12px var(--risk-medium);}
+.sem-dot.on-red{background:var(--risk-critical);box-shadow:0 0 12px var(--risk-critical);}
+.switch{width:46px;height:26px;border-radius:99px;border:1px solid var(--border);background:var(--surface-3);cursor:pointer;position:relative;transition:.16s;flex:none;padding:0;}
+.switch .knob{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:99px;background:var(--text-dim);transition:.18s cubic-bezier(.2,.8,.2,1);}
+.switch.on{background:var(--accent);border-color:transparent;}
+.switch.on .knob{transform:translateX(20px);background:var(--accent-fg);}
+.arch-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 30px;border-top:1px solid var(--border);background:color-mix(in oklab,var(--bg) 60%,transparent);}
+.chip{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--surface-2);font-size:11.5px;color:var(--text-dim);}
+.chip .ms{font-size:14px;}
+.chip b{font-family:var(--mono);}
+.drawer-scrim{position:fixed;inset:0;background:rgba(4,6,10,.5);backdrop-filter:blur(3px);z-index:60;animation:fade .18s ease;}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:400px;max-width:90vw;background:var(--surface);border-left:1px solid var(--border-2);box-shadow:var(--shadow-pop);z-index:70;display:flex;flex-direction:column;animation:slidein .24s cubic-bezier(.2,.8,.2,1);}
+@keyframes slidein{from{transform:translateX(40px);opacity:.4;}}
+.notif{display:flex;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);cursor:pointer;transition:.14s;position:relative;}
+.notif:hover{background:var(--surface-2);}
+.notif.unread{background:color-mix(in oklab,var(--accent) 5%,transparent);}
+.notif.unread::before{content:"";position:absolute;left:8px;top:22px;width:6px;height:6px;border-radius:99px;background:var(--accent);}
+.notif-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--surface-3);}
+.tl{position:relative;padding-left:26px;}
+.tl::before{content:"";position:absolute;left:7px;top:4px;bottom:4px;width:2px;background:var(--border-2);}
+.tl-item{position:relative;padding-bottom:16px;}
+.tl-item:last-child{padding-bottom:0;}
+.tl-item::before{content:"";position:absolute;left:-23px;top:3px;width:12px;height:12px;border-radius:99px;background:var(--surface-3);border:2px solid var(--surface);}
+.tl-item.done::before{background:var(--risk-low);} .tl-item.crit::before{background:var(--risk-critical);}
+.tl-item.now::before{background:var(--accent);box-shadow:0 0 10px var(--glow);}
+.auth{display:grid;grid-template-columns:1.05fr .95fr;min-height:100vh;}
+.auth-aside{padding:38px 44px;display:flex;flex-direction:column;gap:30px;border-right:1px solid var(--border);background:radial-gradient(700px 420px at 12% 6%,var(--accent-soft),transparent 60%),color-mix(in oklab,var(--surface) 40%,transparent);position:relative;overflow:hidden;}
+.auth-aside::after{content:"";position:absolute;right:-120px;bottom:-120px;width:380px;height:380px;border-radius:99px;background:radial-gradient(circle,var(--accent-soft),transparent 68%);pointer-events:none;}
+.auth-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:auto;}
+.auth-ticker{display:flex;flex-wrap:wrap;gap:18px;padding-top:18px;border-top:1px solid var(--border);}
+.auth-main{display:grid;place-items:center;padding:30px;}
+.auth-card{width:100%;max-width:412px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--shadow-pop);padding:30px;}
+.web3-btn{width:100%;display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--r);background:var(--surface-2);border:1px solid var(--border-2);color:var(--text);cursor:pointer;transition:.16s;text-align:left;}
+.web3-btn:hover{border-color:var(--accent-line);background:color-mix(in oklab,var(--accent) 8%,var(--surface-2));transform:translateY(-1px);}
+.w3-ic{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;flex:none;background:linear-gradient(150deg,var(--accent-2),var(--accent));color:var(--accent-fg);box-shadow:0 8px 22px -10px var(--glow);}
+@media (max-width:1080px){.g-4{grid-template-columns:repeat(2,1fr);}.g-3{grid-template-columns:1fr;}}
+@media (max-width:900px){.auth{grid-template-columns:1fr;}.auth-aside{display:none;}.app{grid-template-columns:1fr;}.sidebar{display:none;}.g-2{grid-template-columns:1fr;}}
+</style>
+</helmet>
+
+<sc-if value="{{ loggedOut }}" hint-placeholder-val="{{ false }}">
+<div class="auth">
+  <aside class="auth-aside">
+    <div class="row gap-10">
+      <span class="logo"><span class="ms">radar</span></span>
+      <b style="font-size:19px;letter-spacing:-.02em;">DeFi360</b>
+      <span class="badge" style="height:19px;padding:0 8px;font-size:10px;">Release 02</span>
+    </div>
+    <div style="margin-top:6px;">
+      <h1 class="display" style="font-size:42px;line-height:1.05;">Aprende préstamos<br/>cripto sin arriesgar<br/><span style="color:var(--accent-2);">un solo dólar.</span></h1>
+      <p class="dim" style="font-size:15.5px;max-width:440px;margin-top:18px;line-height:1.6;">Presta, pide prestado y entiende el <b style="color:var(--text);">LTV</b>, el <b style="color:var(--text);">APY</b> y las liquidaciones en un entorno P2P totalmente simulado. Recibes <b style="color:var(--text);">5 000 USD</b> de bienvenida al registrarte.</p>
+    </div>
+    <div class="auth-stats">
+      <div class="tile" style="padding:14px;"><span class="ms dim">account_balance</span><div style="margin-top:8px;font-weight:650;font-size:14px;">Colateralizado</div><div class="faint" style="font-size:12px;">LTV en vivo</div></div>
+      <div class="tile" style="padding:14px;"><span class="ms dim">bolt</span><div style="margin-top:8px;font-weight:650;font-size:14px;">APY hasta 9.4%</div><div class="faint" style="font-size:12px;">Rendimiento P2P</div></div>
+      <div class="tile" style="padding:14px;"><span class="ms dim">shield_lock</span><div style="margin-top:8px;font-weight:650;font-size:14px;">0 riesgo real</div><div class="faint" style="font-size:12px;">Fondos simulados</div></div>
+    </div>
+    <div class="auth-ticker">
+      <sc-for list="{{ ticker }}" as="t" hint-placeholder-count="6">
+        <span class="row gap-6"><span class="coin {{ t.sym }}" style="width:20px;height:20px;font-size:8px;">{{ t.sym }}</span><b style="font-size:12.5px;">{{ t.sym }}</b><span class="mono faint" style="font-size:12px;">{{ t.price }}</span></span>
+      </sc-for>
+    </div>
+  </aside>
+  <main class="auth-main">
+    <div class="auth-card fade-in">
+      <div style="text-align:center;margin-bottom:16px;">
+        <h2 style="font-size:23px;">Entra a DeFi360</h2>
+        <p class="dim" style="font-size:14px;margin-top:6px;">Dos formas de acceder. Elige la tuya.</p>
+      </div>
+      <button class="web3-btn" onClick="{{ login }}">
+        <span class="w3-ic"><span class="ms" style="font-size:22px;">account_balance_wallet</span></span>
+        <span class="col" style="align-items:flex-start;gap:2px;"><b style="font-size:14.5px;">Conectar billetera</b><small class="mono faint" style="font-size:11.5px;">Autenticación Web3 · 0x…</small></span>
+        <span class="ms faint" style="margin-left:auto;">arrow_forward</span>
+      </button>
+      <div class="divider-text" style="margin:18px 0;">o continúa con correo</div>
+      <div class="col gap-14">
+        <label class="field"><span class="label">Correo</span><span class="input-group"><span class="ms">mail</span><input class="input" type="email" placeholder="tu@correo.com" /></span></label>
+        <label class="field"><span class="label">Contraseña</span><span class="input-group"><span class="ms">lock</span><input class="input" type="password" placeholder="••••••••" /></span></label>
+        <button class="btn btn-primary btn-lg btn-block" onClick="{{ login }}">Entrar y recibir 5 000 USD</button>
+      </div>
+      <p class="faint" style="font-size:11.5px;text-align:center;margin-top:16px;line-height:1.5;">Entorno educativo. No se manejan fondos reales ni datos sensibles.</p>
+    </div>
+  </main>
+</div>
+</sc-if>
+
+<sc-if value="{{ loggedIn }}" hint-placeholder-val="{{ true }}">
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><span class="logo"><span class="ms">radar</span></span><b>DeFi360</b><span class="badge" style="height:18px;padding:0 7px;font-size:10px;">R02</span></div>
+    <div class="col gap-2">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="8">
+        <div class="nav-item {{ n.on }}" onClick="{{ n.go }}"><span class="ms {{ n.fill }}">{{ n.icon }}</span>{{ n.label }}</div>
+      </sc-for>
+    </div>
+    <div class="sidebar-foot col gap-10">
+      <div class="nav-sec">Vista de rol · demo</div>
+      <div class="seg" style="width:100%;">
+        <sc-for list="{{ roles }}" as="r" hint-placeholder-count="3">
+          <button class="grow {{ r.on }}" style="justify-content:center;" onClick="{{ r.set }}">{{ r.label }}</button>
+        </sc-for>
+      </div>
+      <hr class="hairline" />
+      <div class="tile row gap-10" style="padding:10px 12px;">
+        <span class="avatar">{{ me.initial }}</span>
+        <div class="col" style="min-width:0;"><b style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ me.name }}</b><span class="mono faint" style="font-size:11px;">{{ me.walletShort }}</span></div>
+        <button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto;" onClick="{{ logout }}" title="Cerrar sesión"><span class="ms">logout</span></button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="col" style="gap:1px;"><h2>{{ meta.title }}</h2><span class="crumb">{{ meta.sub }}</span></div>
+      <div class="row gap-12" style="margin-left:auto;">
+        <div class="iconbtn" onClick="{{ toggleNotif }}"><span class="ms">notifications</span>
+          <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ true }}"><span class="notif-dot">{{ unreadCount }}</span></sc-if>
+        </div>
+        <div class="wallet-chip" onClick="{{ goDashboard }}">
+          <span class="ms dim">account_balance_wallet</span>
+          <div class="bal"><small>Disponible</small><b class="num">{{ me.walletAvail }}</b></div>
+          <span class="avatar">{{ me.initial }}</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="screenwrap">
+      <!-- ==== DASHBOARD ==== -->
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+      <div class="page fade-in">
+        <sc-if value="{{ atRisk.show }}" hint-placeholder-val="{{ false }}">
+          <div class="callout danger rise" style="margin-bottom:18px;">
+            <span class="ms ms-fill">release_alert</span>
+            <div><b>{{ atRisk.title }}</b><div class="dim" style="font-size:13px;margin-top:2px;">Tu LTV superó el 90%. Paga una cuota o añade colateral para evitar la liquidación automática.</div></div>
+            <button class="btn btn-danger btn-sm" style="margin-left:auto;" onClick="{{ atRisk.resolve }}"><span class="ms">bolt</span>Resolver ahora</button>
+          </div>
+        </sc-if>
+
+        <div class="grid g-4">
+          <div class="card kpi accent rise"><div class="k-top"><span class="k-lab">Balance total</span><span class="k-ic"><span class="ms">account_balance_wallet</span></span></div><div class="k-val num">{{ me.walletTotal }}</div><div class="k-sub"><span class="ms delta-up" style="font-size:14px;">trending_up</span><span class="delta-up">+{{ me.walletEarned }}</span> ganado histórico</div></div>
+          <div class="card kpi rise"><div class="k-top"><span class="k-lab">Disponible</span><span class="k-ic"><span class="ms">payments</span></span></div><div class="k-val num">{{ me.walletAvail }}</div><div class="k-sub faint">Listo para prestar o pagar</div></div>
+          <div class="card kpi rise"><div class="k-top"><span class="k-lab">Bloqueado</span><span class="k-ic"><span class="ms">lock</span></span></div><div class="k-val num">{{ me.walletBlocked }}</div><div class="k-sub faint">En ofertas y préstamos activos</div></div>
+          <div class="card kpi rise"><div class="k-top"><span class="k-lab">Interés ganado</span><span class="k-ic"><span class="ms">savings</span></span></div><div class="k-val num">{{ me.walletEarned }}</div><div class="k-sub faint">Comisión P2P acumulada</div></div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1.7fr 1fr;margin-top:18px;align-items:start;">
+          <div class="card">
+            <div class="card-head"><h3>Mis préstamos</h3>
+              <div class="seg">
+                <button class="{{ tabBorrowerOn }}" onClick="{{ setTabBorrower }}"><span class="ms">request_quote</span>Deudor · {{ counts.borrower }}</button>
+                <button class="{{ tabLenderOn }}" onClick="{{ setTabLender }}"><span class="ms">trending_up</span>Prestamista · {{ counts.lender }}</button>
+              </div>
+            </div>
+            <div class="card-pad">
+              <div class="grid g-2">
+                <sc-for list="{{ visibleLoans }}" as="l" hint-placeholder-count="2">
+                  <div class="card lcard rise">
+                    <div class="between">
+                      <div class="row gap-10"><span class="coin {{ l.coin }}">{{ l.coin }}</span>
+                        <div class="col"><div class="row gap-8"><b style="font-size:14.5px;">Préstamo #{{ l.id }}</b><span class="badge status {{ l.statusClass }}"><span class="dot"></span>{{ l.statusLabel }}</span></div>
+                        <span class="faint" style="font-size:12px;">{{ l.counterLabel }}: {{ l.counter }}</span></div>
+                      </div>
+                      <span class="badge risk {{ l.riskClass }}"><span class="ms">{{ l.riskIcon }}</span>{{ l.riskLabel }}<span class="num" style="opacity:.85;">· {{ l.ltvText }}</span></span>
+                    </div>
+                    <div class="grid g-3" style="gap:12px;">
+                      <div class="tile" style="padding:11px 13px;"><div class="up">Monto</div><div class="num" style="font-size:17px;font-weight:650;margin-top:3px;">{{ l.amount }}</div></div>
+                      <div class="tile" style="padding:11px 13px;"><div class="up">APY · {{ l.rateType }}</div><div class="num" style="font-size:17px;font-weight:650;margin-top:3px;color:var(--accent-2);">{{ l.apy }}</div></div>
+                      <div class="tile" style="padding:11px 13px;"><div class="up">Colateral</div><div class="num" style="font-size:17px;font-weight:650;margin-top:3px;">{{ l.coll }}</div></div>
+                    </div>
+                    <div class="col gap-8">
+                      <div class="between" style="font-size:12px;"><span class="dim">LTV actual</span><span class="num dim">Colateral {{ l.collValue }}</span></div>
+                      <div class="meter" style="height:9px;"><i style="width: {{ l.ltvW }}; background: {{ l.ltvColor }}; box-shadow:0 0 12px {{ l.ltvColor }};"></i></div>
+                      <div class="meter-ticks"><span style="left:62.5%;"><b>75</b></span><span style="left:75%;"><b>90</b></span><span style="left:79.2%;"><b>95</b></span></div>
+                    </div>
+                    <sc-if value="{{ l.isLiquidated }}" hint-placeholder-val="{{ false }}">
+                      <div class="col gap-10" style="border-top:1px solid var(--border);padding-top:14px;">
+                        <div class="up" style="color:var(--risk-critical);">Timeline de liquidación</div>
+                        <div class="tl col">
+                          <div class="tl-item done"><div style="font-size:12.5px;font-weight:600;">Préstamo originado</div><div class="faint" style="font-size:11.5px;">{{ l.startDate }} · {{ l.amount }}</div></div>
+                          <div class="tl-item crit"><div style="font-size:12.5px;font-weight:600;color:var(--risk-critical);">LTV cruzó 95% (critical)</div><div class="faint" style="font-size:11.5px;">Oráculo marcó {{ l.ltvText }} · isHealthy false</div></div>
+                          <div class="tl-item crit"><div style="font-size:12.5px;font-weight:600;">Colateral liquidado</div><div class="faint" style="font-size:11.5px;">{{ l.liqDate }} · {{ l.collSeized }} incautados</div></div>
+                          <div class="tl-item done"><div style="font-size:12.5px;font-weight:600;">Asentado en libro mayor</div><div class="faint" style="font-size:11.5px;">Recuperado {{ l.recovered }} · ambas partes notificadas</div></div>
+                        </div>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ l.showPay }}" hint-placeholder-val="{{ false }}">
+                      <div class="col" style="gap:6px;">
+                        <div class="between" style="font-size:12px;"><span class="dim">Saldo restante</span><span class="num"><b>{{ l.remaining }}</b> <span class="faint">/ {{ l.amount }}</span></span></div>
+                        <div class="acc-bar"><i style="width: {{ l.paidW }};"></i></div>
+                      </div>
+                      <button class="btn btn-primary btn-sm" onClick="{{ l.pay }}"><span class="ms">payments</span>Pagar cuota</button>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+              <sc-if value="{{ noLoans }}" hint-placeholder-val="{{ false }}"><div class="empty"><span class="ms">account_balance_wallet</span><b style="color:var(--text-dim);">Aún no tienes préstamos aquí</b></div></sc-if>
+            </div>
+          </div>
+
+          <div class="col gap-18">
+            <div class="card card-pad col gap-14">
+              <div class="between"><h3 style="font-size:14px;">Mi score crediticio</h3><span class="ms faint">verified_user</span></div>
+              <div class="row gap-16" style="align-items:center;">
+                <div class="ring" style="width:118px;height:118px;background: {{ score.ring }};">
+                  <div class="ring-in"><div class="num display" style="font-size:30px;color: {{ score.color }};">{{ score.value }}</div><div class="up" style="font-size:9px;">300–850</div></div>
+                </div>
+                <div class="col gap-10">
+                  <span class="badge" style="align-self:flex-start;color: {{ score.color }};background:color-mix(in oklab, {{ score.color }} 14%, transparent);border-color:color-mix(in oklab, {{ score.color }} 30%, transparent);">{{ score.category }}</span>
+                  <div class="col gap-6" style="font-size:12px;">
+                    <div class="between gap-14"><span class="dim">A tiempo</span><b class="num delta-up">{{ score.onTime }}</b></div>
+                    <div class="between gap-14"><span class="dim">Con retraso</span><b class="num" style="color:var(--risk-medium);">{{ score.late }}</b></div>
+                    <div class="between gap-14"><span class="dim">Impagos</span><b class="num">{{ score.defaults }}</b></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card card-pad col gap-14">
+              <div class="between"><h3 style="font-size:14px;">Resumen de cartera</h3><span class="ms faint">donut_small</span></div>
+              <div class="col gap-10">
+                <div class="between"><span class="dim row gap-8" style="font-size:13px;"><span class="dot" style="background:var(--risk-low);"></span>Prestado activo</span><b class="num">{{ summary.lent }}</b></div>
+                <div class="between"><span class="dim row gap-8" style="font-size:13px;"><span class="dot" style="background:var(--accent-2);"></span>Pedido activo</span><b class="num">{{ summary.owed }}</b></div>
+                <div class="between"><span class="dim row gap-8" style="font-size:13px;"><span class="dot" style="background:var(--text);"></span>Interés proyectado</span><b class="num">{{ summary.proj }}</b></div>
+              </div>
+              <hr class="hairline" />
+              <div class="col gap-8">
+                <div class="up">Distribución del balance</div>
+                <div class="acc-bar" style="height:10px;"><i style="width: {{ summary.blockedW }};"></i></div>
+                <div class="between faint" style="font-size:11.5px;"><span>Bloqueado {{ summary.blockedPct }}</span><span>Disponible {{ summary.availPct }}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ==== MARKETPLACE ==== -->
+      <sc-if value="{{ isMarketplace }}" hint-placeholder-val="{{ false }}">
+      <div class="page fade-in">
+        <div class="between wrap" style="margin-bottom:18px;gap:14px;">
+          <div class="col gap-10">
+            <p class="dim" style="font-size:14px;max-width:560px;">Solicitudes y ofertas P2P de la comunidad. <b style="color:var(--text);">Financia</b> una solicitud para ganar APY, o <b style="color:var(--text);">pide prestado</b> contra colateral.</p>
+            <span class="chip"><span class="ms ms-fill" style="color:var(--accent-2);">bolt</span>Caché de precios<b style="color:var(--risk-low);">{{ cache.hitRate }} aciertos</b><span class="faint">· {{ cache.detail }}</span></span>
+          </div>
+          <div class="row gap-10 wrap">
+            <button class="btn btn-soft" onClick="{{ goBorrow }}"><span class="ms">request_quote</span>Solicitar préstamo</button>
+            <button class="btn btn-primary" onClick="{{ goLend }}"><span class="ms">add</span>Publicar oferta</button>
+          </div>
+        </div>
+
+        <sc-if value="{{ recos.show }}" hint-placeholder-val="{{ false }}">
+        <div class="card" style="margin-bottom:18px;border-color:var(--accent-line);background:radial-gradient(500px 200px at 90% -40%,var(--accent-soft),transparent 60%);">
+          <div class="card-head" style="border-color:var(--border);"><div class="row gap-10"><span class="ms" style="color:var(--accent-2);">auto_awesome</span><h3>Recomendadas para ti</h3><span class="badge">{{ recos.count }}</span></div>
+            <button class="btn btn-primary btn-sm" onClick="{{ autoMatch }}"><span class="ms">bolt</span>Auto-match</button>
+          </div>
+          <div class="card-pad grid g-3">
+            <sc-for list="{{ recos.items }}" as="o" hint-placeholder-count="3">
+              <div class="tile col gap-12" style="border-color:var(--accent-line);">
+                <div class="between"><div class="row gap-10"><span class="coin {{ o.coin }}" style="width:32px;height:32px;">{{ o.coin }}</span><div class="col"><b class="num" style="font-size:16px;">{{ o.amount }}</b><span class="faint" style="font-size:11.5px;">{{ o.duration }} · {{ o.who }}</span></div></div><span class="badge risk {{ o.riskClass }}"><span class="ms">{{ o.riskIcon }}</span>{{ o.ltvText }}</span></div>
+                <div class="between" style="font-size:12.5px;"><span class="dim">APY</span><b class="num" style="color:var(--accent-2);">{{ o.apy }}</b></div>
+                <div class="between" style="font-size:12.5px;"><span class="dim">Score deudor</span><span class="badge" style="height:20px;color: {{ o.scoreColor }};background:color-mix(in oklab, {{ o.scoreColor }} 13%, transparent);border-color:color-mix(in oklab, {{ o.scoreColor }} 28%, transparent);"><b class="num">{{ o.score }}</b> {{ o.scoreCat }}</span></div>
+                <button class="btn btn-soft btn-sm btn-block" onClick="{{ o.match }}"><span class="ms">bolt</span>Financiar</button>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <div class="between wrap" style="margin-bottom:18px;gap:12px;">
+          <div class="seg">
+            <button class="{{ mkAllOn }}" onClick="{{ mkAll }}">Todos · {{ mkCounts.all }}</button>
+            <button class="lend {{ mkLendOn }}" onClick="{{ mkLend }}"><span class="ms">trending_up</span>Lend · {{ mkCounts.lend }}</button>
+            <button class="borrow {{ mkBorrowOn }}" onClick="{{ mkBorrow }}"><span class="ms">request_quote</span>Borrow · {{ mkCounts.borrow }}</button>
+          </div>
+          <div class="row gap-10 wrap">
+            <div class="row gap-8 tile" style="padding:7px 12px;"><span class="ms faint" style="font-size:16px;">percent</span><span class="faint" style="font-size:12px;">APY ≥</span><input class="range" style="width:110px;" type="range" min="0" max="10" step="0.5" value="{{ minApy }}" onInput="{{ setMinApy }}" /><b class="num" style="font-size:13px;width:34px;">{{ minApyText }}</b></div>
+          </div>
+        </div>
+
+        <div class="grid g-3">
+          <sc-for list="{{ offers }}" as="o" hint-placeholder-count="6">
+            <div class="card lcard rise">
+              <div class="between">
+                <div class="row gap-10"><span class="coin {{ o.coin }}">{{ o.coin }}</span>
+                  <div class="col"><div class="row gap-8"><b class="num" style="font-size:18px;">{{ o.amount }}</b><span class="tag {{ o.typeClass }}"><span class="ms">{{ o.typeIcon }}</span>{{ o.typeLabel }}</span></div>
+                  <span class="faint" style="font-size:12px;">{{ o.action }} · <span class="addr">{{ o.who }}</span></span></div>
+                </div>
+                <sc-if value="{{ o.mine }}" hint-placeholder-val="{{ false }}"><span class="badge"><span class="ms" style="font-size:13px;">person</span>Tuya</span></sc-if>
+              </div>
+              <div class="grid g-3" style="gap:10px;">
+                <div class="tile" style="padding:10px 12px;"><div class="up">APY</div><div class="num" style="font-size:16px;font-weight:650;margin-top:2px;color:var(--accent-2);">{{ o.apy }}</div></div>
+                <div class="tile" style="padding:10px 12px;"><div class="up">Plazo</div><div class="num" style="font-size:16px;font-weight:650;margin-top:2px;">{{ o.duration }}</div></div>
+                <div class="tile" style="padding:10px 12px;"><div class="up">Colateral</div><div class="num" style="font-size:15px;font-weight:650;margin-top:2px;">{{ o.coll }}</div></div>
+              </div>
+              <sc-if value="{{ o.hasLtv }}" hint-placeholder-val="{{ false }}">
+                <div class="col gap-8">
+                  <div class="between" style="font-size:12px;"><span class="dim row gap-6">LTV <span class="badge risk {{ o.riskClass }}" style="height:20px;"><span class="ms">{{ o.riskIcon }}</span>{{ o.riskLabel }}</span></span><span class="num faint">Valor {{ o.collValue }}</span></div>
+                  <div class="meter"><i style="width: {{ o.ltvW }}; background: {{ o.ltvColor }}; box-shadow:0 0 12px {{ o.ltvColor }};"></i></div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ o.hasScore }}" hint-placeholder-val="{{ false }}">
+                <div class="between tile" style="padding:9px 12px;"><span class="dim" style="font-size:12px;">Score del solicitante</span><span class="badge" style="height:22px;color: {{ o.scoreColor }};background:color-mix(in oklab, {{ o.scoreColor }} 13%, transparent);border-color:color-mix(in oklab, {{ o.scoreColor }} 28%, transparent);"><span class="ms" style="font-size:13px;">military_tech</span><b class="num">{{ o.score }}</b> {{ o.scoreCat }}</span></div>
+              </sc-if>
+              <div class="row gap-10">
+                <sc-if value="{{ o.mine }}" hint-placeholder-val="{{ false }}"><button class="btn btn-danger btn-sm grow"><span class="ms">delete</span>Cancelar oferta</button></sc-if>
+                <sc-if value="{{ o.canFund }}" hint-placeholder-val="{{ false }}"><button class="btn btn-primary btn-sm grow" onClick="{{ o.match }}"><span class="ms">bolt</span>Financiar y ganar {{ o.apy }}</button></sc-if>
+                <sc-if value="{{ o.canBorrow }}" hint-placeholder-val="{{ false }}"><button class="btn btn-soft btn-sm grow" onClick="{{ goBorrow }}"><span class="ms">request_quote</span>Pedir prestado</button></sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ==== BORROW ==== -->
+      <sc-if value="{{ isBorrow }}" hint-placeholder-val="{{ false }}">
+      <div class="page page-narrow fade-in">
+        <div class="grid" style="grid-template-columns:1.1fr .9fr;align-items:start;gap:20px;">
+          <div class="card card-pad col gap-18">
+            <div class="col gap-6"><h3>Detalles del préstamo</h3><span class="faint" style="font-size:13px;">Tasa fija del 5.0% APY para solicitudes. Bloquearás tu colateral como garantía.</span></div>
+            <label class="field"><span class="label">¿Cuánto quieres pedir? (USD)</span><span class="input-group"><span class="ms">attach_money</span><input class="input" type="number" value="{{ b.amount }}" onInput="{{ b.setAmount }}" /></span></label>
+            <label class="field"><span class="label">Tipo de colateral</span><select class="select" value="{{ b.collType }}" onChange="{{ b.setType }}"><sc-for list="{{ priceOpts }}" as="p" hint-placeholder-count="6"><option value="{{ p.v }}">{{ p.label }}</option></sc-for></select></label>
+            <label class="field"><span class="label">Cantidad de colateral</span><span class="input-group"><span class="ms">diamond</span><input class="input" type="number" step="0.01" value="{{ b.collAmount }}" onInput="{{ b.setColl }}" /></span></label>
+            <label class="field"><span class="label">Plazo: {{ b.duration }} días</span><input class="range" type="range" min="15" max="240" step="15" value="{{ b.duration }}" onInput="{{ b.setDur }}" /><div class="between faint" style="font-size:11px;"><span>15d</span><span>240d</span></div></label>
+          </div>
+          <div class="card card-pad col gap-16" style="position:sticky;top:90px;">
+            <div class="between"><h3 style="font-size:15px;">Análisis de riesgo</h3><span class="badge"><span class="ms" style="font-size:13px;">sensors</span>en vivo</span></div>
+            <div class="col" style="align-items:center;gap:6px;padding:6px 0;"><div class="num display" style="font-size:46px;color: {{ b.ltvColor }};">{{ b.ltvText }}</div><span class="up">Loan-to-Value</span></div>
+            <div class="meter"><i style="width: {{ b.ltvW }}; background: {{ b.ltvColor }}; box-shadow:0 0 12px {{ b.ltvColor }};"></i></div>
+            <div class="meter-ticks"><span style="left:62.5%;"><b>75</b></span><span style="left:75%;"><b>90</b></span><span style="left:79.2%;"><b>95</b></span></div>
+            <div class="row" style="justify-content:center;"><span class="badge risk {{ b.riskClass }}"><span class="ms">{{ b.riskIcon }}</span>{{ b.riskLabel }}</span></div>
+            <div class="callout {{ b.calloutClass }}"><span class="ms">{{ b.riskIcon }}</span><span>{{ b.msg }}</span></div>
+            <div class="col gap-8">
+              <div class="between" style="font-size:13px;"><span class="dim">Valor del colateral</span><b class="num">{{ b.collValue }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">Interés estimado (5% APY)</span><b class="num">{{ b.interest }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">Total a devolver</span><b class="num">{{ b.total }}</b></div>
+            </div>
+            <button class="btn btn-primary btn-lg btn-block"><span class="ms">publish</span>Publicar solicitud</button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ==== LEND ==== -->
+      <sc-if value="{{ isLend }}" hint-placeholder-val="{{ false }}">
+      <div class="page page-narrow fade-in">
+        <div class="grid" style="grid-template-columns:1.1fr .9fr;align-items:start;gap:20px;">
+          <div class="card card-pad col gap-18">
+            <div class="col gap-6"><h3>Ofrecer fondos</h3><span class="faint" style="font-size:13px;">Publica capital para que otros lo tomen prestado y gana interés.</span></div>
+            <div class="between tile"><span class="dim row gap-8" style="font-size:13px;"><span class="ms" style="font-size:16px;">account_balance_wallet</span>Saldo disponible</span><b class="num">{{ l.avail }}</b></div>
+            <label class="field"><span class="label">Monto a prestar (USD)</span><span class="input-group"><span class="ms">attach_money</span><input class="input" type="number" value="{{ l.amount }}" onInput="{{ l.setAmount }}" /></span></label>
+            <label class="field"><span class="label">APY ofrecido: {{ l.apyText }}</span><input class="range" type="range" min="1" max="12" step="0.1" value="{{ l.apy }}" onInput="{{ l.setApy }}" /><div class="between faint" style="font-size:11px;"><span>1%</span><span>Mercado ≈ 7%</span><span>12%</span></div></label>
+            <label class="field"><span class="label">Plazo: {{ l.duration }} días</span><input class="range" type="range" min="15" max="240" step="15" value="{{ l.duration }}" onInput="{{ l.setDur }}" /></label>
+            <div class="grid g-2" style="gap:12px;">
+              <label class="field"><span class="label">Tipo de colateral</span><select class="select" value="{{ l.collType }}" onChange="{{ l.setType }}"><sc-for list="{{ priceOpts }}" as="p" hint-placeholder-count="6"><option value="{{ p.v }}">{{ p.label }}</option></sc-for></select></label>
+              <label class="field"><span class="label">Cantidad de colateral</span><span class="input-group"><span class="ms">diamond</span><input class="input" type="number" step="0.01" value="{{ l.collAmount }}" onInput="{{ l.setColl }}" /></span></label>
+            </div>
+          </div>
+          <div class="card card-pad col gap-16" style="position:sticky;top:90px;">
+            <h3 style="font-size:15px;">Proyección de rendimiento</h3>
+            <div class="col" style="align-items:center;gap:4px;padding:4px 0;"><div class="num display" style="font-size:40px;color:var(--risk-low);">{{ l.interest }}</div><span class="up">Interés estimado · {{ l.duration }} días</span></div>
+            <div class="spark pos"><sc-for list="{{ l.daily }}" as="d" hint-placeholder-count="14"><i style="height: {{ d.h }};"></i></sc-for></div>
+            <div class="col gap-8">
+              <div class="between" style="font-size:13px;"><span class="dim">Capital prestado</span><b class="num">{{ l.capital }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">APY</span><b class="num">{{ l.apyText }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">Interés / día</span><b class="num">{{ l.perDay }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">Total al vencimiento</span><b class="num" style="color:var(--accent-2);">{{ l.total }}</b></div>
+            </div>
+            <div class="callout"><span class="ms">lock</span><span>Al publicar, bloqueamos {{ l.blockText }} de tu saldo disponible hasta que se financie o canceles la oferta.</span></div>
+            <button class="btn btn-primary btn-lg btn-block"><span class="ms">publish</span>Publicar oferta de lending</button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ==== PREFERENCES ==== -->
+      <sc-if value="{{ isPreferences }}" hint-placeholder-val="{{ false }}">
+      <div class="page page-narrow fade-in">
+        <div class="grid" style="grid-template-columns:1.15fr .85fr;align-items:start;gap:20px;">
+          <div class="card card-pad col gap-18">
+            <div class="col gap-6"><h3>Preferencias de inversión</h3><span class="faint" style="font-size:13px;">Definimos tus criterios para recomendarte solicitudes y activar el auto-match.</span></div>
+            <div class="grid g-2" style="gap:14px;">
+              <label class="field"><span class="label">Monto máximo por préstamo (USD)</span><span class="input-group"><span class="ms">attach_money</span><input class="input" type="number" value="{{ pr.maxAmount }}" onInput="{{ pr.setMax }}" /></span></label>
+              <label class="field"><span class="label">Score crediticio mínimo</span><span class="input-group"><span class="ms">military_tech</span><input class="input" type="number" value="{{ pr.minCreditScore }}" onInput="{{ pr.setScore }}" /></span></label>
+            </div>
+            <label class="field"><span class="label">APY mínimo: {{ pr.minApyText }}</span><input class="range" type="range" min="1" max="12" step="0.1" value="{{ pr.minApy }}" onInput="{{ pr.setApy }}" /></label>
+            <label class="field"><span class="label">LTV máximo aceptado: {{ pr.maxLtv }}%</span><input class="range" type="range" min="50" max="95" step="1" value="{{ pr.maxLtv }}" onInput="{{ pr.setLtv }}" /><div class="between faint" style="font-size:11px;"><span>Conservador 50%</span><span>Agresivo 95%</span></div></label>
+            <label class="field"><span class="label">Tipos de colateral aceptados</span>
+              <div class="row gap-8 wrap">
+                <sc-for list="{{ collChips }}" as="c" hint-placeholder-count="6"><button class="btn btn-sm {{ c.on }}" style="border-radius:var(--r-pill);" onClick="{{ c.toggle }}">{{ c.c }}</button></sc-for>
+              </div>
+            </label>
+          </div>
+          <div class="card card-pad col gap-16" style="position:sticky;top:90px;">
+            <div class="between tile">
+              <div class="col gap-2"><b style="font-size:14px;">Auto-match</b><span class="faint" style="font-size:12px;">Emparejar automáticamente solicitudes compatibles.</span></div>
+              <button class="switch {{ pr.autoClass }}" onClick="{{ pr.toggleAuto }}" aria-label="autoMatch"><span class="knob"></span></button>
+            </div>
+            <div class="callout"><span class="ms">auto_awesome</span><span>Con estos criterios, el motor busca solicitudes con LTV ≤ {{ pr.maxLtv }}% y score ≥ {{ pr.minCreditScore }}.</span></div>
+            <div class="col gap-8">
+              <div class="between" style="font-size:13px;"><span class="dim">Monto máximo</span><b class="num">{{ pr.maxAmount }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">APY mínimo</span><b class="num">{{ pr.minApyText }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">LTV máximo</span><b class="num">{{ pr.maxLtv }}%</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">Score mínimo</span><b class="num">{{ pr.minCreditScore }}</b></div>
+            </div>
+            <button class="btn btn-primary btn-lg btn-block" onClick="{{ savePrefs }}"><span class="ms">save</span>Guardar preferencias</button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ==== SIMULATOR ==== -->
+      <sc-if value="{{ isSimulator }}" hint-placeholder-val="{{ false }}">
+      <div class="page page-narrow fade-in">
+        <div class="card card-pad between" style="margin-bottom:18px;"><div class="col gap-4"><h3>Simulador de escenarios</h3><span class="faint" style="font-size:13px;">El LTV y el precio shockeado los calcula el backend (POST /loans/simulate). No afecta tu wallet.</span></div></div>
+        <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start;gap:20px;">
+          <div class="card card-pad col gap-16">
+            <label class="field"><span class="label">Monto del préstamo (USD)</span><span class="input-group"><span class="ms">attach_money</span><input class="input" type="number" value="{{ sm.amount }}" onInput="{{ sm.setAmount }}" /></span></label>
+            <div class="grid g-2" style="gap:12px;">
+              <label class="field"><span class="label">Colateral</span><select class="select" value="{{ sm.collType }}" onChange="{{ sm.setType }}"><sc-for list="{{ priceOpts }}" as="p" hint-placeholder-count="6"><option value="{{ p.v }}">{{ p.label }}</option></sc-for></select></label>
+              <label class="field"><span class="label">Cantidad</span><span class="input-group"><span class="ms">diamond</span><input class="input" type="number" step="0.01" value="{{ sm.collAmount }}" onInput="{{ sm.setColl }}" /></span></label>
+            </div>
+            <label class="field"><span class="label">Plazo: {{ sm.duration }} días</span><input class="range" type="range" min="15" max="240" step="15" value="{{ sm.duration }}" onInput="{{ sm.setDur }}" /></label>
+            <label class="field"><span class="label">Estrés de precio del colateral: {{ sm.shockText }}</span><input class="range" type="range" min="-80" max="50" step="5" value="{{ sm.shock }}" onInput="{{ sm.setShock }}" /><div class="between faint" style="font-size:11px;"><span>−80%</span><span>0</span><span>+50%</span></div></label>
+          </div>
+          <div class="card card-pad col gap-16" style="position:sticky;top:90px;">
+            <div class="col" style="align-items:center;gap:6px;"><div class="num display" style="font-size:46px;color: {{ sm.ltvColor }};">{{ sm.ltvText }}%</div><span class="badge risk {{ sm.riskClass }}"><span class="ms">{{ sm.riskIcon }}</span>{{ sm.riskLabel }}</span></div>
+            <div class="meter"><i style="width: {{ sm.ltvW }}; background: {{ sm.ltvColor }}; box-shadow:0 0 12px {{ sm.ltvColor }};"></i></div>
+            <div class="meter-ticks"><span style="left:62.5%;"><b>75</b></span><span style="left:75%;"><b>90</b></span><span style="left:79.2%;"><b>95</b></span></div>
+            <div class="col gap-8">
+              <div class="between" style="font-size:13px;"><span class="dim">Precio base {{ sm.collType }}</span><b class="num">{{ sm.basePrice }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">Precio shockeado</span><b class="num" style="color: {{ sm.ltvColor }};">{{ sm.shockedPrice }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">Valor del colateral</span><b class="num">{{ sm.collValue }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">Interés (5% APY)</span><b class="num">{{ sm.interest }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">Precio de liquidación {{ sm.collType }}</span><b class="num">{{ sm.liqPrice }}</b></div>
+            </div>
+            <div class="callout {{ sm.calloutClass }}"><span class="ms">{{ sm.riskIcon }}</span><span>{{ sm.msg }}</span></div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ==== ACTIVITY / LEDGER ==== -->
+      <sc-if value="{{ isActivity }}" hint-placeholder-val="{{ false }}">
+      <div class="page fade-in">
+        <div class="grid g-4" style="margin-bottom:18px;">
+          <sc-for list="{{ statement }}" as="st" hint-placeholder-count="4">
+            <div class="card kpi rise"><div class="k-top"><span class="k-lab">{{ st.label }}</span><span class="k-ic" style="color: {{ st.color }};"><span class="ms">{{ st.icon }}</span></span></div><div class="k-val num" style="color: {{ st.color }};font-size:24px;">{{ st.value }}</div></div>
+          </sc-for>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Libro mayor</h3><span class="faint" style="font-size:12px;">GET /ledger · asientos contables inmutables</span></div>
+          <table class="table">
+            <thead><tr><th>Tipo</th><th>Referencia</th><th>Fecha</th><th style="text-align:right;">Monto</th><th style="text-align:right;">Saldo resultante</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ ledger }}" as="e" hint-placeholder-count="7">
+                <tr>
+                  <td><span class="row gap-10"><span class="notif-ic" style="width:30px;height:30px;color: {{ e.color }};"><span class="ms" style="font-size:17px;">{{ e.icon }}</span></span><b style="font-size:12.5px;">{{ e.type }}</b></span></td>
+                  <td class="mono faint" style="font-size:12.5px;">{{ e.ref }}</td>
+                  <td class="mono dim" style="font-size:12.5px;">{{ e.date }}</td>
+                  <td class="num" style="text-align:right;font-weight:650;color: {{ e.amountColor }};">{{ e.amount }}</td>
+                  <td class="num dim" style="text-align:right;">{{ e.balance }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ==== SYSTEM (admin) ==== -->
+      <sc-if value="{{ isSystem }}" hint-placeholder-val="{{ false }}">
+      <div class="page fade-in">
+        <div class="grid g-4" style="margin-bottom:18px;">
+          <div class="card kpi rise" style="border-color:color-mix(in oklab,var(--risk-low) 26%,transparent);"><div class="k-top"><span class="k-lab">Salud del servicio</span><span class="sem-dot on-green"></span></div><div class="k-val" style="font-size:22px;color:var(--risk-low);">health: ok</div><div class="k-sub">uptime <b class="num" style="color:var(--text-dim);margin-left:4px;">{{ metrics.uptime }}</b></div></div>
+          <div class="card kpi rise"><div class="k-top"><span class="k-lab">Readiness</span><span class="ms" style="color:var(--risk-low);">database</span></div><div class="k-val" style="font-size:22px;">db·up</div><div class="k-sub">oracle · <b style="color:var(--risk-low);margin-left:4px;">{{ metrics.oracle }}</b></div></div>
+          <div class="card kpi rise"><div class="k-top"><span class="k-lab">Tasa de liquidación</span><span class="ms" style="color:var(--risk-critical);">gavel</span></div><div class="k-val num" style="color:var(--risk-critical);">{{ metrics.liqRate }}</div><div class="k-sub">de {{ metrics.totalLoans }} préstamos totales</div></div>
+          <div class="card kpi rise"><div class="k-top"><span class="k-lab">Notificaciones</span><span class="ms">notifications</span></div><div class="k-val num">{{ metrics.notifications }}</div><div class="k-sub"><b class="delta-down">{{ metrics.unread }}</b> sin leer</div></div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1fr 1fr 1fr;align-items:start;">
+          <div class="card card-pad col gap-14" style="align-items:center;"><div class="between" style="width:100%;"><h3 style="font-size:14px;">Caché de precios</h3><span class="ms faint" style="font-size:16px;">bolt</span></div>
+            <div class="ring" style="width:130px;height:130px;background: {{ metrics.cacheRing }};"><div class="ring-in"><div class="num display" style="font-size:26px;color:var(--accent-2);">{{ metrics.hitRate }}</div><div class="up" style="font-size:9px;">hit rate</div></div></div>
+            <div class="row gap-14" style="font-size:12px;"><span class="dim">HIT <b class="num" style="color:var(--risk-low);">{{ metrics.hits }}</b></span><span class="dim">MISS <b class="num">{{ metrics.misses }}</b></span></div>
+          </div>
+          <div class="card card-pad col gap-14"><div class="between"><h3 style="font-size:14px;">Circuit breaker</h3><span class="ms faint" style="font-size:16px;">shield</span></div>
+            <div class="row gap-16" style="align-items:center;padding:6px 0;">
+              <div class="semaphore">
+                <div class="row gap-8"><span class="sem-dot {{ metrics.semRed }}"></span><span class="faint" style="font-size:11.5px;">OPEN</span></div>
+                <div class="row gap-8"><span class="sem-dot {{ metrics.semAmber }}"></span><span class="faint" style="font-size:11.5px;">HALF_OPEN</span></div>
+                <div class="row gap-8"><span class="sem-dot {{ metrics.semGreen }}"></span><span class="faint" style="font-size:11.5px;">CLOSED</span></div>
+              </div>
+              <div class="col gap-4"><div class="display num" style="font-size:20px;color:var(--risk-low);">{{ metrics.breaker }}</div><span class="faint" style="font-size:12px;">failureCount <b class="num">{{ metrics.breakerFail }}</b></span></div>
+            </div>
+            <div class="faint" style="font-size:11.5px;line-height:1.5;">Protege al sistema si el oráculo de precios falla repetidamente.</div>
+          </div>
+          <div class="card card-pad col gap-12"><div class="between"><h3 style="font-size:14px;">Rate limiting</h3><span class="ms faint" style="font-size:16px;">speed</span></div>
+            <div class="col gap-8">
+              <div class="between" style="font-size:13px;"><span class="dim">Requests totales</span><b class="num">{{ metrics.reqTotal }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">Throttled (429)</span><b class="num" style="color:var(--risk-medium);">{{ metrics.throttled }}</b></div>
+              <div class="between" style="font-size:13px;"><span class="dim">Límite / ventana</span><b class="num">{{ metrics.rlMax }} / 60s</b></div>
+            </div>
+            <div class="chip" style="align-self:flex-start;"><span class="ms" style="font-size:14px;color:var(--accent-2);">bolt</span>métricas generadas en <b>{{ metrics.genMs }}ms</b></div>
+          </div>
+        </div>
+
+        <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:18px;align-items:start;">
+          <div class="card card-pad col gap-14"><h3 style="font-size:14px;">Préstamos por estado</h3>
+            <div class="col gap-12">
+              <sc-for list="{{ metrics.loanBars }}" as="lb" hint-placeholder-count="4">
+                <div class="col gap-6"><div class="between" style="font-size:12.5px;"><span class="dim" style="text-transform:capitalize;">{{ lb.label }}</span><b class="num">{{ lb.n }}</b></div><div class="acc-bar" style="height:8px;"><i style="width: {{ lb.w }};background: {{ lb.color }};"></i></div></div>
+              </sc-for>
+            </div>
+          </div>
+          <div class="card card-pad col gap-14"><h3 style="font-size:14px;">Volumen del libro mayor</h3>
+            <div class="grid g-2" style="gap:12px;">
+              <sc-for list="{{ metrics.volumes }}" as="v" hint-placeholder-count="4">
+                <div class="tile col gap-4"><span class="up">{{ v.label }}</span><b class="num" style="font-size:19px;color: {{ v.color }};">{{ v.value }}</b></div>
+              </sc-for>
+            </div>
+            <span class="faint mono" style="font-size:11px;">actualizado {{ metrics.timestamp }} · auto-refresh 10s</span>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ==== EDUCATION ==== -->
+      <sc-if value="{{ isEducation }}" hint-placeholder-val="{{ false }}">
+      <div class="page page-narrow fade-in">
+        <div class="card card-pad col gap-10" style="margin-bottom:18px;background:radial-gradient(600px 300px at 90% -20%,var(--accent-soft),transparent 60%);">
+          <span class="badge" style="align-self:flex-start;"><span class="ms" style="font-size:13px;">school</span>Zona educativa</span>
+          <h2 style="font-size:26px;max-width:560px;">Domina el LTV, el APY y las liquidaciones antes de arriesgar capital real.</h2>
+          <p class="dim" style="font-size:14.5px;max-width:580px;line-height:1.6;">Conceptos esenciales de las finanzas descentralizadas, con el vocabulario exacto de DeFi360 — y un vistazo a la ingeniería que lo sostiene.</p>
+        </div>
+        <div class="card" style="margin-bottom:18px;">
+          <div class="card-head"><h3>Niveles de riesgo por LTV</h3><span class="faint" style="font-size:12px;">LTV = préstamo / valor del colateral × 100</span></div>
+          <table class="table">
+            <thead><tr><th>Nivel</th><th>Rango LTV</th><th>Significado</th><th>Estado</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ riskRows }}" as="r" hint-placeholder-count="4">
+                <tr><td><span class="badge risk {{ r.riskClass }}"><span class="ms">{{ r.riskIcon }}</span>{{ r.riskLabel }}</span></td><td class="num"><b>{{ r.range }}</b></td><td class="dim">{{ r.desc }}</td><td class="mono" style="font-size:13px;color: {{ r.healthyColor }};">isHealthy: {{ r.healthy }}</td></tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+        <div class="grid g-2">
+          <sc-for list="{{ concepts }}" as="c" hint-placeholder-count="6">
+            <div class="card card-pad col gap-10 rise"><span class="k-ic" style="background:var(--accent-soft);color:var(--accent-2);"><span class="ms">{{ c.icon }}</span></span><h3 style="font-size:16px;">{{ c.title }}</h3><p class="dim" style="font-size:13.5px;line-height:1.6;">{{ c.body }}</p></div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ==== SUPPORT ==== -->
+      <sc-if value="{{ isSupport }}" hint-placeholder-val="{{ false }}">
+      <div class="page fade-in">
+        <div class="grid" style="grid-template-columns:1fr 1.1fr;align-items:start;gap:20px;">
+          <div class="col gap-18">
+            <div class="card card-pad col gap-14"><h3>Crear ticket de soporte</h3>
+              <div class="col gap-14">
+                <label class="field"><span class="label">Asunto</span><span class="input-group"><span class="ms">subject</span><input class="input" placeholder="Resume tu consulta" value="{{ sup.subject }}" onInput="{{ sup.setSubject }}" /></span></label>
+                <label class="field"><span class="label">Descripción</span><textarea class="textarea" placeholder="Cuéntanos con detalle qué ocurre…" value="{{ sup.description }}" onInput="{{ sup.setDesc }}"></textarea></label>
+                <label class="field"><span class="label">Prioridad</span><div class="seg"><sc-for list="{{ supPr }}" as="p" hint-placeholder-count="4"><button class="{{ p.on }}" onClick="{{ p.set }}">{{ p.label }}</button></sc-for></div></label>
+                <button class="btn btn-primary btn-block" onClick="{{ submitTicket }}"><span class="ms">send</span>Enviar ticket</button>
+              </div>
+            </div>
+            <div class="card"><div class="card-head"><h3>Preguntas frecuentes</h3></div>
+              <div>
+                <sc-for list="{{ faqs }}" as="f" hint-placeholder-count="4">
+                  <div style="border-bottom:1px solid var(--border);">
+                    <button class="between" style="width:100%;background:none;border:0;color:inherit;padding:15px 22px;cursor:pointer;text-align:left;" onClick="{{ f.toggle }}"><b style="font-size:13.5px;">{{ f.q }}</b><span class="ms faint">add</span></button>
+                    <sc-if value="{{ f.open }}" hint-placeholder-val="{{ false }}"><p class="dim fade-in" style="font-size:13.5px;line-height:1.6;padding:0 22px 16px;">{{ f.a }}</p></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div class="card"><div class="card-head"><h3>Mis tickets</h3><span class="badge">{{ ticketCount }}</span></div>
+            <div class="card-pad col gap-12">
+              <sc-for list="{{ tickets }}" as="t" hint-placeholder-count="2">
+                <div class="tile col gap-10 rise">
+                  <div class="between"><div class="col gap-2"><b style="font-size:13.5px;">{{ t.subject }}</b><span class="mono faint" style="font-size:11.5px;">{{ t.number }}</span></div><span class="badge {{ t.prClass }}" style="height:21px;font-size:11px;">{{ t.prLabel }}</span></div>
+                  <p class="dim" style="font-size:13px;line-height:1.55;">{{ t.description }}</p>
+                  <sc-if value="{{ t.hasResp }}" hint-placeholder-val="{{ false }}"><div class="callout" style="font-size:12.5px;"><span class="ms">support_agent</span>{{ t.response }}</div></sc-if>
+                  <div class="between"><span class="badge status status-active"><span class="dot"></span>{{ t.status }}</span></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+
+    <footer class="arch-bar">
+      <span class="chip" style="border-color:color-mix(in oklab,var(--risk-low) 30%,transparent);"><span class="sem-dot on-green" style="width:9px;height:9px;"></span>health: ok · uptime <b>{{ arch.uptime }}</b></span>
+      <span class="chip"><span class="ms" style="font-size:14px;">database</span>ready: db·up · oracle·<b>{{ arch.oracle }}</b></span>
+      <span class="chip"><span class="ms ms-fill" style="font-size:14px;color:var(--accent-2);">bolt</span>cache HIT <b style="color:var(--risk-low);">{{ arch.cacheHit }}</b></span>
+      <span class="chip"><span class="sem-dot {{ arch.breakerDot }}" style="width:9px;height:9px;"></span>breaker: <b>{{ arch.breaker }}</b></span>
+      <span class="chip" style="margin-left:auto;"><span class="ms" style="font-size:14px;">shield</span>Simulador educativo · sin fondos reales</span>
+    </footer>
+  </div>
+
+  <!-- ==== NOTIFICATIONS DRAWER ==== -->
+  <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="drawer-scrim" onClick="{{ toggleNotif }}"></div>
+    <div class="drawer">
+      <div class="between" style="padding:20px;border-bottom:1px solid var(--border);">
+        <div class="row gap-10"><span class="ms">notifications</span><h3 style="font-size:16px;">Notificaciones</h3><span class="badge">{{ unreadCount }} sin leer</span></div>
+        <div class="row gap-8"><button class="btn btn-ghost btn-sm" onClick="{{ markAll }}">Marcar todas</button><button class="btn btn-ghost btn-sm btn-icon" onClick="{{ toggleNotif }}"><span class="ms">close</span></button></div>
+      </div>
+      <div class="col" style="overflow-y:auto;">
+        <sc-for list="{{ notifs }}" as="n" hint-placeholder-count="4">
+          <div class="notif {{ n.unreadClass }}" onClick="{{ n.read }}">
+            <span class="notif-ic" style="color: {{ n.color }};"><span class="ms" style="font-size:19px;">{{ n.icon }}</span></span>
+            <div class="col gap-4" style="min-width:0;"><b style="font-size:13.5px;">{{ n.title }}</b><span class="dim" style="font-size:12.5px;line-height:1.5;">{{ n.message }}</span><span class="faint mono" style="font-size:11px;">{{ n.time }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ==== PAY MODAL ==== -->
+  <sc-if value="{{ payModal.open }}" hint-placeholder-val="{{ false }}">
+    <div class="scrim" onClick="{{ closePay }}">
+      <div class="modal" onClick="{{ stop }}">
+        <div class="modal-head"><div class="between"><div class="row gap-10"><span class="k-ic" style="background:var(--accent-soft);color:var(--accent-2);"><span class="ms">payments</span></span><h3 style="font-size:17px;">Pagar préstamo #{{ payModal.id }}</h3></div><button class="btn btn-ghost btn-sm btn-icon" onClick="{{ closePay }}"><span class="ms">close</span></button></div></div>
+        <div class="modal-body col gap-16">
+          <div class="between tile"><span class="dim" style="font-size:13px;">Saldo restante</span><b class="num" style="font-size:18px;">{{ payModal.remaining }}</b></div>
+          <label class="field"><span class="label">Monto a pagar (USD)</span><span class="input-group"><span class="ms">attach_money</span><input class="input" type="number" value="{{ payModal.amount }}" onInput="{{ setPayAmount }}" /></span></label>
+          <div class="row gap-8"><button class="btn btn-ghost btn-sm grow" onClick="{{ payQuarter }}">25%</button><button class="btn btn-ghost btn-sm grow" onClick="{{ payHalf }}">50%</button><button class="btn btn-ghost btn-sm grow" onClick="{{ payAll }}">Total</button></div>
+          <div class="tile col gap-10">
+            <div class="between" style="font-size:12.5px;"><span class="dim">LTV tras el pago</span><span class="row gap-8"><span class="badge risk {{ payModal.fromClass }}" style="height:21px;">{{ payModal.fromLtv }}</span><span class="ms faint" style="font-size:14px;">arrow_forward</span><span class="badge risk {{ payModal.toClass }}" style="height:21px;">{{ payModal.toLtv }}</span></span></div>
+            <div class="meter"><i style="width: {{ payModal.toW }}; background: {{ payModal.toColor }};"></i></div>
+          </div>
+        </div>
+        <div class="modal-foot"><button class="btn btn-ghost" onClick="{{ closePay }}">Cancelar</button><button class="btn btn-primary" onClick="{{ confirmPay }}"><span class="ms">check</span>Confirmar pago</button></div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1360,&quot;height&quot;:900},&quot;startRole&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;borrower&quot;,&quot;lender&quot;,&quot;admin&quot;],&quot;default&quot;:&quot;borrower&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;showArchChips&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    const PRICES = { ETH:3000, BTC:50000, USDC:1, DAI:1, USDT:1, LINK:25, AAVE:350, UNI:6.5 };
+    const startRole = ['borrower','lender','admin'].includes(props.startRole) ? props.startRole : 'borrower';
+    this.state = {
+      loggedIn: true,
+      view: 'dashboard',
+      role: startRole,
+      prices: PRICES,
+      tab: 'borrower',
+      mkFilter: 'all',
+      minApy: 0,
+      notifOpen: false,
+      payModal: { open:false },
+      loans: this.seedLoans(PRICES),
+      offers: this.seedOffers(PRICES),
+      notifs: this.seedNotifs(),
+      me: {
+        id: 42, name:'Alex Rivera', email:'alex@defi360.io',
+        walletAddress:'0x8f3ac6d21e77b904c5aa19e7d3b0f21a6c4e9d02',
+        wallet:{ totalBalance:6820.5, availableBalance:3120, blockedBalance:2700, totalEarned:1000.5 }
+      },
+      score: { score:728, category:'good', history:{ onTime:14, late:2, defaults:0 } },
+      borrow: { amount:1500, collType:'ETH', collAmount:1, duration:60 },
+      lend: { amount:2000, apy:7.5, duration:90, collType:'ETH', collAmount:1 },
+      sim: { amount:2000, collType:'ETH', collAmount:1, shock:0, duration:90, mode:'borrow' },
+      prefs: { maxAmount:5000, minApy:6, collateralTypes:['ETH','BTC'], maxLtv:80, minCreditScore:650, autoMatch:true },
+      support: { subject:'', description:'', priority:'medium' },
+      faqOpen: 0,
+      ledger: this.seedLedger(),
+      metrics: this.seedMetrics(),
+      tickets: this.seedTickets(),
+    };
+  }
+  seedLedger(){
+    return [
+      { id:9012, type:'PAYMENT', amount:-600, balanceAfter:3120, refType:'loan', refId:1042, createdAt:'10 jul 2026 · 14:22' },
+      { id:9008, type:'LIQUIDATION', amount:1187.4, balanceAfter:3720, refType:'loan', refId:1033, createdAt:'27 jun 2026 · 09:03' },
+      { id:9004, type:'LOCK', amount:-2000, balanceAfter:2532.6, refType:'offer', refId:1048, createdAt:'20 jun 2026 · 18:47' },
+      { id:8991, type:'PAYMENT', amount:-450, balanceAfter:4532.6, refType:'loan', refId:1029, createdAt:'14 jun 2026 · 11:15' },
+      { id:8975, type:'DISBURSEMENT', amount:1500, balanceAfter:4982.6, refType:'loan', refId:1042, createdAt:'02 jun 2026 · 08:30' },
+      { id:8960, type:'RELEASE', amount:700, balanceAfter:3482.6, refType:'offer', refId:1012, createdAt:'28 may 2026 · 16:09' },
+      { id:8944, type:'DISBURSEMENT', amount:5000, balanceAfter:2782.6, refType:'signup', refId:0, createdAt:'20 may 2026 · 10:00' },
+    ];
+  }
+  seedMetrics(){
+    return { cache:{hits:842,misses:71,hitRate:0.922}, breaker:{state:'CLOSED',failureCount:0},
+      rateLimit:{totalRequests:5218,throttled:12,windowMs:60000,max:100},
+      loansByStatus:{active:38,paid:19,defaulted:3,liquidated:6}, totalLoans:66, liquidationRate:0.0909,
+      notifications:214, unreadNotifications:47, liquidations:6,
+      ledger:{disbursed:284500,repaid:198740,liquidated:12410,netOutstanding:73350}, generatedInMs:7, timestamp:'12 jul 2026 · 16:20:04' };
+  }
+  seedTickets(){
+    return [
+      { id:1, ticketNumber:'TCK-2041', subject:'No veo mi préstamo liquidado en el ledger', description:'El préstamo #1033 aparece como liquidado pero quiero confirmar el asiento contable.', priority:'high', status:'in_progress', createdAt:'08 jul 2026' },
+      { id:2, ticketNumber:'TCK-2033', subject:'¿Cómo activo el auto-match?', description:'Configuré mis preferencias pero no me llegan recomendaciones.', priority:'medium', status:'resolved', response:'Activa el toggle autoMatch en Preferencias y define al menos un tipo de colateral.', createdAt:'03 jul 2026' },
+    ];
+  }
+
+  // ---------- helpers ----------
+  usd(n,d=2){ return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+  usd0(n){ return '$'+Math.round(Number(n||0)).toLocaleString('en-US'); }
+  pct(n,d=1){ return Number(n||0).toFixed(d)+'%'; }
+  short(a){ return a ? a.slice(0,6)+'…'+a.slice(-4) : '—'; }
+  evalRisk(ltv){ const v=parseFloat(ltv); if(v>=95)return{level:'critical'}; if(v>=90)return{level:'high'}; if(v>=75)return{level:'medium'}; return{level:'low'}; }
+  riskColor(l){ return 'var(--risk-'+l+')'; }
+  riskLabel(l){ return {low:'Bajo',medium:'Medio',high:'Alto',critical:'Crítico'}[l]; }
+  riskIcon(l){ return {low:'shield',medium:'warning',high:'priority_high',critical:'release_alert'}[l]; }
+  ltvW(v){ return Math.min(100,(Number(v)||0)/1.2)+'%'; }
+  scoreColor(cat){ return {poor:'var(--risk-critical)',fair:'var(--risk-medium)',good:'#7bd88f',excellent:'var(--risk-low)'}[cat]||'var(--text)'; }
+  scoreCat(s){ if(s>=750)return'excellent'; if(s>=670)return'good'; if(s>=580)return'fair'; return'poor'; }
+  ring(deg,color){ return 'conic-gradient('+color+' '+deg+'deg, var(--surface-3) '+deg+'deg)'; }
+
+  seedLoans(P){
+    return {
+      asBorrower:[
+        { id:1042, status:'active', rateType:'fixed', collateralType:'ETH', collateralAmount:0.7, amount:1500, apy:5.0, remainingBalance:900, ltv:71.4, counter:'LenderDAO', startDate:'12 may 2026' },
+        { id:1051, status:'active', rateType:'fixed', collateralType:'BTC', collateralAmount:0.09, amount:4100, apy:5.0, remainingBalance:4100, ltv:91.1, counter:'yield_whale', startDate:'02 jun 2026' },
+        { id:1033, status:'liquidated', rateType:'fixed', collateralType:'LINK', collateralAmount:50, amount:1200, apy:5.0, remainingBalance:1200, ltv:96.2, counter:'stable_fund', startDate:'18 abr 2026', liqDate:'27 jun 2026', collSeized:'50 LINK', recovered:'$1,187.40' },
+      ],
+      asLender:[
+        { id:1048, status:'active', rateType:'variable', collateralType:'ETH', collateralAmount:1.1, amount:2000, apy:7.5, remainingBalance:2000, ltv:60.6, counter:'0x51ac…9f3d', startDate:'20 may 2026' },
+        { id:1029, status:'active', rateType:'fixed', collateralType:'AAVE', collateralAmount:2.3, amount:700, apy:8.2, remainingBalance:520, ltv:87.0, counter:'defi_maxi', startDate:'11 may 2026' },
+        { id:1005, status:'paid', rateType:'fixed', collateralType:'USDC', collateralAmount:1600, amount:1500, apy:6.4, remainingBalance:0, ltv:93.7, counter:'0x77c1…04ab', startDate:'02 mar 2026' },
+      ],
+    };
+  }
+  seedOffers(P){
+    return [
+      { id:301, type:'borrow', amount:2500, apy:5.0, duration:60, collateralType:'ETH', collateralAmount:1.0, who:'0x51ac…9f3d', score:742, mine:false },
+      { id:302, type:'lend',   amount:5000, apy:7.8, duration:90, collateralType:'USDC', collateralAmount:5300, who:'yield_whale', mine:false },
+      { id:303, type:'borrow', amount:1800, apy:5.0, duration:45, collateralType:'BTC', collateralAmount:0.041, who:'defi_maxi', score:655, mine:false },
+      { id:304, type:'borrow', amount:3200, apy:5.0, duration:120, collateralType:'AAVE', collateralAmount:10, who:'0x9d2f…7c11', score:801, mine:false },
+      { id:305, type:'lend',   amount:2200, apy:9.4, duration:60, collateralType:'DAI', collateralAmount:2400, who:'stable_fund', mine:false },
+      { id:306, type:'borrow', amount:900,  apy:5.0, duration:30, collateralType:'LINK', collateralAmount:40, who:'0x8f3a…9d02', score:520, mine:true },
+    ];
+  }
+  seedNotifs(){
+    return [
+      { id:1, icon:'release_alert', color:'var(--risk-critical)', title:'Préstamo #1033 liquidado', message:'Tu LTV alcanzó 96.2% (critical). Se liquidó el colateral y se asentó en el libro mayor.', time:'hace 2 h', read:false },
+      { id:2, icon:'warning', color:'var(--risk-high)', title:'Riesgo alto en préstamo #1051', message:'El LTV subió a 88.9%. Paga una cuota o añade colateral para evitar la liquidación.', time:'hace 5 h', read:false },
+      { id:3, icon:'bolt', color:'var(--accent-2)', title:'Solicitud financiada', message:'yield_whale financió tu solicitud de $1,500 a tasa fija 5.0% APY.', time:'ayer', read:false },
+      { id:4, icon:'check_circle', color:'var(--risk-low)', title:'Pago registrado', message:'Se aplicó tu pago de $600 al préstamo #1042. Nuevo LTV 71.4%.', time:'hace 2 d', read:true },
+      { id:5, icon:'savings', color:'var(--accent-2)', title:'Bienvenido a DeFi360', message:'Recibiste 5 000 USD simulados para practicar préstamos sin riesgo.', time:'hace 6 d', read:true },
+    ];
+  }
+
+  navMeta(){
+    return {
+      dashboard:{title:'Dashboard',sub:'Resumen de tu wallet y préstamos'},
+      marketplace:{title:'Marketplace',sub:'Ofertas y solicitudes P2P'},
+      borrow:{title:'Solicitar préstamo',sub:'Análisis de LTV en vivo'},
+      lend:{title:'Ofrecer fondos',sub:'Publica capital y gana APY'},
+      preferences:{title:'Preferencias de inversión',sub:'Auto-match por criterios'},
+      simulator:{title:'Simulador de escenarios',sub:'Estrés de precio del colateral'},
+      activity:{title:'Mi actividad',sub:'Libro mayor y estado de cuenta'},
+      education:{title:'Zona educativa',sub:'LTV, APY, liquidación y arquitectura'},
+      system:{title:'Sistema',sub:'Observabilidad · solo admin'},
+      support:{title:'Soporte',sub:'Tickets y preguntas frecuentes'},
+    }[this.state.view] || {title:'DeFi360',sub:''};
+  }
+
+  go(v){ this.setState({ view:v, notifOpen:false }); window.scrollTo(0,0); }
+
+  loanVM(l, role){
+    const r=this.evalRisk(l.ltv);
+    const price=this.state.prices[l.collateralType];
+    const collVal=l.collateralAmount*price;
+    const paidPct=l.amount>0?((l.amount-l.remainingBalance)/l.amount*100):0;
+    return {
+      id:l.id, coin:l.collateralType, statusLabel:{active:'Activa',paid:'Pagado',defaulted:'Impago',liquidated:'Liquidado'}[l.status],
+      statusClass:'status-'+l.status, riskClass:'risk-'+r.level, riskIcon:this.riskIcon(r.level), riskLabel:this.riskLabel(r.level),
+      ltvText:this.pct(l.ltv), amount:this.usd0(l.amount), apy:this.pct(l.apy), rateType:l.rateType==='fixed'?'fija':'variable',
+      coll:l.collateralAmount+' '+l.collateralType, collValue:this.usd0(collVal), counter:l.counter,
+      counterLabel: role==='borrower'?'Prestamista':'Deudor',
+      ltvW:this.ltvW(l.ltv), ltvColor:this.riskColor(r.level),
+      isLiquidated:l.status==='liquidated', liqDate:l.liqDate, collSeized:l.collSeized, recovered:l.recovered, startDate:l.startDate,
+      showPay: role==='borrower' && l.status==='active',
+      remaining:this.usd(l.remainingBalance), paidW:paidPct+'%',
+      pay:()=>this.openPay(l),
+    };
+  }
+
+  openPay(l){ this.setState({ payModal:{ open:true, loan:l, amount:Math.round(l.remainingBalance/2) } }); }
+  closePay(){ this.setState({ payModal:{ open:false } }); }
+  setPayAmount(e){ const pm={...this.state.payModal, amount:Math.max(0,+e.target.value||0)}; this.setState({payModal:pm}); }
+  payFrac(f){ const pm=this.state.payModal; this.setState({payModal:{...pm, amount:Math.round(pm.loan.remainingBalance*f)}}); }
+  confirmPay(){
+    const pm=this.state.payModal; const loans=JSON.parse(JSON.stringify(this.state.loans));
+    const l=loans.asBorrower.find(x=>x.id===pm.loan.id);
+    if(l){ l.remainingBalance=Math.max(0,l.remainingBalance-pm.amount); const price=this.state.prices[l.collateralType]; l.ltv=+((l.remainingBalance/(l.collateralAmount*price))*100).toFixed(1); if(l.remainingBalance<=0)l.status='paid'; }
+    const me=JSON.parse(JSON.stringify(this.state.me)); me.wallet.availableBalance-=pm.amount;
+    this.setState({ loans, me, payModal:{open:false} });
+  }
+
+  offerVM(o){
+    const price=this.state.prices[o.collateralType]; const collVal=o.collateralAmount*price;
+    const ltv=o.type==='borrow'? +((o.amount/collVal)*100).toFixed(1) : null;
+    const r=ltv!=null?this.evalRisk(ltv):null;
+    const cat=o.score!=null?this.scoreCat(o.score):null;
+    return {
+      id:o.id, coin:o.collateralType, amount:this.usd0(o.amount), apy:this.pct(o.apy), duration:o.duration+'d',
+      typeClass:o.type==='lend'?'tag-lend':'tag-borrow', typeIcon:o.type==='lend'?'trending_up':'request_quote', typeLabel:o.type==='lend'?'Lend':'Borrow',
+      action:o.type==='borrow'?'Solicita':'Ofrece', who:o.who, coll:o.collateralAmount+' '+o.collateralType,
+      mine:o.mine, hasLtv:ltv!=null, ltvText:this.pct(ltv||0), riskClass:r?'risk-'+r.level:'', riskIcon:r?this.riskIcon(r.level):'', riskLabel:r?this.riskLabel(r.level):'',
+      ltvW:this.ltvW(ltv), ltvColor:r?this.riskColor(r.level):'', collValue:this.usd0(collVal),
+      hasScore:o.score!=null, score:o.score, scoreCat:cat, scoreColor:this.scoreColor(cat),
+      canFund: o.type==='borrow' && !o.mine, canBorrow: o.type==='lend' && !o.mine,
+      match:()=>{}, who2:o.who, coinShort:o.collateralType,
+    };
+  }
+
+  renderVals(){
+    const s=this.state, me=s.me, w=me.wallet, P=s.prices;
+    const COINS=['ETH','BTC','USDC','USDT','DAI','LINK'];
+    const meta=this.navMeta();
+
+    // nav (role-based)
+    const items=[
+      ['dashboard','Dashboard','space_dashboard',['borrower','lender','admin']],
+      ['marketplace','Marketplace','storefront',['borrower','lender','admin']],
+      ['borrow','Pedir préstamo','request_quote',['borrower','lender','admin']],
+      ['lend','Ofrecer fondos','trending_up',['lender','admin']],
+      ['preferences','Preferencias','tune',['lender','admin']],
+      ['simulator','Simulador','calculate',['borrower','lender','admin']],
+      ['activity','Mi actividad','receipt_long',['borrower','lender','admin']],
+      ['education','Aprende','school',['borrower','lender','admin']],
+      ['system','Sistema','monitoring',['admin']],
+      ['support','Soporte','support_agent',['borrower','lender','admin']],
+    ];
+    const nav=items.filter(i=>i[3].includes(s.role)).map(i=>({
+      id:i[0], label:i[1], icon:i[2], on:s.view===i[0]?'on':'', fill:s.view===i[0]?'ms-fill':'', go:()=>this.go(i[0]),
+    }));
+    const roles=['borrower','lender','admin'].map(r=>({ key:r, label:{borrower:'Deudor',lender:'Prestamista',admin:'Admin'}[r], on:s.role===r?'on':'', set:()=>this.setState({role:r, view: (r!=='admin'&&s.view==='system')?'dashboard':s.view }) }));
+
+    // loans
+    const bList=s.loans.asBorrower, lList=s.loans.asLender;
+    const visible=(s.tab==='borrower'?bList:lList).map(l=>this.loanVM(l,s.tab));
+    const activeOwed=bList.filter(l=>l.status==='active').reduce((a,l)=>a+l.remainingBalance,0);
+    const activeLent=lList.filter(l=>l.status==='active').reduce((a,l)=>a+l.remainingBalance,0);
+    const projInt=lList.filter(l=>l.status==='active').reduce((a,l)=>a+l.amount*(l.apy/100)*0.25,0);
+    const atRiskLoans=bList.filter(l=>l.status==='active' && !this.evalRisk(l.ltv).level.match(/low|medium/));
+
+    // score
+    const sc=s.score; const cat=this.scoreCat(sc.score); const scColor=this.scoreColor(cat);
+    const deg=((sc.score-300)/550)*360;
+
+    // offers filtered
+    let offers=s.offers.filter(o=> s.mkFilter==='all'||o.type===s.mkFilter ).filter(o=>o.apy>=s.minApy).map(o=>this.offerVM(o));
+    const recoItems=s.offers.filter(o=>o.type==='borrow' && !o.mine).slice(0,3).map(o=>this.offerVM(o));
+
+    // notifications
+    const unread=s.notifs.filter(n=>!n.read).length;
+    const notifs=s.notifs.map(n=>({ ...n, unreadClass:n.read?'':'unread', read:()=>this.markRead(n.id) }));
+
+    // pay modal
+    let pm={ open:false };
+    if(s.payModal.open){
+      const l=s.payModal.loan, price=P[l.collateralType];
+      const newRem=Math.max(0,l.remainingBalance-s.payModal.amount);
+      const newLtv=+((newRem/(l.collateralAmount*price))*100).toFixed(1);
+      const rf=this.evalRisk(l.ltv), rt=this.evalRisk(newLtv);
+      pm={ open:true, id:l.id, remaining:this.usd(l.remainingBalance), amount:s.payModal.amount,
+        fromLtv:this.pct(l.ltv), toLtv:this.pct(newLtv), fromClass:'risk-'+rf.level, toClass:'risk-'+rt.level,
+        toW:this.ltvW(newLtv), toColor:this.riskColor(rt.level) };
+    }
+
+    const ev=this.extraVals();
+    return {
+      isBorrow:ev.isBorrow, isLend:ev.isLend, isPreferences:ev.isPreferences, isSimulator:ev.isSimulator, isActivity:ev.isActivity, isEducation:ev.isEducation, isSystem:ev.isSystem, isSupport:ev.isSupport,
+      priceOpts:ev.priceOpts, b:ev.b, bSetAmt:ev.bSetAmt, l:ev.l, lSetAmt:ev.lSetAmt, sm:ev.sm, pr:ev.pr, collChips:ev.collChips, savePrefs:ev.savePrefs, ledger:ev.ledger, statement:ev.statement, metrics:ev.metrics, concepts:ev.concepts, riskRows:ev.riskRows, faqs:ev.faqs, tickets:ev.tickets, ticketCount:ev.ticketCount, sup:ev.sup, supPr:ev.supPr, submitTicket:ev.submitTicket,
+      loggedIn:s.loggedIn, loggedOut:!s.loggedIn,
+      login:()=>this.setState({loggedIn:true,view:'dashboard'}),
+      logout:()=>this.setState({loggedIn:false}),
+      ticker:COINS.map(c=>({ sym:c, price:this.usd0(P[c]) })),
+      nav, roles,
+      me:{ name:me.name, initial:me.name[0], walletShort:this.short(me.walletAddress),
+        walletTotal:this.usd(w.totalBalance), walletAvail:this.usd(w.availableBalance),
+        walletBlocked:this.usd(w.blockedBalance), walletEarned:this.usd(w.totalEarned) },
+      meta,
+      isDashboard:s.view==='dashboard', isMarketplace:s.view==='marketplace',
+      goDashboard:()=>this.go('dashboard'), goBorrow:()=>this.go('borrow'), goLend:()=>this.go('lend'),
+      // dashboard
+      atRisk:{ show:atRiskLoans.length>0, title:atRiskLoans.length+' préstamo'+(atRiskLoans.length>1?'s':'')+' con riesgo de liquidación.', resolve:()=>{ this.setState({tab:'borrower'}); this.openPay(atRiskLoans[0]); } },
+      counts:{ borrower:bList.length, lender:lList.length },
+      tabBorrowerOn:s.tab==='borrower'?'on':'', tabLenderOn:s.tab==='lender'?'on':'',
+      setTabBorrower:()=>this.setState({tab:'borrower'}), setTabLender:()=>this.setState({tab:'lender'}),
+      visibleLoans:visible, noLoans:visible.length===0,
+      score:{ ring:this.ring(deg,scColor), color:scColor, value:sc.score, category:cat, onTime:sc.history.onTime, late:sc.history.late, defaults:sc.history.defaults },
+      summary:{ lent:this.usd(activeLent), owed:this.usd(activeOwed), proj:this.usd(projInt),
+        blockedW:(w.blockedBalance/w.totalBalance*100)+'%', blockedPct:Math.round(w.blockedBalance/w.totalBalance*100)+'%', availPct:Math.round(w.availableBalance/w.totalBalance*100)+'%' },
+      // marketplace
+      cache:{ hitRate:'92%', detail:'842 HIT / 71 MISS' },
+      recos:{ show:s.role!=='borrower', count:recoItems.length, items:recoItems },
+      autoMatch:()=>this.setState({view:'dashboard'}),
+      mkAllOn:s.mkFilter==='all'?'on':'', mkLendOn:s.mkFilter==='lend'?'on':'', mkBorrowOn:s.mkFilter==='borrow'?'on':'',
+      mkAll:()=>this.setState({mkFilter:'all'}), mkLend:()=>this.setState({mkFilter:'lend'}), mkBorrow:()=>this.setState({mkFilter:'borrow'}),
+      mkCounts:{ all:s.offers.length, lend:s.offers.filter(o=>o.type==='lend').length, borrow:s.offers.filter(o=>o.type==='borrow').length },
+      minApy:s.minApy, minApyText:s.minApy+'%', setMinApy:(e)=>this.setState({minApy:+e.target.value}),
+      offers,
+      // notifications
+      hasUnread:unread>0, unreadCount:unread, notifOpen:s.notifOpen,
+      toggleNotif:()=>this.setState({notifOpen:!s.notifOpen}),
+      markAll:()=>{ const n=s.notifs.map(x=>({...x,read:true})); this.setState({notifs:n}); },
+      notifs,
+      // pay
+      payModal:pm, closePay:()=>this.closePay(), setPayAmount:(e)=>this.setPayAmount(e),
+      payQuarter:()=>this.payFrac(0.25), payHalf:()=>this.payFrac(0.5), payAll:()=>this.payFrac(1), confirmPay:()=>this.confirmPay(),
+      stop:(e)=>e.stopPropagation(),
+      // arch footer
+      arch:{ uptime:'4d 06:12', oracle:'CLOSED', cacheHit:'92%', breaker:'CLOSED', breakerDot:'on-green' },
+    };
+  }
+  markRead(id){ const n=this.state.notifs.map(x=>x.id===id?{...x,read:true}:x); this.setState({notifs:n}); }
+  setB(k,v){ this.setState({borrow:{...this.state.borrow,[k]:v}}); }
+  setL(k,v){ this.setState({lend:{...this.state.lend,[k]:v}}); }
+  setS(k,v){ this.setState({sim:{...this.state.sim,[k]:v}}); }
+  setP(k,v){ this.setState({prefs:{...this.state.prefs,[k]:v}}); }
+  setSup(k,v){ this.setState({support:{...this.state.support,[k]:v}}); }
+  togColl(c){ const arr=this.state.prefs.collateralTypes; const next=arr.includes(c)?arr.filter(x=>x!==c):[...arr,c]; this.setP('collateralTypes',next); }
+  spark(vals){ const max=Math.max(...vals,1); return vals.map(v=>({ h:(v/max*100)+'%' })); }
+
+  extraVals(){
+    const s=this.state, P=s.prices, COINS=['ETH','BTC','USDC','USDT','DAI','LINK'];
+    const priceOpts=COINS.map(c=>({ v:c, label:c+' · '+this.usd0(P[c]) }));
+
+    // ---- borrow ----
+    const b=s.borrow, bPrice=P[b.collType], bCollVal=(+b.collAmount||0)*bPrice;
+    const bLtv= bCollVal>0 ? +((b.amount/bCollVal)*100).toFixed(1) : 0;
+    const bR=this.evalRisk(bLtv), bInt=b.amount*0.05*(b.duration/365);
+    const bInsuff=bCollVal < b.amount;
+
+    // ---- lend ----
+    const l=s.lend, lInt=l.amount*(l.apy/100)*(l.duration/365), lTotal=l.amount+lInt;
+    const avail=s.me.wallet.availableBalance, lInsuff=l.amount>avail;
+    const lDaily=this.spark(Array.from({length:14},(_,i)=>l.amount*(l.apy/100)*((l.duration*(i+1)/14)/365)));
+
+    // ---- simulator ----
+    const sm=s.sim, base=P[sm.collType], shocked=base*(1+sm.shock/100), sCollVal=(+sm.collAmount||0)*shocked;
+    const sLtv= sCollVal>0 ? +((sm.amount/sCollVal)*100).toFixed(1) : 0;
+    const sR=this.evalRisk(sLtv), liqPrice= sm.collAmount>0 ? sm.amount/(sm.collAmount*0.95) : 0;
+    const sInt=sm.amount*0.05*(sm.duration/365);
+
+    // ---- prefs ----
+    const pr=s.prefs;
+
+    // ---- ledger ----
+    const lgMap={ DISBURSEMENT:['payments','var(--accent-2)'], PAYMENT:['check_circle','var(--risk-low)'],
+      LIQUIDATION:['gavel','var(--risk-critical)'], LOCK:['lock','var(--risk-medium)'], RELEASE:['lock_open','var(--text-dim)'] };
+    const ledger=s.ledger.map(e=>({ id:e.id, type:e.type, icon:lgMap[e.type][0], color:lgMap[e.type][1],
+      amount:(e.amount>=0?'+':'−')+this.usd(Math.abs(e.amount)), amountColor:e.amount>=0?'var(--risk-low)':'var(--text)',
+      balance:this.usd(e.balanceAfter), ref:e.refType+' #'+e.refId, date:e.createdAt }));
+    const sum=(t)=>s.ledger.filter(e=>e.type===t).reduce((a,e)=>a+Math.abs(e.amount),0);
+    const statement=[
+      ['Desembolsado','south_west',this.usd0(sum('DISBURSEMENT')),'var(--accent-2)'],
+      ['Pagado','check','+'+this.usd0(sum('PAYMENT')),'var(--risk-low)'],
+      ['Liquidado','gavel',this.usd0(sum('LIQUIDATION')),'var(--risk-critical)'],
+      ['Saldo actual','account_balance_wallet',this.usd0(s.ledger[0].balanceAfter),'var(--text)'],
+    ].map(x=>({ label:x[0], icon:x[1], value:x[2], color:x[3] }));
+
+    // ---- metrics (admin) ----
+    const m=s.metrics, hitDeg=(m.cache.hitRate)*360;
+    const lbs=m.loansByStatus, lbsMax=Math.max(lbs.active,lbs.paid,lbs.defaulted,lbs.liquidated);
+    const breakerDot={CLOSED:'on-green',HALF_OPEN:'on-amber',OPEN:'on-red'}[m.breaker.state];
+    const metrics={
+      uptime:'4d 06:12:44', oracle:'CLOSED', dbUp:true,
+      cacheRing:this.ring(hitDeg,'var(--accent)'), hitRate:(m.cache.hitRate*100).toFixed(1)+'%', hits:m.cache.hits, misses:m.cache.misses,
+      breaker:m.breaker.state, breakerFail:m.breaker.failureCount,
+      semGreen: m.breaker.state==='CLOSED'?'on-green':'', semAmber: m.breaker.state==='HALF_OPEN'?'on-amber':'', semRed: m.breaker.state==='OPEN'?'on-red':'',
+      loanBars:[
+        {label:'active',n:lbs.active,w:(lbs.active/lbsMax*100)+'%',color:'var(--accent-2)'},
+        {label:'paid',n:lbs.paid,w:(lbs.paid/lbsMax*100)+'%',color:'var(--risk-low)'},
+        {label:'defaulted',n:lbs.defaulted,w:(lbs.defaulted/lbsMax*100)+'%',color:'var(--risk-high)'},
+        {label:'liquidated',n:lbs.liquidated,w:(lbs.liquidated/lbsMax*100)+'%',color:'var(--risk-critical)'},
+      ],
+      totalLoans:m.totalLoans, liqRate:(m.liquidationRate*100).toFixed(2)+'%',
+      volumes:[
+        ['Desembolsado',this.usd0(m.ledger.disbursed),'var(--accent-2)'],
+        ['Pagado',this.usd0(m.ledger.repaid),'var(--risk-low)'],
+        ['Liquidado',this.usd0(m.ledger.liquidated),'var(--risk-critical)'],
+        ['Saldo neto',this.usd0(m.ledger.netOutstanding),'var(--text)'],
+      ].map(x=>({label:x[0],value:x[1],color:x[2]})),
+      notifications:m.notifications, unread:m.unreadNotifications,
+      reqTotal:m.rateLimit.totalRequests.toLocaleString('en-US'), throttled:m.rateLimit.throttled, rlMax:m.rateLimit.max,
+      genMs:m.generatedInMs, timestamp:m.timestamp,
+    };
+
+    // ---- tickets ----
+    const prMap={low:['Baja','risk-low'],medium:['Media','status-active'],high:['Alta','risk-high'],critical:['Crítica','risk-critical']};
+    const stMap={open:'Abierto',in_progress:'En proceso',resolved:'Resuelto',closed:'Cerrado'};
+    const tickets=s.tickets.map(t=>({ id:t.id, number:t.ticketNumber, subject:t.subject, description:t.description,
+      prLabel:prMap[t.priority][0], prClass:prMap[t.priority][1], status:stMap[t.status], response:t.response||'', hasResp:!!t.response }));
+
+    const CONCEPTS=[
+      ['account_balance','Lending P2P','Prestar y pedir prestado directamente entre personas, sin un banco. El prestamista aporta capital y gana interés; el deudor recibe fondos a cambio de bloquear colateral.'],
+      ['diamond','Colateral','Activo cripto (ETH, BTC…) que el deudor bloquea como garantía. Su valor en USD lo fija el oráculo de precios; si no paga, cubre la deuda.'],
+      ['percent','APY','Rendimiento anualizado. 7.5% sobre 1 000 USD a 90 días ≈ 18.5 USD de interés. Puede ser de tasa fija o variable.'],
+      ['release_alert','Liquidación','Si el LTV supera el 95% (critical), la posición se liquida: se vende el colateral para cubrir la deuda. En R02 el sistema lo hace automáticamente.'],
+      ['bolt','Caché con TTL','Los precios se sirven desde memoria durante un TTL corto. Un HIT evita consultar el oráculo; el hit-rate mide su eficacia.'],
+      ['shield','Circuit breaker','Si el oráculo falla repetidamente, el breaker se ABRE y corta las llamadas para no propagar errores; se recupera en HALF_OPEN.'],
+    ];
+    const FAQS=[
+      ['¿DeFi360 maneja dinero real?','No. Es un entorno educativo totalmente simulado. Recibes 5 000 USD ficticios al registrarte.'],
+      ['¿Qué pasa si mi LTV llega a 95%?','Tu préstamo entra en liquidación automática: el colateral cubre la deuda y se notifica a ambas partes.'],
+      ['¿Cómo funciona el auto-match?','Defines tus preferencias (monto, APY, colateral, LTV, score) y el sistema empareja solicitudes compatibles.'],
+      ['¿Fija o variable?','La fija no cambia; la variable parte de un APY base y se reajusta cada 30 días.'],
+    ].map((f,i)=>({ q:f[0], a:f[1], open:s.faqOpen===i, toggle:()=>this.setState({faqOpen:s.faqOpen===i?-1:i}) }));
+
+    return {
+      isBorrow:s.view==='borrow', isLend:s.view==='lend', isPreferences:s.view==='preferences',
+      isSimulator:s.view==='simulator', isActivity:s.view==='activity', isEducation:s.view==='education',
+      isSystem:s.view==='system', isSupport:s.view==='support',
+      priceOpts,
+      // borrow
+      b:{ amount:b.amount, collType:b.collType, collAmount:b.collAmount, duration:b.duration,
+        setAmount:(e)=>this.setB('amount',+e.target.value||0), setType:(e)=>this.setB('collType',e.target.value),
+        setColl:(e)=>this.setB('collAmount',+e.target.value||0), setDur:(e)=>this.setB('duration',+e.target.value),
+        ltvText:this.pct(bLtv), ltvW:this.ltvW(bLtv), ltvColor:this.riskColor(bR.level),
+        riskClass:'risk-'+bR.level, riskIcon:this.riskIcon(bR.level), riskLabel:this.riskLabel(bR.level),
+        collValue:this.usd(bCollVal), interest:'+'+this.usd(bInt), total:this.usd(b.amount+bInt),
+        insuff:bInsuff, msg: bR.level==='critical'?'Riesgo crítico: liquidación inminente.':bR.level==='high'?'Precaución: LTV cerca del límite de liquidación.':bR.level==='medium'?'LTV elevado pero dentro del límite.':'LTV saludable, amplio margen.',
+        calloutClass: bR.level==='critical'||bR.level==='high'?'danger':bR.level==='medium'?'warn':'' },
+      bSetAmt:(v)=>this.setB('amount',v),
+      // lend
+      l:{ amount:l.amount, apy:l.apy, apyText:this.pct(l.apy), duration:l.duration, collType:l.collType, collAmount:l.collAmount,
+        setAmount:(e)=>this.setL('amount',+e.target.value||0), setApy:(e)=>this.setL('apy',+e.target.value), setDur:(e)=>this.setL('duration',+e.target.value),
+        setType:(e)=>this.setL('collType',e.target.value), setColl:(e)=>this.setL('collAmount',+e.target.value||0),
+        interest:'+'+this.usd0(lInt), total:this.usd(lTotal), perDay:'+'+this.usd(l.amount*(l.apy/100)/365),
+        capital:this.usd(l.amount), daily:lDaily, avail:this.usd(avail), insuff:lInsuff, blockText:this.usd0(l.amount) },
+      lSetAmt:(v)=>this.setL('amount',Math.min(v,avail)),
+      // simulator
+      sm:{ amount:sm.amount, collType:sm.collType, collAmount:sm.collAmount, shock:sm.shock, duration:sm.duration,
+        setAmount:(e)=>this.setS('amount',+e.target.value||0), setType:(e)=>this.setS('collType',e.target.value),
+        setColl:(e)=>this.setS('collAmount',+e.target.value||0), setShock:(e)=>this.setS('shock',+e.target.value), setDur:(e)=>this.setS('duration',+e.target.value),
+        shockText:(sm.shock>0?'+':'')+sm.shock+'%', ltvText:sLtv.toFixed(1), ltvW:this.ltvW(sLtv), ltvColor:this.riskColor(sR.level),
+        riskClass:'risk-'+sR.level, riskIcon:this.riskIcon(sR.level), riskLabel:this.riskLabel(sR.level),
+        basePrice:this.usd(base), shockedPrice:this.usd(shocked), collValue:this.usd(sCollVal), liqPrice:this.usd(liqPrice),
+        interest:'+'+this.usd(sInt), total:this.usd(sm.amount+sInt),
+        healthy:sR.level==='low'||sR.level==='medium',
+        msg: (sR.level==='low'||sR.level==='medium') ? ('Si '+sm.collType+' cae a '+this.usd(liqPrice)+' tu préstamo entra en liquidación.') : 'Posición en zona de liquidación. Reduce el préstamo o añade colateral.',
+        calloutClass:(sR.level==='low'||sR.level==='medium')?'':'danger' },
+      // prefs
+      pr:{ maxAmount:pr.maxAmount, minApy:pr.minApy, minApyText:this.pct(pr.minApy), maxLtv:pr.maxLtv, minCreditScore:pr.minCreditScore, autoMatch:pr.autoMatch,
+        autoClass:pr.autoMatch?'on':'', setMax:(e)=>this.setP('maxAmount',+e.target.value||0), setApy:(e)=>this.setP('minApy',+e.target.value),
+        setLtv:(e)=>this.setP('maxLtv',+e.target.value), setScore:(e)=>this.setP('minCreditScore',+e.target.value),
+        toggleAuto:()=>this.setP('autoMatch',!pr.autoMatch) },
+      collChips:COINS.map(c=>({ c, on:pr.collateralTypes.includes(c)?'on':'', toggle:()=>this.togColl(c) })),
+      savePrefs:()=>this.setState({view:'marketplace'}),
+      // ledger
+      ledger, statement,
+      // metrics
+      metrics,
+      // education
+      concepts:CONCEPTS.map(c=>({ icon:c[0], title:c[1], body:c[2] })),
+      riskRows:[['low','LTV < 75%','Posición saludable, amplio margen.','true'],['medium','LTV ≥ 75%','Vigila el precio del colateral.','true'],['high','LTV ≥ 90%','Genera alerta de riesgo.','false'],['critical','LTV ≥ 95%','Liquidación automática.','false']].map(r=>({ level:r[0], riskClass:'risk-'+r[0], riskIcon:this.riskIcon(r[0]), riskLabel:this.riskLabel(r[0]), range:r[1], desc:r[2], healthy:r[3], healthyColor:r[3]==='true'?'var(--risk-low)':'var(--risk-critical)' })),
+      faqs:FAQS,
+      // support
+      tickets, ticketCount:tickets.length,
+      sup:{ subject:s.support.subject, description:s.support.description, priority:s.support.priority,
+        setSubject:(e)=>this.setSup('subject',e.target.value), setDesc:(e)=>this.setSup('description',e.target.value) },
+      supPr:['low','medium','high','critical'].map(p=>({ p, label:{low:'Baja',medium:'Media',high:'Alta',critical:'Crítica'}[p], on:s.support.priority===p?'on':'', set:()=>this.setSup('priority',p) })),
+      submitTicket:()=>{ this.setSup('subject',''); this.setSup('description',''); },
+    };
+  }
+}
+</script>
+</body>
+</html>
